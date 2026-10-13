@@ -27,8 +27,9 @@ Ce projet est configuré pour se déployer en un **projet unique sur Vercel** h�
 ### Étape 1 : Importer le dépôt sur Vercel
 1. Rendez-vous sur votre dashboard [Vercel](https://vercel.com).
 2. Cliquez sur **Add New... → Project** et importez ce dépôt Git.
-3. **Important** : Laissez le **Root Directory** par défaut (`./`). Ne sélectionnez ni `frontend` ni `backend`.
-4. Vercel détectera automatiquement les commandes définies dans `vercel.json`.
+3. **Root Directory** : Laissez par défaut (`./`). Ne sélectionnez ni `frontend` ni `backend`.
+4. **Framework Preset** : Sélectionnez **Other** (ou laissez Vercel le détecter automatiquement via `"framework": null` défini dans `vercel.json`). *Ne sélectionnez pas "Vite"* dans la liste principale, car Vite chercherait alors sa configuration à la racine au lieu du sous-dossier `frontend/`.
+5. Vercel prendra automatiquement en compte les commandes `installCommand`, `buildCommand` et `outputDirectory` spécifiées dans `vercel.json`.
 
 ### Étape 2 : Configurer les Variables d'Environnement
 Dans **Settings → Environment Variables**, renseignez ces variables pour les environnements **Production** et **Preview** :
