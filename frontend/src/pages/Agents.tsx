@@ -231,8 +231,12 @@ export function AgentForm() {
   return <PersonnelForm key={id ?? "new"} agent={agent} />;
 }
 function PersonnelForm({ agent }: { agent?: Agent }) {
-  const { db, user, refreshPersonnel, notify } = useApp();
+  const { db, user, refreshPersonnel, notify, organisation } = useApp();
   const navigate = useNavigate();
+  const currentDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: organisation?.fuseau_horaire || "Indian/Antananarivo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
   const [form, setForm] = useState<PersonnelInput>({
     nom: agent?.lastName ?? "",
     prenom: agent?.firstName ?? "",
@@ -321,6 +325,7 @@ function PersonnelForm({ agent }: { agent?: Agent }) {
               <input
                 required
                 type="date"
+                max={currentDate}
                 value={form.date_naissance}
                 onChange={(e) =>
                   setForm({ ...form, date_naissance: e.target.value })
@@ -331,6 +336,7 @@ function PersonnelForm({ agent }: { agent?: Agent }) {
               <input
                 type="date"
                 min={form.date_naissance || undefined}
+                max={currentDate}
                 value={form.date_embauche ?? ""}
                 onChange={(e) =>
                   setForm({ ...form, date_embauche: e.target.value || null })

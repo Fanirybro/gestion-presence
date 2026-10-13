@@ -70,6 +70,7 @@ async function validatePersonnel(client, req, input, previous = {}) {
   if (data.date_embauche && data.date_embauche < data.date_naissance) fail(400, "L’embauche ne peut pas précéder la naissance.");
   const { rows: localDates } = await client.query("SELECT to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'YYYY-MM-DD') AS today FROM organisations WHERE id = $1", [req.user.organisation_id]);
   if (!localDates[0] || data.date_naissance > localDates[0].today) fail(400, "La date de naissance ne peut pas être dans le futur.");
+  if (data.date_embauche && data.date_embauche > localDates[0].today) fail(400, "La date d’embauche ne peut pas être dans le futur.");
   if (data.poste == null || data.poste === "") data.poste = null;
   else data.poste = name(data.poste, "Poste");
   if (data.actif === undefined) data.actif = true;

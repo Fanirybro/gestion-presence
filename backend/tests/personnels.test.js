@@ -149,7 +149,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
     }
   });
   await t.test("dates manquantes, impossibles, futures et embauche avant naissance refusées", async () => {
-    for (const override of [{ date_naissance: null }, { date_naissance: "2025-02-29" }, { date_naissance: "2026-10-06" }, { date_embauche: "1990-01-01" }]) {
+    for (const override of [{ date_naissance: null }, { date_naissance: "2025-02-29" }, { date_naissance: "2026-10-06" }, { date_embauche: "1990-01-01" }, { date_embauche: "2026-10-06" }]) {
       assert.equal((await request("/personnels", "POST", { ...input, ...override })).status, 400);
     }
   });

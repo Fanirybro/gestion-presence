@@ -64,7 +64,8 @@ export async function reconcileAbsences(client, org, start, end) {
           (NOT h.fin_jour_suivant AND a.heure_debut <= h.heure_debut AND a.heure_fin >= h.heure_fin)))) AS justified
     FROM days d JOIN organisations o ON o.id = $1
     JOIN personnel p ON p.organisation_id = o.id AND p.actif = true
-      AND d.day >= greatest(coalesce(p.date_embauche, (p.created_at AT TIME ZONE o.fuseau_horaire)::date), (p.created_at AT TIME ZONE o.fuseau_horaire)::date)
+      AND d.day >= (p.created_at AT TIME ZONE o.fuseau_horaire)::date
+      AND (p.date_embauche IS NULL OR d.day >= least(p.date_embauche, (CURRENT_TIMESTAMP AT TIME ZONE o.fuseau_horaire)::date))
     JOIN horaires_travail h ON h.organisation_id = o.id AND h.jour_travaille = true AND h.jour_semaine = extract(dow FROM d.day)
     GROUP BY p.id, d.day
   ) INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, statut, retard_minutes, source)
