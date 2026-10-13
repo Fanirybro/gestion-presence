@@ -1,0 +1,14 @@
+import { Router } from "express";
+import { rateLimit } from "express-rate-limit";
+import { requireAuth, requireOrganisation, requireRole } from "../middlewares/authMiddlewares.js";
+import { getBadge, createBadge, revokeBadge, prepareBadges, scanBadge, getBadgeEvents } from "../controllers/QrCodeControllers.js";
+const router = Router();
+router.use(requireAuth, requireOrganisation);
+router.get("/events", getBadgeEvents);
+router.post("/scan", rateLimit({ windowMs: 60000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }), scanBadge);
+router.use(requireRole("COORDINATOR"));
+router.post("/prepare", prepareBadges);
+router.get("/personnel/:id", getBadge);
+router.post("/personnel/:id", createBadge);
+router.post("/personnel/:id/revoke", revokeBadge);
+export default router;

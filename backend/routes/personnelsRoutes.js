@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { requireAuth, requireOrganisation, requireRole } from "../middlewares/authMiddlewares.js";
+import { getPersonnels, getPersonnel, createPersonnel, updatePersonnel, getPersonnelMembers } from "../controllers/personnelsControllers.js";
+const router = Router();
+router.use(requireAuth, requireOrganisation);
+router.get("/", getPersonnels);
+router.get("/membres", requireRole("COORDINATOR"), getPersonnelMembers);
+router.get("/:id", getPersonnel);
+router.post("/", requireRole("COORDINATOR"), createPersonnel);
+router.patch("/:id", requireRole("COORDINATOR"), updatePersonnel);
+export default router;

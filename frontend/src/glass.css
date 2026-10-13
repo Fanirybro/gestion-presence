@@ -1,0 +1,431 @@
+/* Shared visual theme; layout, role sizing and print documents stay in their
+   respective stylesheets. Blur is reserved for the shell and overlay surfaces. */
+:root {
+  --green: #17664f;
+  --ink: #203b33;
+  --muted: #536b61;
+  --line: #c9ddd4;
+  --bg: #eaf3ef;
+  --glass-fill: rgb(255 255 255 / 68%);
+  --glass-solid: #f4f9f6;
+  --glass-edge: rgb(255 255 255 / 88%);
+  --glass-shadow: 0 12px 32px #244c3910, inset 0 1px 0 #fff;
+  --radius-panel: 14px;
+  --radius-control: 8px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+@media screen {
+  body {
+    background:
+      radial-gradient(ellipse at 8% 8%, #b9decd 0, transparent 48%),
+      radial-gradient(ellipse at 95% 35%, #cce1ed 0, transparent 48%),
+      radial-gradient(ellipse at 55% 95%, #e3ead0 0, transparent 50%), var(--bg);
+    background-attachment: fixed;
+  }
+
+  .sidebar,
+  .secretary-space .sidebar {
+    inset: 0 auto 0 0;
+    width: 248px;
+    margin: 0;
+    border: 1px solid var(--glass-edge);
+    border-radius: 0;
+    background: rgb(244 250 247 / 76%);
+    color: var(--ink);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    backdrop-filter: blur(18px) saturate(130%);
+  }
+
+  .sidebar .brand {
+    color: var(--green);
+  }
+  .sidebar
+    :is(
+      .brand small,
+      .workspace small,
+      nav h2,
+      .sidebar-profile small,
+      .sidebar-bottom small
+    ) {
+    color: var(--muted);
+  }
+  .sidebar
+    :is(.sidebar-profile strong, .workspace strong, .icon-button, nav a svg) {
+    color: var(--ink);
+  }
+  .sidebar :is(.workspace, .sidebar-profile, .sidebar-bottom) {
+    border-color: var(--line);
+  }
+  .workspace {
+    background: #ffffff60;
+    border-radius: 10px;
+  }
+  .workspace-icon {
+    background: #dbece3;
+    color: var(--green);
+    border-radius: 8px;
+  }
+  .brand-mark {
+    border-radius: 14px;
+    color: white;
+    box-shadow: inset 0 1px 0 #ffffff66;
+  }
+  .sidebar nav a,
+  .nav-active-indicator {
+    border-radius: var(--radius-control);
+  }
+  .sidebar nav a:hover,
+  .secretary-space .sidebar nav a:hover {
+    background: #d5e9df;
+  }
+  .sidebar nav a.active,
+  .secretary-space .sidebar nav a.active {
+    background: transparent;
+    color: white;
+  }
+  .sidebar nav a.active svg {
+    color: white;
+  }
+  .nav-active-indicator {
+    background: linear-gradient(125deg, #28795e, #175c49);
+    box-shadow:
+      0 5px 12px #17664f25,
+      inset 0 1px 0 #ffffff40;
+  }
+
+  .topbar,
+  .secretary-simple .topbar {
+    margin: 0;
+    width: 100%;
+    border: 1px solid var(--glass-edge);
+    border-radius: 0;
+    background: var(--glass-fill);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    backdrop-filter: blur(14px) saturate(130%);
+  }
+
+  :is(
+    .stat-card,
+    .dashboard-middle,
+    .data-section,
+    .form-surface,
+    .detail-strip,
+    .scanner-section,
+    .recent-scans,
+    .settings-section,
+    .report-paper,
+    .qr-badge,
+    .secretary-action,
+    .login-content
+  ),
+  .secretary-space :is(.stat-card, .data-section, .report-paper, .chart-card) {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-edge);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--glass-shadow);
+  }
+  .stat-card:is(.green, .amber, .rose) {
+    background: var(--glass-fill);
+  }
+  :is(.data-section, .dashboard-middle, .recent-scans, .qr-badge) {
+    overflow: hidden;
+  }
+  .secretary-space .section-heading {
+    background: #ffffff36;
+  }
+  .secretary-space .filters {
+    background: #ffffff70;
+    border-color: var(--glass-edge);
+    border-radius: 12px;
+  }
+  th {
+    background: #eaf3ee99;
+    color: #536b61;
+  }
+  td {
+    color: #4a6257;
+    border-bottom-color: #dce8e180;
+  }
+  tbody tr:hover {
+    background: #ffffff85;
+  }
+  .pagination {
+    border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+  }
+
+  .button,
+  .date-chip,
+  .badge,
+  .count,
+  .demo-label {
+    border-radius: var(--radius-control);
+  }
+  .button {
+    background: #ffffffbf;
+    border-color: #c6dbd0;
+  }
+  .button:hover {
+    background: #f4faf6;
+  }
+  .button.primary,
+  .secretary-action.featured {
+    color: white;
+    background: linear-gradient(125deg, #28795e, #175c49);
+    border-color: #ffffff40;
+    box-shadow:
+      0 5px 14px #17664f20,
+      inset 0 1px 0 #ffffff40;
+  }
+  .button.primary:hover,
+  .secretary-action.featured:hover {
+    background: #175c49;
+  }
+  .icon-button {
+    border-radius: var(--radius-control);
+  }
+  input:not([type="checkbox"]),
+  select,
+  textarea,
+  .search-input,
+  .password-field {
+    border-radius: var(--radius-control);
+    background: #ffffffb8;
+  }
+  .search-input input,
+  .password-field input {
+    background: transparent;
+  }
+  input::placeholder {
+    color: #63786d;
+  }
+  select option {
+    background: var(--glass-solid);
+    color: var(--ink);
+  }
+  .segmented,
+  .secretary-mode > div {
+    border-radius: var(--radius-control);
+    background: #dcebe380;
+  }
+  .segmented button,
+  .secretary-mode button {
+    border-radius: var(--radius-control);
+  }
+  .scan-result,
+  .form-error,
+  .secretary-help p {
+    border-radius: 10px;
+  }
+  .camera-frame,
+  .simple-scan .camera-frame {
+    border-radius: 14px;
+    border-color: #b8d2c5;
+    background: radial-gradient(ellipse at top, #ffffffb8, #d4e7dcaa);
+    box-shadow: inset 0 2px 8px #28543c0a;
+  }
+  .scan-target {
+    border-radius: 14px;
+  }
+  .camera-placeholder h3 {
+    color: var(--muted);
+  }
+  .simple-scan .scanner-section {
+    box-shadow: none;
+  }
+  .simple-scan .scan-help > summary,
+  .simple-scan .scan-help[open] {
+    border-radius: var(--radius-panel);
+  }
+  .simple-scan .scan-help[open] {
+    background: var(--glass-fill);
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-shadow);
+  }
+  .secretary-action:hover {
+    background: #f4faf6;
+    border-color: #99bfac;
+  }
+  .qr-badge-header {
+    border-radius: calc(var(--radius-panel) - 1px)
+      calc(var(--radius-panel) - 1px) 0 0;
+  }
+  .login-page {
+    background: transparent;
+  }
+  .login-content {
+    width: 460px;
+    padding: 32px;
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    backdrop-filter: blur(18px) saturate(130%);
+  }
+  .login-content > p,
+  .demo-access small,
+  .login-page > footer {
+    color: var(--muted);
+  }
+  dialog {
+    border-radius: 16px;
+    border-color: var(--glass-edge);
+    background: rgb(244 249 246 / 94%);
+    box-shadow:
+      0 24px 80px #173b3333,
+      inset 0 1px 0 white;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+  dialog::backdrop {
+    background: #193e3559;
+  }
+  .toast {
+    border-radius: 12px;
+    box-shadow: 0 12px 36px #173b3326;
+  }
+  .app-footer {
+    border-color: var(--line);
+  }
+
+  @media (max-width: 1200px) {
+    .sidebar,
+    .secretary-space .sidebar {
+      width: 220px;
+    }
+  }
+  @media (max-width: 1000px) {
+    .sidebar,
+    .secretary-space .sidebar {
+      width: 200px;
+    }
+  }
+  @media (max-width: 760px) {
+    :root {
+      --radius-panel: 12px;
+    }
+    .sidebar,
+    .secretary-space .sidebar {
+      width: 248px;
+      max-width: 100vw;
+    }
+    .sidebar:not(.open) {
+      transform: translateX(-100%);
+    }
+    .sidebar .mobile-close {
+      color: var(--ink);
+    }
+    .topbar,
+    .secretary-simple .topbar {
+      padding-inline: 14px;
+    }
+    .login-content {
+      padding: 24px;
+      margin-top: 24px;
+    }
+  }
+}
+
+/* Solid tokens also cover nested surfaces without multiplying blur layers. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-fill: var(--glass-solid);
+  }
+  .sidebar,
+  .secretary-space .sidebar,
+  .topbar,
+  .secretary-simple .topbar,
+  .login-content,
+  dialog {
+    background: var(--glass-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root {
+    --glass-fill: var(--glass-solid);
+  }
+  .sidebar,
+  .secretary-space .sidebar,
+  dialog {
+    background: var(--glass-solid);
+  }
+}
+
+/* The icon rail is desktop-only; mobile keeps the full navigation drawer. */
+.sidebar-toggle {
+  display: none;
+}
+@media screen and (min-width: 761px) {
+  .sidebar .sidebar-toggle {
+    display: grid;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .sidebar .mobile-brand {
+    display: none;
+  }
+  .brand-toggle-icon {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+  }
+  .sidebar-toggle:is(:hover, :focus) .brand-logo {
+    opacity: 0;
+  }
+  .sidebar-toggle:is(:hover, :focus) .brand-toggle-icon {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .sidebar-toggle .brand-logo {
+      opacity: 0;
+    }
+    .sidebar-toggle .brand-toggle-icon {
+      opacity: 1;
+    }
+  }
+  .sidebar-collapsed .sidebar {
+    width: 76px;
+  }
+  .sidebar-collapsed .main-shell {
+    margin-left: 76px;
+  }
+  .sidebar-collapsed .sidebar .brand {
+    justify-content: center;
+    padding: 26px 0;
+  }
+  .sidebar-collapsed .sidebar .brand-name,
+  .sidebar-collapsed .sidebar .nav-label,
+  .sidebar-collapsed .sidebar .nav-live,
+  .sidebar-collapsed .sidebar nav h2,
+  .sidebar-collapsed .sidebar-profile > a > span:last-child {
+    display: none;
+  }
+  .sidebar-collapsed .sidebar nav {
+    padding-inline: 12px;
+  }
+  .sidebar-collapsed .sidebar nav a {
+    justify-content: center;
+    min-height: 46px;
+    padding: 12px;
+    gap: 0;
+  }
+  .sidebar-collapsed .sidebar nav section + section {
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .sidebar-collapsed .sidebar-profile {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 8px;
+  }
+  .sidebar-collapsed .sidebar-profile > a {
+    flex: none;
+  }
+}

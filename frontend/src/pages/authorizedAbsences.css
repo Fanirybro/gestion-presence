@@ -1,0 +1,53 @@
+.absence-demo {
+  color: #405c50;
+  margin-bottom: 22px;
+}
+.authorized-absences .absence-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.absence-filters .field {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.absence-filters select {
+  width: 100%;
+}
+.absence-type {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.absence-cancelled {
+  color: #893345;
+  font-size: 14px;
+}
+.absence-remark {
+  display: block;
+  white-space: normal;
+  min-width: 140px;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.absence-error {
+  padding: 24px;
+  color: #893345;
+}
+.absence-error .button {
+  margin-top: 16px;
+}
+.absence-form {
+  color: #203b33;
+}
+.absence-form footer {
+  flex-wrap: wrap;
+}
+.authorized-absences .actions {
+  flex-wrap: wrap;
+}
+.authorized-absences .form-error {
+  margin-bottom: 20px;
+}

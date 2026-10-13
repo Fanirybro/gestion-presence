@@ -1,0 +1,362 @@
+:root {
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-fast: 120ms;
+  --motion-normal: 200ms;
+}
+
+/* Skeletons reserve the final layout; only their highlight is composited. */
+.skeleton {
+  display: block;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  border-radius: 5px;
+  background: #e8edea;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 10%,
+    #ffffffa6 50%,
+    transparent 90%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-sweep 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+.skeleton-avatar {
+  border-radius: 50%;
+}
+.skeleton-heading {
+  width: 350px;
+  max-width: 100%;
+  display: grid;
+  gap: 12px;
+}
+.skeleton-person {
+  width: 125px;
+  display: grid;
+  gap: 7px;
+}
+.skeleton-value {
+  margin: 16px 0;
+}
+.skeleton-panels {
+  padding: 22px;
+}
+.skeleton-surface {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 22px;
+}
+.skeleton-form > .skeleton {
+  margin-bottom: 24px;
+}
+.skeleton-table table {
+  table-layout: fixed;
+  min-width: 650px;
+}
+.skeleton-table td {
+  height: 66px;
+}
+.skeleton-table td:first-child {
+  width: 220px;
+}
+.skeleton-navigation {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+.bootstrap-skeleton .sidebar .skeleton {
+  background: #38443d;
+}
+.bootstrap-skeleton .sidebar .skeleton::after {
+  opacity: 0.08;
+}
+.page-skeleton {
+  min-height: 560px;
+}
+.route-content {
+  min-width: 0;
+}
+.route-focus:focus {
+  outline: none;
+}
+.qr-image-slot {
+  width: 240px;
+  height: 240px;
+  max-width: 100%;
+  margin: 15px 0;
+  display: grid;
+  place-items: center;
+}
+.qr-badge .qr-image-slot img {
+  margin: 0;
+  animation: content-fade 160ms ease-out;
+}
+.qr-image-slot [role="alert"] {
+  font-size: 12px;
+}
+.qr-image-slot .button {
+  margin-top: 12px;
+}
+.export-button {
+  min-width: 177px;
+}
+.busy-icon {
+  animation: busy-spin 0.9s linear infinite;
+}
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes content-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animated-heading {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.25em;
+}
+.word-mask {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.word-mask > span {
+  display: inline-block;
+  transform-origin: left bottom;
+}
+.metric-motion {
+  min-width: 0;
+}
+.metric-motion > .stat-card {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
+.rolling-number {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  vertical-align: bottom;
+}
+.digit-window {
+  display: block;
+  width: 0.66em;
+  height: 1.2em;
+  overflow: hidden;
+}
+.digit-reel {
+  display: flex;
+  flex-direction: column;
+}
+.digit-reel > span {
+  display: block;
+  height: 1.2em;
+  line-height: 1.2;
+  flex-shrink: 0;
+  text-align: center;
+}
+.animated-meter {
+  height: 5px;
+  background: #e8edea;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.animated-meter > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #34765a;
+  transform-origin: left;
+}
+.bar-stack {
+  transform-origin: bottom;
+}
+
+.sidebar nav a {
+  position: relative;
+  isolation: auto;
+}
+.sidebar nav {
+  position: relative;
+  isolation: isolate;
+}
+.sidebar nav a > svg,
+.sidebar nav a > .nav-label,
+.sidebar nav a > .nav-live {
+  position: relative;
+  z-index: 1;
+}
+.sidebar nav a.active {
+  background: transparent;
+}
+.nav-active-indicator {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: #34765a;
+  z-index: -1;
+  pointer-events: none;
+}
+.sidebar nav a .nav-label {
+  position: relative;
+}
+.button,
+.icon-button,
+.stat-card {
+  transition:
+    transform var(--motion-fast) var(--ease-enter),
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+.button:active:not(:disabled),
+.icon-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.button svg,
+.icon-button svg,
+.text-link svg {
+  transition: transform var(--motion-normal) var(--ease-enter);
+}
+.stat-card {
+  position: relative;
+}
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 5px 18px #234c3910;
+  opacity: 0;
+  transition: opacity var(--motion-normal);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .stat-card:hover {
+    transform: translateY(-2px);
+  }
+  .stat-card:hover::after {
+    opacity: 1;
+  }
+  .text-link:hover svg {
+    transform: translateX(3px);
+  }
+  .button:hover:not(:disabled) svg {
+    transform: translateY(-1px);
+  }
+}
+.toast {
+  gap: 12px;
+  align-items: center;
+}
+.toast > span {
+  flex: 1;
+}
+.toast button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+.toast button:hover {
+  background: #ffffff18;
+}
+dialog {
+  transform-origin: center;
+}
+dialog::backdrop {
+  animation: content-fade 160ms ease-out;
+}
+@media (max-width: 760px) {
+  .bootstrap-skeleton .sidebar {
+    display: none;
+  }
+  .sidebar {
+    transition:
+      transform 220ms var(--ease-enter),
+      visibility 220ms;
+  }
+  .sidebar.open {
+    transition:
+      transform 220ms var(--ease-enter),
+      visibility 0ms;
+  }
+  .skeleton-heading {
+    width: 100%;
+  }
+  .skeleton-panels {
+    padding: 16px;
+  }
+  .skeleton-surface {
+    padding: 16px;
+  }
+  .page-skeleton .page-heading > .skeleton {
+    width: 145px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metric-motion {
+    transform: none !important;
+  }
+  .skeleton::after {
+    animation: none !important;
+    opacity: 0;
+  }
+  .button,
+  .icon-button,
+  .stat-card {
+    transform: none !important;
+    transition:
+      background-color 120ms,
+      color 120ms !important;
+  }
+  .table-page,
+  .qr-badge .qr-image-slot img {
+    animation: content-fade 120ms ease-out !important;
+  }
+  .sidebar {
+    transition:
+      visibility 0ms,
+      opacity 120ms !important;
+    opacity: 0;
+  }
+  .sidebar.open {
+    opacity: 1;
+  }
+  .busy-icon {
+    animation: busy-spin 1.5s linear infinite !important;
+  }
+}
+@media (min-width: 761px) and (prefers-reduced-motion: reduce) {
+  .sidebar {
+    opacity: 1;
+  }
+}
+@media print {
+  .route-content {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+}

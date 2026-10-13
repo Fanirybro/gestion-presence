@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { requireAuth, requireOrganisation, requireRole } from "../middlewares/authMiddlewares.js";
+import { listPresences, getPresence, correctPresence, justifyAbsence } from "../controllers/presenceControllers.js";
+const router = Router();
+router.use(requireAuth, requireOrganisation);
+router.get("/", listPresences);
+router.get("/:id", getPresence);
+router.use(requireRole("COORDINATOR"));
+router.patch("/:id", correctPresence);
+router.post("/:id/justify", justifyAbsence);
+export default router;
