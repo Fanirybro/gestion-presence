@@ -26,3 +26,9 @@ playwright-report
 *.sw?
 
 backend/.env
+
+# files pdf
+Architecture_technique_Gestion_Presence_QR_sans_Prisma.md
+Architecture_technique_Gestion_Presence_QR_sans_Prisma.pdf
+Architecture_technique_Gestion_Presence_QR.docx
+PRD — Système de gestion de présence du personnel par QR Code_2.pdf

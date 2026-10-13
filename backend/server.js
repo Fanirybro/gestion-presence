@@ -17,11 +17,20 @@ import { createTrace, errorSummary } from "./utils/diagnostics.js";
 
 export function createApp({ sessionStore } = {}) {
   const app = express();
-  const origins = (process.env.FRONTEND_URL ?? "http://localhost:5173").split(",").map((value) => value.trim());
+  const origins = (process.env.FRONTEND_URL ?? "http://localhost:5173")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (process.env.VERCEL_URL) {
+    const vercelOrigin = `https://${process.env.VERCEL_URL}`;
+    if (!origins.includes(vercelOrigin)) origins.push(vercelOrigin);
+  }
   if (process.env.TRUST_PROXY_HOPS) {
     const hops = Number(process.env.TRUST_PROXY_HOPS);
     if (!Number.isInteger(hops) || hops < 1) throw new Error("TRUST_PROXY_HOPS invalide.");
     app.set("trust proxy", hops);
+  } else if (process.env.VERCEL) {
+    app.set("trust proxy", 1);
   }
   app.disable("x-powered-by");
   app.use((req, res, next) => {

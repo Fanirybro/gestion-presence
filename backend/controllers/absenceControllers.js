@@ -8,7 +8,9 @@ async function find(client, org, id) {
   if (!row) fail(404,"Absence autorisée introuvable.");
   return row;
 }
+
 export const listAbsences = presenceController(async (req, client) => ({ absences: await list(client,req.user.organisation_id) }));
+
 export const saveAbsence = presenceController(async (req, client) => {
   const b=inputBody(req,["agentId","type","start","end","from","to","remark","version"]), org=req.user.organisation_id;
   if (!validId(b.agentId) || !["LEAVE","PERMISSION"].includes(b.type) || !validDate(b.start) || !validDate(b.end) || b.end<b.start || Date.parse(b.end)-Date.parse(b.start)>366*86400000
@@ -34,6 +36,7 @@ export const saveAbsence = presenceController(async (req, client) => {
   await auditPresence(client,req,'absences_autorisees',id,before?'UPDATE':'CREATE',before,after,b.remark.trim());
   return {absences:await list(client,org)};
 },{coordinator:true});
+
 export const cancelAbsence = presenceController(async (req,client)=>{
   const b=inputBody(req,["version"]),org=req.user.organisation_id;
   const before=await find(client,org,req.params.id);

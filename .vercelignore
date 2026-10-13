@@ -1,0 +1,9 @@
+.git
+**/node_modules
+frontend/test-results
+frontend/playwright-report
+*.docx
+*.pdf
+backend/.env
+frontend/.env
+database/
