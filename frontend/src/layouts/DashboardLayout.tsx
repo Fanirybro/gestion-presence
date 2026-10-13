@@ -20,9 +20,6 @@ import {
   Users,
   CalendarCheck,
   CalendarDays,
-  UserX,
-  Clock3,
-  History,
   Files,
   Settings,
   ShieldCheck,
@@ -46,20 +43,17 @@ const groups = [
     ],
   },
   {
-    label: "SUIVI DES PRÉSENCES",
-    items: [
-      { path: "/presences", name: "Présences", icon: CalendarCheck },
-      { path: "/absences", name: "Absences", icon: UserX },
-      { path: "/retards", name: "Retards", icon: Clock3 },
-      { path: "/history", name: "Historique", icon: History },
-      { path: "/reports", name: "Rapports", icon: Files },
-      {
-        path: "/conges-permissions",
-        name: "Congés et permissions",
-        icon: CalendarDays,
-      },
-    ],
-  },
+  label: "SUIVI DES PRÉSENCES",
+  items: [
+    { path: "/presences", name: "Présences", icon: CalendarCheck },
+    { path: "/reports", name: "Rapports", icon: Files },
+    {
+      path: "/conges-permissions",
+      name: "Congés et permissions",
+      icon: CalendarDays,
+    },
+  ],
+},
   {
     label: "ADMINISTRATION",
     items: [

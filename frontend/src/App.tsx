@@ -1,4 +1,4 @@
-import { Component, lazy, type ReactNode } from "react";
+﻿import { Component, lazy, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
 import {
   BrowserRouter,
@@ -162,18 +162,6 @@ export default function App() {
                     <Route
                       path="/presences/:id"
                       element={<PresenceDetails />}
-                    />
-                    <Route
-                      path="/absences"
-                      element={<Presences key="absences" mode="absences" />}
-                    />
-                    <Route
-                      path="/retards"
-                      element={<Presences key="retards" mode="retards" />}
-                    />
-                    <Route
-                      path="/history"
-                      element={<Presences key="history" mode="history" />}
                     />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/reports/daily" element={<Reports />} />

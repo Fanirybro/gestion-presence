@@ -1892,3 +1892,188 @@ td {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════
+   Reports module — rp-* namespace
+   ═══════════════════════════════════════════════════ */
+
+/* ── Outer container ── */
+.rp-container {
+  max-width: 860px;
+  border: 1px solid var(--line, #e4e9e5);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+/* ── Tab bar ── */
+.rp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line, #e4e9e5);
+  background: #f4f7f5;
+  padding: 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.rp-tabs::-webkit-scrollbar { display: none; }
+
+.rp-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7f73;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -1px;
+  transition: color .15s, border-color .15s;
+}
+.rp-tab:hover { color: #2a382e; }
+.rp-tab.active {
+  color: var(--accent, #227057);
+  border-bottom-color: var(--accent, #227057);
+  background: #fff;
+  border-radius: 6px 6px 0 0;
+}
+
+/* ── Panel wrapper ── */
+.rp-panels {
+  padding: 28px 32px;
+}
+
+/* ── Panel inner layout ── */
+.rp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.rp-panel-desc {
+  font-size: 13px;
+  color: #7a8d81;
+  line-height: 1.55;
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line, #e4e9e5);
+}
+
+/* ── Filters row inside panel ── */
+.rp-filters {
+  padding: 0;
+  border: none;
+}
+
+/* ── Summary table ── */
+.rp-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line, #e4e9e5);
+  border-radius: 10px;
+}
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rp-table th {
+  background: #f4f7f5;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5e7268;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line, #e4e9e5);
+}
+.rp-table td {
+  padding: 9px 14px;
+  color: #2a382e;
+  border-bottom: 1px solid #f0f3f1;
+  vertical-align: middle;
+}
+.rp-table tr:last-child td { border-bottom: none; }
+.rp-name { font-weight: 500; }
+.rp-num { text-align: right; font-variant-numeric: tabular-nums; }
+.rp-warn { color: #b45309; font-weight: 600; }
+.rp-danger { color: #c0392b; font-weight: 600; }
+
+/* ── Individual KPIs ── */
+.rp-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.rp-kpi {
+  flex: 1 1 120px;
+  background: #f4f7f5;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.rp-kpi strong {
+  font-size: 22px;
+  font-family: Manrope, sans-serif;
+  font-weight: 700;
+  line-height: 1;
+}
+.rp-kpi span {
+  font-size: 11px;
+  color: #7a8d81;
+}
+.rp-kpi-warn strong { color: #b45309; }
+.rp-kpi-danger strong { color: #c0392b; }
+
+/* ── Select with icon overlay ── */
+.rp-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.rp-select-wrap select { padding-right: 28px; width: 100%; }
+.rp-select-icon {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+  color: #7a8d81;
+}
+
+/* ── Action buttons row ── */
+.rp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+/* ── Empty state ── */
+.rp-empty {
+  font-size: 13px;
+  color: #93a39a;
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
+}
+
+/* ── Secretary notice ── */
+.rp-simple-notice {
+  font-size: 14px;
+  color: #7a8d81;
+  padding: 24px 0;
+  margin: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .rp-panels { padding: 20px 16px; }
+  .rp-tab { padding: 12px 14px; font-size: 12px; }
+  .rp-actions { flex-direction: column; }
+  .rp-actions .button { width: 100%; justify-content: center; }
+  .rp-kpi { flex: 1 1 calc(50% - 6px); }
+}
