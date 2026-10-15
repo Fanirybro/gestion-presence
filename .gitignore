@@ -19,7 +19,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-python-service/models/*.onnx
 
 # Logs & Système
 *.log
