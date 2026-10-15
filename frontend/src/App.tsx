@@ -1,4 +1,4 @@
-﻿import { Component, lazy, type ReactNode } from "react";
+import { Component, lazy, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
 import {
   BrowserRouter,
@@ -44,17 +44,23 @@ const Presences = lazy(() =>
 const PresenceDetails = lazy(() =>
   pageModules.presences().then((m) => ({ default: m.PresenceDetails })),
 );
-const Profile = lazy(() =>
-  pageModules.admin().then((m) => ({ default: m.Profile })),
-);
+const Profile = lazy(pageModules.profile);
 const SettingsPage = lazy(() =>
   pageModules.admin().then((m) => ({ default: m.SettingsPage })),
 );
+const DepartmentsPage = lazy(pageModules.departments);
+const SchedulesPage = lazy(pageModules.schedules);
 const UsersPage = lazy(() =>
   pageModules.admin().then((m) => ({ default: m.UsersPage })),
 );
 const UserCreate = lazy(() =>
   pageModules.admin().then((m) => ({ default: m.UserCreate })),
+);
+const FaceCheckInPage = lazy(
+  () => import("./modules/face-recognition/FaceCheckInPage"),
+);
+const FaceEnrollComponent = lazy(
+  () => import("./modules/face-recognition/FaceEnrollComponent"),
 );
 const client = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -112,17 +118,20 @@ function ErrorPage({ forbidden = false }: { forbidden?: boolean }) {
 }
 class ErrorBoundary extends Component<
   { children: ReactNode },
-  { failed: boolean }
+  { failed: boolean; error?: Error }
 > {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+  override state: { failed: boolean; error?: Error } = { failed: false };
+  static getDerivedStateFromError(error: Error) {
+    return { failed: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: unknown) {
+    console.error("ErrorBoundary caught:", error, errorInfo);
   }
   render() {
     return this.state.failed ? (
       <div className="error-page">
         <h1>Une erreur est survenue</h1>
-        <p>Rechargez la page pour réessayer.</p>
+        <p>{this.state.error?.message || "Rechargez la page pour réessayer."}</p>
         <button
           className="button primary"
           onClick={() => window.location.reload()}
@@ -150,17 +159,28 @@ export default function App() {
                   <Route element={<DashboardLayout />}>
                     <Route index element={<Dashboard />} />
                     <Route path="/scan" element={<Scan />} />
+                    <Route path="/kiosk" element={<FaceCheckInPage />} />
                     <Route
                       path="/conges-permissions"
                       element={<AuthorizedAbsences />}
                     />
-                    <Route path="/presences" element={<Presences />} />
+                    <Route path="/presences" element={<Presences mode="presences" />} />
+                    <Route path="/retards" element={<Presences mode="retards" />} />
+                    <Route path="/absences" element={<Presences mode="absences" />} />
                     <Route
                       path="/presences/ajouter"
                       element={<ForgottenAttendance />}
                     />
                     <Route
                       path="/presences/:id"
+                      element={<PresenceDetails />}
+                    />
+                    <Route
+                      path="/retards/:id"
+                      element={<PresenceDetails />}
+                    />
+                    <Route
+                      path="/absences/:id"
                       element={<PresenceDetails />}
                     />
                     <Route path="/reports" element={<Reports />} />
@@ -177,9 +197,21 @@ export default function App() {
                       <Route path="/agents/:id" element={<AgentDetails />} />
                       <Route path="/agents/:id/edit" element={<AgentForm />} />
                       <Route path="/agents/:id/qr" element={<AgentQr />} />
+                      <Route path="/departments" element={<DepartmentsPage />} />
+                      <Route
+                        path="/departements"
+                        element={<Navigate to="/departments" replace />}
+                      />
+                      <Route path="/schedules" element={<SchedulesPage />} />
+                      <Route
+                        path="/horaires"
+                        element={<Navigate to="/schedules" replace />}
+                      />
                       <Route path="/users" element={<UsersPage />} />
                       <Route path="/users/new" element={<UserCreate />} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/admin/face-setup" element={<FaceEnrollComponent />} />
+                      <Route path="/face-enroll" element={<Navigate to="/admin/face-setup" replace />} />
                     </Route>
                     <Route path="*" element={<ErrorPage />} />
                   </Route>

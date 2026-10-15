@@ -51,3 +51,173 @@
 .authorized-absences .form-error {
   margin-bottom: 20px;
 }
+
+/* Unified Pill Filter Bar (styled like modern SaaS / Airbnb search bar) */
+.unified-filter-bar {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dfe5e1;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 52px;
+  padding: 4px 10px 4px 14px;
+  margin-bottom: 22px;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.unified-filter-bar:focus-within {
+  border-color: #227057;
+  box-shadow: 0 4px 18px rgba(34, 112, 87, 0.12), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.unified-filter-divider {
+  width: 1px;
+  height: 26px;
+  background: #e4ece7;
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+.unified-filter-segment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  position: relative;
+}
+
+.unified-filter-segment.segment-agent {
+  flex: 1.5;
+  min-width: 200px;
+}
+
+.unified-filter-segment.segment-date {
+  flex: 1;
+  min-width: 155px;
+}
+
+.unified-filter-segment.segment-dept {
+  flex: 1.1;
+  min-width: 170px;
+}
+
+.segment-icon {
+  color: #7d8e84;
+  flex-shrink: 0;
+}
+
+.segment-input-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.segment-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #72847a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.unified-date-input {
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1e2b24 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 22px !important;
+  cursor: pointer;
+  width: 100%;
+}
+
+.unified-select {
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1e2b24 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 22px !important;
+  cursor: pointer;
+  width: 100%;
+}
+
+.segment-clear-btn {
+  border: none;
+  background: #edf3f0;
+  color: #55665d;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.segment-clear-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.unified-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: #eef6f2;
+  color: #227057;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.unified-reset-btn:hover {
+  background: #deeee5;
+  color: #164e3c;
+}
+
+@media (max-width: 960px) {
+  .unified-filter-bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .unified-filter-divider {
+    display: none;
+  }
+  .unified-filter-segment {
+    width: 100%;
+    min-width: 100%;
+    border-bottom: 1px solid #f0f4f1;
+    padding-bottom: 6px;
+  }
+  .unified-filter-segment:last-child {
+    border-bottom: none;
+  }
+}
+

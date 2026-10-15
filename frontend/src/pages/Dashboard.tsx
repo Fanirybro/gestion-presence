@@ -2,7 +2,6 @@ import { useSecretaryMode } from "../app/secretaryMode";
 import SecretaryHome from "./SecretaryHome";
 import { Link } from "react-router-dom";
 import {
-  ArrowUpRight,
   CalendarDays,
   ScanLine,
   Users,
@@ -12,11 +11,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { Badge, Heading, Person, Table } from "../components/ui";
-import { dateLabel, today, fullName } from "../utils";
+import { Heading } from "../components/ui";
+import { dateLabel, today } from "../utils";
 import {
   AnimatedMeter,
-  ReactiveMetric,
   RollingNumber,
 } from "../components/MotionEffects";
 import { motion } from "motion/react";
@@ -54,31 +52,25 @@ export default function Dashboard() {
       <Heading
         eyebrow="VUE D’ENSEMBLE"
         title={`Bonjour, ${user?.name.split(" ")[0]}.`}
-        subtitle="Voici le point sur la présence de votre équipe aujourd’hui."
+        subtitle={`Voici le point sur la présence de votre équipe aujourd'hui (${dateLabel(day, true)}).`}
       >
         <span className="date-chip">
-          <CalendarDays size={16} />
+          <CalendarDays size={15} />
           {dateLabel(day)}
         </span>
         <Link className="button primary" to="/scan">
-          <ScanLine size={18} />
-          Ouvrir le pointage
+          <ScanLine size={16} />
+          <span>Ouvrir le pointage</span>
         </Link>
       </Heading>
-      <div className="day-strip">
-        <span>
-          <i className="online-dot" />
-          Journée du <strong>{dateLabel(day, true)}</strong>
-        </span>
-        <span>{db.settings.organization}</span>
-      </div>
-      <div className="stats-grid">
+      {/* KPI Metrics Strip (Model from Reports) */}
+      <div className="rp-metrics-row">
         {[
           {
             label: "Effectif total",
             value: total,
             icon: Users,
-            color: "neutral",
+            valueClass: "",
             note: "Agents actifs",
             to: user?.role === "COORDINATOR" ? "/agents" : "/presences",
           },
@@ -86,7 +78,7 @@ export default function Dashboard() {
             label: "Présents aujourd’hui",
             value: present,
             icon: UserCheck,
-            color: "green",
+            valueClass: "green",
             note: `${total ? Math.round((present / total) * 100) : 0} % de l’effectif`,
             to: "/presences",
           },
@@ -94,7 +86,7 @@ export default function Dashboard() {
             label: "En retard",
             value: late,
             icon: Clock3,
-            color: "amber",
+            valueClass: late > 0 ? "warn" : "",
             note: "Inclus dans les présents",
             to: "/retards",
           },
@@ -102,28 +94,24 @@ export default function Dashboard() {
             label: "Absents",
             value: absent,
             icon: UserX,
-            color: "rose",
+            valueClass: absent > 0 ? "danger" : "",
             note: "Hors absences justifiées",
             to: "/absences",
           },
         ].map((s) => (
-          <ReactiveMetric
+          <Link
             to={s.to}
-            className={`stat-card ${s.color}`}
+            className="rp-metric-cell"
             key={s.label}
           >
-            <div>
-              <span>{s.label}</span>
-              <s.icon size={20} />
-            </div>
-            <strong>
+            <span className="rp-metric-label">
+              <s.icon size={14} /> {s.label}
+            </span>
+            <strong className={`rp-metric-value ${s.valueClass}`}>
               <RollingNumber value={s.value} />
             </strong>
-            <footer>
-              <span>{s.note}</span>
-              <ArrowUpRight size={16} />
-            </footer>
-          </ReactiveMetric>
+            <small className="rp-metric-sub">{s.note}</small>
+          </Link>
         ))}
       </div>
       <div className="dashboard-middle">
@@ -238,44 +226,6 @@ export default function Dashboard() {
           </Link>
         </section>
       </div>
-      <section className="data-section">
-        <div className="section-heading">
-          <div>
-            <h2>Derniers pointages</h2>
-            <p>Les arrivées et départs de la journée</p>
-          </div>
-          <Link className="text-link" to="/history">
-            Tout l’historique <ArrowRight size={16} />
-          </Link>
-        </div>
-        <Table
-          headers={["AGENT", "SERVICE", "ARRIVÉE", "DÉPART", "STATUT", ""]}
-          rows={records
-            .filter((p) => p.arrivalAt)
-            .sort((a, b) => b.arrivalAt.localeCompare(a.arrivalAt))
-            .slice(0, 5)
-            .map((p) => {
-              const a = db.agents.find((a) => a.id === p.agentId);
-              return [
-                <Person key="agent" agent={a} />,
-                db.departments.find((d) => d.id === a?.departmentId)?.name,
-                <span key="arrival" className="time">
-                  {p.arrivalAt}
-                </span>,
-                p.departureAt || "—",
-                <Badge key="status" status={p.status} />,
-                <Link
-                  className="icon-button"
-                  key="detail"
-                  aria-label={`Voir la présence de ${fullName(a)}`}
-                  to={`/presences/${p.id}`}
-                >
-                  <ArrowUpRight size={17} />
-                </Link>,
-              ];
-            })}
-        />
-      </section>
     </>
   );
 }

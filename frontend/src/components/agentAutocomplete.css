@@ -1,0 +1,239 @@
+/* Agent Autocomplete Component */
+.agent-autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+/* Embedded in unified filter bar */
+.agent-autocomplete-wrapper.embedded {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  height: 100%;
+}
+
+.agent-autocomplete-input-box.embedded {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  height: 100% !important;
+  padding: 0 4px !important;
+  border-radius: 0 !important;
+}
+
+.agent-autocomplete-input-box.embedded:hover,
+.agent-autocomplete-input-box.embedded.focused {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.agent-autocomplete-input-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #d4ded8;
+  border-radius: 9px;
+  padding: 0 10px;
+  height: 38px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: text;
+}
+
+.agent-autocomplete-input-box:hover {
+  border-color: #227057;
+}
+
+.agent-autocomplete-input-box.focused {
+  border-color: #227057;
+  box-shadow: 0 0 0 3px rgba(34, 112, 87, 0.15);
+  background: #ffffff;
+}
+
+.agent-autocomplete-icon {
+  color: #7a8880;
+  flex-shrink: 0;
+}
+
+.agent-chip-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.agent-chip-avatar.tone-0 { background: linear-gradient(135deg, #227057, #134e3b); }
+.agent-chip-avatar.tone-1 { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.agent-chip-avatar.tone-2 { background: linear-gradient(135deg, #d97706, #b45309); }
+.agent-chip-avatar.tone-3 { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+
+.agent-autocomplete-input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  font-size: 13.5px !important;
+  color: #1e2b24;
+  width: 100%;
+  height: 100% !important;
+}
+
+.agent-autocomplete-input::placeholder {
+  color: #92a098;
+}
+
+.agent-autocomplete-clear {
+  border: none;
+  background: #edf3f0;
+  color: #5c6c64;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.agent-autocomplete-clear:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Floating Dropdown */
+.agent-autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 280px;
+  width: max-content;
+  max-width: 380px;
+  background: #ffffff;
+  border: 1px solid #d4ded8;
+  border-radius: 11px;
+  box-shadow: 0 12px 32px -4px rgba(18, 38, 28, 0.14), 0 4px 12px rgba(0, 0, 0, 0.05);
+  z-index: 120;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.agent-autocomplete-header {
+  padding: 8px 12px;
+  background: #f7faf8;
+  border-bottom: 1px solid #eef2ef;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64746b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.agent-autocomplete-list {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+
+.agent-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.agent-autocomplete-item:hover,
+.agent-autocomplete-item.highlighted {
+  background: #f0f7f3;
+}
+
+.agent-autocomplete-item.active {
+  background: #e8f4ee;
+}
+
+.agent-autocomplete-avatar-all {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8e4;
+  color: #405047;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.agent-autocomplete-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-autocomplete-details .agent-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e2b24;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-autocomplete-details .agent-meta {
+  font-size: 11.5px;
+  color: #6c7c73;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.agent-dept-pill {
+  color: #227057;
+  font-weight: 500;
+}
+
+.agent-check-icon {
+  color: #227057;
+  flex-shrink: 0;
+}
+
+.agent-autocomplete-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  color: #829288;
+  font-size: 12.5px;
+  justify-content: center;
+}
+

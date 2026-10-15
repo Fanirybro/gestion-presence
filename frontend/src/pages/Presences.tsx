@@ -1,9 +1,9 @@
 import { useSecretaryMode } from "../app/secretaryMode";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowUpRight, RotateCcw, Search, Pencil } from "lucide-react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { ArrowUpRight, RotateCcw, Search, Pencil, UserCheck, Clock3, UserX } from "lucide-react";
 import { useApp } from "../app/context";
 import {
   Back,
@@ -25,33 +25,62 @@ import {
 } from "../utils";
 import { presencesApi } from "../services/presences";
 export function Presences({
-  mode = "presences",
+  mode: propMode,
 }: {
   mode?: "presences" | "absences" | "retards" | "history";
 }) {
+  const location = useLocation();
+  const mode =
+    propMode ||
+    (location.pathname.startsWith("/retards")
+      ? "retards"
+      : location.pathname.startsWith("/absences")
+        ? "absences"
+        : "presences");
   const { db } = useApp();
   const { simple } = useSecretaryMode();
   const [date, setDate] = useState(today());
   const [end, setEnd] = useState(today());
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => {
+    const q = searchParams.get("search") || searchParams.get("agent");
+    if (q) return q;
+    const aId = searchParams.get("agentId");
+    if (aId) {
+      const match = db.agents.find((a) => a.id === aId);
+      if (match) return fullName(match);
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    const q = searchParams.get("search") || searchParams.get("agent");
+    const aId = searchParams.get("agentId");
+    if (q) {
+      setSearch(q);
+    } else if (aId) {
+      const match = db.agents.find((a) => a.id === aId);
+      if (match) setSearch(fullName(match));
+    }
+  }, [searchParams, db.agents]);
   const [department, setDepartment] = useState("");
-  const [status, setStatus] = useState("");
   const records = useQuery({ queryKey: ["presences", date, mode === "history" ? end : date], queryFn: () => presencesApi.list(date, mode === "history" ? end : date), enabled: date <= end });
   const rows = (records.data?.attendance ?? [])
     .filter((p) => {
       const a = db.agents.find((a) => a.id === p.agentId);
-      return (
-        (mode === "history"
-          ? p.date >= date && p.date <= end
-          : p.date === date) &&
-        (simple || !department || a?.departmentId === department) &&
-        fullName(a)
-          .toLowerCase()
-          .includes(search.toLowerCase()) &&
-        (simple || !status || p.status === status) &&
-        (mode !== "absences" || ["ABSENT", "JUSTIFIED"].includes(p.status)) &&
-        (mode !== "retards" || p.status === "LATE")
-      );
+      const matchesDate = mode === "history" ? (p.date >= date && p.date <= end) : p.date === date;
+      const matchesDept = simple || !department || a?.departmentId === department;
+      const matchesSearch = fullName(a)
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const matchesMode =
+        mode === "retards"
+          ? p.status === "LATE"
+          : mode === "absences"
+            ? (p.status === "ABSENT" || p.status === "JUSTIFIED")
+            : (p.status === "PRESENT" || p.status === "LATE");
+
+      return matchesDate && matchesDept && matchesSearch && matchesMode;
     })
     .sort(
       (a, b) =>
@@ -61,10 +90,16 @@ export function Presences({
         ),
     );
   const title = {
-    presences: "Présences",
+    presences: "Présences du jour",
     absences: "Absences",
     retards: "Retards",
     history: "Historique",
+  }[mode];
+  const subtitle = {
+    presences: "Consultez les pointages et relevés de présence de la journée.",
+    absences: "Liste des agents absents (injustifiés ou justifiés).",
+    retards: "Pointages enregistrés avec retard et cumul des minutes.",
+    history: "Retrouvez les pointages sur la période de votre choix.",
   }[mode];
   const download = () =>
     exportCsv(
@@ -100,15 +135,43 @@ export function Presences({
       <Heading
         eyebrow="SUIVI DU PERSONNEL"
         title={title}
-        subtitle={
-          mode === "history"
-            ? "Retrouvez les pointages sur la période de votre choix."
-            : "Consultez les relevés et le détail de chaque journée."
-        }
+        subtitle={subtitle}
       >
         {!simple && <ExportButton onClick={download} />}
       </Heading>
-      <div className="filters">
+
+      {/* Clean Tabs Navigation between tracking subviews */}
+      <div className="profile-clean-tabs" role="tablist" aria-label="Modules de suivi">
+        <Link
+          to="/presences"
+          role="tab"
+          aria-selected={mode === "presences"}
+          className={`profile-tab-item ${mode === "presences" ? "active" : ""}`}
+        >
+          <UserCheck size={14} />
+          <span>Présences du jour</span>
+        </Link>
+        <Link
+          to="/retards"
+          role="tab"
+          aria-selected={mode === "retards"}
+          className={`profile-tab-item ${mode === "retards" ? "active" : ""}`}
+        >
+          <Clock3 size={14} />
+          <span>Retards</span>
+        </Link>
+        <Link
+          to="/absences"
+          role="tab"
+          aria-selected={mode === "absences"}
+          className={`profile-tab-item ${mode === "absences" ? "active" : ""}`}
+        >
+          <UserX size={14} />
+          <span>Absences</span>
+        </Link>
+      </div>
+
+      <div className="clean-filter-strip">
         <Field label={mode === "history" ? "Du" : "Date"}>
           <input
             aria-label="Date de début"
@@ -130,10 +193,10 @@ export function Presences({
           </Field>
         )}
         <label className="search-input">
-          <Search size={17} />
+          <Search size={16} />
           <input
             aria-label="Rechercher une présence"
-            placeholder="Rechercher un nom…"
+            placeholder="Rechercher un agent…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -152,27 +215,8 @@ export function Presences({
             ))}
           </select>
         )}
-        {!simple && mode !== "retards" && (
-          <select
-            aria-label="Statut"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">Tous les statuts</option>
-            {Object.entries(statusLabels)
-              .filter(
-                ([s]) =>
-                  mode !== "absences" || ["ABSENT", "JUSTIFIED"].includes(s),
-              )
-              .map(([s, label]) => (
-                <option key={s} value={s}>
-                  {label}
-                </option>
-              ))}
-          </select>
-        )}
         <button
-          className="icon-button"
+          className="button"
           title="Réinitialiser les filtres"
           aria-label="Réinitialiser les filtres"
           onClick={() => {
@@ -180,10 +224,10 @@ export function Presences({
             setEnd(today());
             setSearch("");
             setDepartment("");
-            setStatus("");
           }}
         >
-          <RotateCcw size={17} />
+          <RotateCcw size={15} />
+          <span>Réinitialiser</span>
         </button>
       </div>
       {date > end && mode === "history" && (
@@ -239,7 +283,7 @@ export function Presences({
                 className="icon-button"
                 key="detail"
                 aria-label={`Détail de ${fullName(a)}`}
-                to={`/presences/${p.id}`}
+                to={`/${mode === "presences" ? "presences" : mode}/${p.id}`}
               >
                 <ArrowUpRight size={17} />
               </Link>,
@@ -252,6 +296,12 @@ export function Presences({
 }
 export function PresenceDetails() {
   const { id } = useParams();
+  const location = useLocation();
+  const backPath = location.pathname.startsWith("/retards")
+    ? "/retards"
+    : location.pathname.startsWith("/absences")
+      ? "/absences"
+      : "/presences";
   const { db, user, notify } = useApp();
   const client = useQueryClient();
   const [modal, setModal] = useState<"correct" | "justify" | null>(null);
@@ -279,7 +329,7 @@ export function PresenceDetails() {
   };
   return (
     <>
-      <Back to="/presences" />
+      <Back to={backPath} />
       <Heading
         title={fullName(a)}
         subtitle={dateLabel(p.date, true)}

@@ -116,6 +116,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fn(next);
     writeDb(next);
     client.setQueryData(["database"], next);
+    if (user) {
+      const current = next.users.find((u) => u.id === user.id);
+      if (
+        current &&
+        (current.name !== user.name ||
+          current.email !== user.email ||
+          current.role !== user.role ||
+          current.isActive !== user.isActive)
+      ) {
+        setUser(current);
+      }
+    }
   };
   const acceptAccount = useCallback(
     (account: Account, org: Organisation | null = null) => {

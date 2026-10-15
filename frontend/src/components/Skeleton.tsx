@@ -83,15 +83,12 @@ export function PageSkeleton({ path = "/" }: { path?: string }) {
       </div>
       {dashboard ? (
         <>
-          <div className="day-strip">
-            <Skeleton width="60%" height={12} />
-          </div>
-          <div className="stats-grid">
+          <div className="rp-metrics-row" style={{ marginBottom: 24 }}>
             {Array.from({ length: 4 }, (_, i) => (
-              <div className="stat-card" key={i}>
-                <Skeleton width="70%" height={12} />
-                <Skeleton width={55} height={43} className="skeleton-value" />
-                <Skeleton width="60%" height={10} />
+              <div className="rp-metric-cell" key={i}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width={50} height={26} />
+                <Skeleton width="70%" height={11} />
               </div>
             ))}
           </div>
@@ -216,10 +213,6 @@ export function BootstrapSkeleton({
         </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <Skeleton width={150} />
-          <Skeleton width={32} height={32} className="skeleton-avatar" />
-        </header>
         <main>
           <PageSkeleton path={window.location.pathname} />
         </main>

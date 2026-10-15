@@ -1,10 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
-import { CalendarDays, Clock3, Pencil, Plus, RotateCcw, X } from "lucide-react";
+import {
+  Building2,
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
+  Clock3,
+  Pencil,
+  Plus,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { useApp } from "../app/context";
 import { useSecretaryMode } from "../app/secretaryMode";
 import { Field, Heading, Modal, Person, Table } from "../components/ui";
+import { AgentAutocomplete } from "../components/AgentAutocomplete";
 import {
   authorizedAbsences,
   type AuthorizedAbsence,
@@ -34,7 +45,7 @@ export default function AuthorizedAbsences() {
     end: "",
     agent: "",
     department: "",
-    type: "",
+    type: "LEAVE",
   });
   const [editing, setEditing] = useState<AuthorizedAbsence | "new" | null>(
     null,
@@ -67,88 +78,182 @@ export default function AuthorizedAbsences() {
     setError("");
     setEditing(record);
   };
+  const leaveCount = (query.data || []).filter((r) => r.type === "LEAVE").length;
+  const permissionCount = (query.data || []).filter((r) => r.type === "PERMISSION").length;
+  const hasActiveFilters = Boolean(
+    filters.start || filters.end || filters.agent || filters.department,
+  );
   return (
     <div className={`authorized-absences ${simple ? "authorized-simple" : ""}`}>
       <Heading
+        eyebrow="RH & PLANNING"
         title="Congés et permissions"
-        subtitle="Recensez les absences déjà autorisées en interne."
+        subtitle="Recensez et gérez les absences préalablement autorisées au sein de l'organisation."
       >
-        {canManage && <button
-          className="button primary"
-          disabled={!query.data || query.isError}
-          onClick={() => open("new")}
-        >
-          <Plus size={20} />
-          Ajouter une absence autorisée
-        </button>}
+        {canManage && (
+          <button
+            className="button primary"
+            disabled={!query.data || query.isError}
+            onClick={() => open("new")}
+          >
+            <Plus size={16} />
+            <span>Ajouter une absence</span>
+          </button>
+        )}
       </Heading>
-      <p className="absence-demo">Les enregistrements sont partagés avec votre organisation.</p>
-      <section aria-label="Filtres" className="filters absence-filters">
-        <Field label="Période du">
-          <input
-            type="date"
-            value={filters.start}
-            onChange={(e) => filter("start", e.target.value)}
-          />
-        </Field>
-        <Field label="Au">
-          <input
-            type="date"
-            value={filters.end}
-            onChange={(e) => filter("end", e.target.value)}
-          />
-        </Field>
-        <Field label="Employé">
-          <select
-            value={filters.agent}
-            onChange={(e) => filter("agent", e.target.value)}
-          >
-            <option value="">Tous les employés</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {fullName(a)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Service">
-          <select
-            value={filters.department}
-            onChange={(e) => filter("department", e.target.value)}
-          >
-            <option value="">Tous les services</option>
-            {db.departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Type">
-          <select
-            value={filters.type}
-            onChange={(e) => filter("type", e.target.value)}
-          >
-            <option value="">Tous les types</option>
-            <option value="LEAVE">Congé</option>
-            <option value="PERMISSION">Permission</option>
-          </select>
-        </Field>
+
+      {/* Clean Tabs for Absence Types */}
+      <div className="profile-clean-tabs" role="tablist" aria-label="Type d'absence">
         <button
-          className="button"
-          onClick={() =>
-            setFilters({
-              start: "",
-              end: "",
-              agent: "",
-              department: "",
-              type: "",
-            })
-          }
+          type="button"
+          role="tab"
+          aria-selected={filters.type === "LEAVE"}
+          className={`profile-tab-item ${filters.type === "LEAVE" ? "active" : ""}`}
+          onClick={() => filter("type", "LEAVE")}
         >
-          <RotateCcw size={17} />
-          Réinitialiser
+          <CalendarDays size={14} />
+          <span>Congés ({leaveCount})</span>
         </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filters.type === "PERMISSION"}
+          className={`profile-tab-item ${filters.type === "PERMISSION" ? "active" : ""}`}
+          onClick={() => filter("type", "PERMISSION")}
+        >
+          <Clock3 size={14} />
+          <span>Permissions ({permissionCount})</span>
+        </button>
+      </div>
+
+      {/* Unified Search & Filter Bar (modern capsule style matching screenshot) */}
+      <section aria-label="Filtres" className="unified-filter-bar">
+        {/* 1. Employé : Recherche instantanée avec auto-suggestions */}
+        <div className="unified-filter-segment segment-agent">
+          <AgentAutocomplete
+            agents={agents}
+            departments={db.departments}
+            value={filters.agent}
+            onChange={(agentId) => filter("agent", agentId)}
+            placeholder="Rechercher un employé…"
+            embedded
+          />
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 2. Période du (Date de début) */}
+        <div className="unified-filter-segment segment-date">
+          <Calendar size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Du</span>
+            <input
+              type="date"
+              aria-label="Date de début"
+              value={filters.start}
+              onChange={(e) => filter("start", e.target.value)}
+              className="unified-date-input"
+            />
+          </div>
+          {filters.start && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => filter("start", "")}
+              title="Effacer la date de début"
+              aria-label="Effacer la date de début"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 3. Au (Date de fin) */}
+        <div className="unified-filter-segment segment-date">
+          <CalendarCheck size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Au</span>
+            <input
+              type="date"
+              aria-label="Date de fin"
+              value={filters.end}
+              onChange={(e) => filter("end", e.target.value)}
+              className="unified-date-input"
+            />
+          </div>
+          {filters.end && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => filter("end", "")}
+              title="Effacer la date de fin"
+              aria-label="Effacer la date de fin"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 4. Service / Département */}
+        <div className="unified-filter-segment segment-dept">
+          <Building2 size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Service</span>
+            <select
+              aria-label="Filtrer par service"
+              value={filters.department}
+              onChange={(e) => filter("department", e.target.value)}
+              className="unified-select"
+            >
+              <option value="">Tous les services</option>
+              {db.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {filters.department && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => filter("department", "")}
+              title="Effacer le filtre service"
+              aria-label="Effacer le filtre service"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* 5. Réinitialiser (si filtres actifs) */}
+        {hasActiveFilters && (
+          <>
+            <div className="unified-filter-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="unified-reset-btn"
+              title="Réinitialiser tous les filtres"
+              onClick={() =>
+                setFilters({
+                  start: "",
+                  end: "",
+                  agent: "",
+                  department: "",
+                  type: "LEAVE",
+                })
+              }
+            >
+              <RotateCcw size={13} />
+              <span>Réinitialiser</span>
+            </button>
+          </>
+        )}
       </section>
       {invalidPeriod && (
         <p role="alert" className="form-error">

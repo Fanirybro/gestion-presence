@@ -13,6 +13,7 @@ import parametresRoutes from "./routes/parametresRoutes.js";
 import absenceRoutes from "./routes/absenceRoutes.js";
 import presenceRoutes from "./routes/presenceRoutes.js";
 import qrCodeRoutes from "./routes/QrCodeRoutes.js";
+import faceRoutes from "./modules/face-recognition/face.routes.js";
 import { createTrace, errorSummary } from "./utils/diagnostics.js";
 
 export function createApp({ sessionStore } = {}) {
@@ -46,6 +47,7 @@ export function createApp({ sessionStore } = {}) {
   });
   app.use(cors({ origin: origins, credentials: true }));
   app.use(requireTrustedOrigin(origins));
+  app.use("/api/v1/face-recognition", express.json({ limit: "10mb" }));
   app.use(express.json({ limit: "16kb" }));
   app.use(createSessionMiddleware(sessionStore));
   app.use("/api", (req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
@@ -58,6 +60,7 @@ export function createApp({ sessionStore } = {}) {
   app.use("/api/badges", qrCodeRoutes);
   app.use("/api/presences", presenceRoutes);
   app.use("/api/absences-autorisees", absenceRoutes);
+  app.use("/api/v1/face-recognition", faceRoutes);
   app.use((req, res) => res.status(404).json({ message: "Route introuvable." }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

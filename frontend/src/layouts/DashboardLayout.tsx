@@ -8,7 +8,6 @@ import {
 } from "motion/react";
 import {
   SecretaryModeProvider,
-  SecretaryModeSelector,
   useSecretaryMode,
 } from "../app/secretaryMode";
 import RouteContent from "../components/RouteContent";
@@ -23,22 +22,24 @@ import {
   Files,
   Settings,
   ShieldCheck,
+  Building2,
+  Clock,
+  Camera,
   LogOut,
-  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   X,
-  ChevronDown,
   QrCode,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { initials, dateLabel, today } from "../utils";
+import { initials } from "../utils";
 const groups = [
   {
     label: "ESPACE DE TRAVAIL",
     items: [
       { path: "/", name: "Tableau de bord", icon: LayoutDashboard },
       { path: "/scan", name: "Pointage QR", icon: ScanLine },
+      { path: "/kiosk", name: "Pointage Facial (Borne)", icon: Camera },
       { path: "/agents", name: "Personnel", icon: Users, admin: true },
     ],
   },
@@ -57,7 +58,10 @@ const groups = [
   {
     label: "ADMINISTRATION",
     items: [
+      { path: "/departments", name: "Départements", icon: Building2, admin: true },
+      { path: "/schedules", name: "Horaires", icon: Clock, admin: true },
       { path: "/users", name: "Utilisateurs", icon: ShieldCheck, admin: true },
+      { path: "/admin/face-setup", name: "Enrôlement Facial", icon: Camera, admin: true },
       { path: "/settings", name: "Paramètres", icon: Settings, admin: true },
     ],
   },
@@ -93,12 +97,9 @@ function WorkspaceLayout() {
     }
   };
   const sidebar = useRef<HTMLElement>(null);
-  const menuButton = useRef<HTMLButtonElement>(null);
   const reduced = useReducedMotion();
   useEffect(() => {
     if (!open) return;
-    const sidebarNode = sidebar.current;
-    const trigger = menuButton.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     sidebar.current?.querySelector<HTMLButtonElement>(".mobile-close")?.focus();
@@ -135,7 +136,6 @@ function WorkspaceLayout() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", keyboard);
       desktop.removeEventListener("change", resize);
-      if (sidebarNode?.contains(document.activeElement)) trigger?.focus();
     };
   }, [open]);
   useEffect(() => {
@@ -217,44 +217,68 @@ function WorkspaceLayout() {
                 return items.length ? (
                   <section key={g.label}>
                     <h2>{g.label}</h2>
-                    {items.map(({ path, name, icon: Icon }) => (
-                      <NavLink
-                        end={path === "/"}
-                        key={path}
-                        to={path}
-                        aria-label={name}
-                        title={name}
-                        onClick={() => setOpen(false)}
-                        onPointerEnter={() => prefetchPage(path)}
-                        onFocus={() => prefetchPage(path)}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            {isActive && (
-                              <motion.span
-                                className="nav-active-indicator"
-                                layoutId={reduced ? undefined : "active-page"}
-                                transition={{
-                                  type: "spring",
-                                  stiffness: 500,
-                                  damping: 40,
-                                }}
-                              />
-                            )}
-                            <Icon size={18} />
-                            <span className="nav-label">{name}</span>
-                            {path === "/scan" && <span className="nav-live" />}
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
+                    {items.map(({ path, name, icon: Icon }) => {
+                      const isItemActive = (navActive: boolean) => {
+                        if (path === "/presences") {
+                          return (
+                            navActive ||
+                            location.pathname.startsWith("/presences") ||
+                            location.pathname.startsWith("/retards") ||
+                            location.pathname.startsWith("/absences")
+                          );
+                        }
+                        return navActive;
+                      };
+                      return (
+                        <NavLink
+                          end={path === "/"}
+                          key={path}
+                          to={path}
+                          className={({ isActive }) =>
+                            isItemActive(isActive) ? "active" : ""
+                          }
+                          aria-label={name}
+                          title={name}
+                          onClick={() => setOpen(false)}
+                          onPointerEnter={() => prefetchPage(path)}
+                          onFocus={() => prefetchPage(path)}
+                        >
+                          {({ isActive: navActive }) => {
+                            const active = isItemActive(navActive);
+                            return (
+                              <>
+                                {active && (
+                                  <motion.span
+                                    className="nav-active-indicator"
+                                    layoutId={reduced ? undefined : "active-page"}
+                                    transition={{
+                                      type: "spring",
+                                      stiffness: 500,
+                                      damping: 40,
+                                    }}
+                                  />
+                                )}
+                                <Icon size={18} />
+                                <span className="nav-label">{name}</span>
+                                {path === "/scan" && <span className="nav-live" />}
+                              </>
+                            );
+                          }}
+                        </NavLink>
+                      );
+                    })}
                   </section>
                 ) : null;
               })}
             </nav>
           </LayoutGroup>
           <div className="sidebar-profile">
-            <Link to="/profile" aria-label="Mon profil" title={user?.name}>
+            <Link
+              to="/profile"
+              aria-label="Mon profil"
+              title="Accéder à mon profil"
+              className={location.pathname === "/profile" ? "active-profile" : ""}
+            >
               <span className="avatar">{initials(user?.name || "")}</span>
               <span>
                 <strong>{user?.name}</strong>
@@ -277,56 +301,6 @@ function WorkspaceLayout() {
         </aside>
       )}
       <div className="main-shell" inert={open}>
-        <header className="topbar">
-          <div>
-            {simple ? (
-              <Link to="/" className="secretary-brand">
-                <QrCode aria-hidden="true" />
-                <span>présence.</span>
-              </Link>
-            ) : (
-              <>
-                <button
-                  className="icon-button mobile-menu"
-                  aria-label="Ouvrir le menu"
-                  ref={menuButton}
-                  aria-expanded={open}
-                  aria-controls="main-navigation"
-                  onClick={() => setOpen(true)}
-                >
-                  <Menu />
-                </button>
-              </>
-            )}
-          </div>
-          <div className="topbar-right">
-            {secretary && <SecretaryModeSelector />}
-            {simple && (
-              <Link to="/profile" className="secretary-identity">
-                {user?.name} · Secrétaire
-              </Link>
-            )}
-            {!simple && <span className="top-date">{dateLabel(today())}</span>}
-            <span className="demo-label">DÉMO</span>
-            {simple ? (
-              <button
-                className="icon-button"
-                aria-label="Se déconnecter"
-                title="Se déconnecter"
-                onClick={logout}
-              >
-                <LogOut />
-              </button>
-            ) : (
-              <Link to="/profile" aria-label="Mon profil">
-                <span className="avatar small">
-                  {initials(user?.name || "")}
-                </span>
-                <ChevronDown size={14} />
-              </Link>
-            )}
-          </div>
-        </header>
         <main>
           {simple && location.pathname !== "/" && (
             <Link to="/" className="button secretary-back">

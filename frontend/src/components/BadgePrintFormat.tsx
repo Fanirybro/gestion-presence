@@ -6,12 +6,14 @@ export function BadgeFormatMenu({
   icon,
   disabled,
   primary,
+  className = "",
   onSelect,
 }: {
   label: string;
   icon: ReactNode;
   disabled?: boolean;
   primary?: boolean;
+  className?: string;
   onSelect: (format: BadgePrintFormat) => void;
 }) {
   const menu = useRef<HTMLDetailsElement>(null);
@@ -25,7 +27,7 @@ export function BadgeFormatMenu({
   }, []);
   return (
     <details
-      className="badge-action-menu"
+      className={`badge-action-menu ${className}`}
       ref={menu}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
