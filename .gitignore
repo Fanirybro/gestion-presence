@@ -1,3 +1,27 @@
+# Environnement
 .env
 .env.*
 !.env.example
+
+# Dépendances
+node_modules/
+**/node_modules/
+
+# Builds
+dist/
+**/dist/
+.vercel
+.output
+
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+python-service/models/*.onnx
+
+# Logs & Système
+*.log
+.DS_Store
+Thumbs.db
