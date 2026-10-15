@@ -1,6 +1,13 @@
 import pool from "../../config/database.js";
 
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || "http://127.0.0.1:8000";
+function getPythonServiceUrl() {
+  let url = process.env.PYTHON_SERVICE_URL || "http://127.0.0.1:8000";
+  url = url.trim();
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  return url.replace(/\/+$/, "");
+}
 
 /**
  * Service orchestrateur de reconnaissance faciale.
@@ -12,16 +19,18 @@ export class FaceService {
    * Vérifie la disponibilité du micro-service Python biométrique.
    */
   static async checkPythonHealth() {
+    const baseUrl = getPythonServiceUrl();
     try {
-      const response = await fetch(`${PYTHON_SERVICE_URL}/health`, {
+      const response = await fetch(`${baseUrl}/health`, {
         method: "GET",
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) return { online: false, status: response.status };
+      if (!response.ok) return { online: false, status: response.status, url: baseUrl };
       const data = await response.json();
-      return { online: true, ...data };
+      return { online: true, ...data, url: baseUrl };
     } catch (error) {
-      return { online: false, error: error.message };
+      console.warn(`Health check échoué vers ${baseUrl}:`, error.message);
+      return { online: false, error: error.message, url: baseUrl };
     }
   }
 
@@ -71,20 +80,27 @@ export class FaceService {
     }
 
     // 2. Appel du micro-service Python (POST /enroll)
+    const baseUrl = getPythonServiceUrl();
     let aiResponse;
     try {
-      aiResponse = await fetch(`${PYTHON_SERVICE_URL}/enroll`, {
+      aiResponse = await fetch(`${baseUrl}/enroll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: imageBase64,
           user_id: target.id,
         }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(35000),
       });
-    } catch {
+    } catch (fetchErr) {
+      console.error(`Échec appel POST ${baseUrl}/enroll:`, fetchErr);
+      const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
       throw Object.assign(
-        new Error("Le service biométrique Python est injoignable. Assurez-vous qu'il est démarré sur le port 8000."),
+        new Error(
+          isTimeout
+            ? `Le service biométrique (${baseUrl}) met du temps à répondre. Sur Render gratuit, le premier démarrage prend environ 30 secondes. Veuillez réessayer dans quelques instants.`
+            : `Le service biométrique Python est injoignable (${baseUrl}) : ${fetchErr.message}`
+        ),
         { status: 503 }
       );
     }
@@ -180,9 +196,10 @@ export class FaceService {
     }));
 
     // 2. Appel au microservice Python (POST /verify)
+    const baseUrl = getPythonServiceUrl();
     let aiResponse;
     try {
-      aiResponse = await fetch(`${PYTHON_SERVICE_URL}/verify`, {
+      aiResponse = await fetch(`${baseUrl}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,11 +207,17 @@ export class FaceService {
           known_faces,
           threshold: options.threshold || 0.55,
         }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(35000),
       });
-    } catch {
+    } catch (fetchErr) {
+      console.error(`Échec appel POST ${baseUrl}/verify:`, fetchErr);
+      const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
       throw Object.assign(
-        new Error("Le service biométrique Python est injoignable."),
+        new Error(
+          isTimeout
+            ? `Le service biométrique (${baseUrl}) met du temps à répondre. Sur Render gratuit, le premier démarrage prend environ 30 secondes. Veuillez réessayer dans quelques instants.`
+            : `Le service biométrique Python est injoignable (${baseUrl}) : ${fetchErr.message}`
+        ),
         { status: 503 }
       );
     }
