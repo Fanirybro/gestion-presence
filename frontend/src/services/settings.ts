@@ -20,6 +20,8 @@ export function mapSettings(data: Parametres): Settings {
   return {
     organization: data.organisation.nom,
     address: data.organisation.adresse ?? "",
+    pointage_qr: data.organisation.pointage_qr ?? true,
+    pointage_facial: data.organisation.pointage_facial ?? true,
     schedules: weekDays.flatMap((day, index) =>
       periods.map((period) => {
         const row = data.horaires.find(
@@ -45,6 +47,8 @@ export const settingsApi = {
     apiClient.patch<Parametres>("/parametres", {
       nom: settings.organization,
       adresse: settings.address.trim() || null,
+      pointage_qr: settings.pointage_qr ?? true,
+      pointage_facial: settings.pointage_facial ?? true,
       horaires: settings.schedules.map((s) => ({
         jour_semaine: weekDays.indexOf(s.day),
         periode: s.period,

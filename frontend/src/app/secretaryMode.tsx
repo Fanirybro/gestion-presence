@@ -16,7 +16,7 @@ const ModeContext = createContext({
 
 export function SecretaryModeProvider({ children }: { children: ReactNode }) {
   const { user, notify } = useApp();
-  const key = `presence-ui-mode.v1.${user!.id}`;
+  const key = `presence-ui-mode.v1.${user?.id ?? "default"}`;
   const read = useCallback((): Mode => {
     try {
       return localStorage.getItem(key) === "expert" ? "expert" : "simple";
@@ -46,7 +46,7 @@ export function SecretaryModeProvider({ children }: { children: ReactNode }) {
   return (
     <ModeContext.Provider
       value={{
-        simple: user?.role === "SECRETARY" && mode === "simple",
+        simple: mode === "simple",
         setMode,
       }}
     >
@@ -62,26 +62,55 @@ export function SecretaryModeSelector() {
   const { simple, setMode } = useSecretaryMode();
   return (
     <div
-      className="secretary-mode"
+      className="mode-switch-pill"
       role="group"
-      aria-label="Mode d’utilisation"
+      aria-label="Mode d’interface"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: "#e4ece7",
+        padding: "3px",
+        borderRadius: "8px",
+        border: "1px solid #c2d4cb",
+        fontSize: "13px",
+        fontWeight: 600,
+        gap: "2px",
+      }}
     >
-      <div>
-        <button
-          type="button"
-          aria-pressed={simple}
-          onClick={() => setMode("simple")}
-        >
-          Simple
-        </button>
-        <button
-          type="button"
-          aria-pressed={!simple}
-          onClick={() => setMode("expert")}
-        >
-          Expert
-        </button>
-      </div>
+      <button
+        type="button"
+        aria-pressed={simple}
+        onClick={() => setMode("simple")}
+        style={{
+          border: "none",
+          padding: "6px 12px",
+          borderRadius: "6px",
+          cursor: "pointer",
+          transition: "all 0.15s ease",
+          background: simple ? "#227057" : "transparent",
+          color: simple ? "#ffffff" : "#45594f",
+          boxShadow: simple ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
+        }}
+      >
+        Simple
+      </button>
+      <button
+        type="button"
+        aria-pressed={!simple}
+        onClick={() => setMode("expert")}
+        style={{
+          border: "none",
+          padding: "6px 12px",
+          borderRadius: "6px",
+          cursor: "pointer",
+          transition: "all 0.15s ease",
+          background: !simple ? "#227057" : "transparent",
+          color: !simple ? "#ffffff" : "#45594f",
+          boxShadow: !simple ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
+        }}
+      >
+        Expert
+      </button>
     </div>
   );
 }

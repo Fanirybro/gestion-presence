@@ -149,7 +149,7 @@ export default function FaceCheckInPage() {
     try {
       const response = await faceApi.checkIn(base64Image);
 
-      if (response.match) {
+      if (response.match && !response.rejected) {
         const agent = response.personnel || response.user;
         playBeep(920, 0.28);
 
@@ -174,16 +174,16 @@ export default function FaceCheckInPage() {
       } else {
         playBeep(280, 0.2);
 
-        // Affichage du modal d'erreur dans le cadre caméra
+        // Affichage du modal de refus / erreur dans le cadre caméra
         setCameraModal({
           status: "error",
-          title: "Visage Non Reconnu",
+          title: response.rejected ? "Pointage Refusé (Absent)" : "Visage Non Reconnu",
           message: response.message || "Aucun profil biométrique correspondant trouvé.",
           confidence: response.confidence || 0,
         });
 
-        // 3 secondes de pause avant de relancer la détection
-        setResultCooldown(3);
+        // 4 secondes de pause avant de relancer la détection
+        setResultCooldown(4);
       }
     } catch (err) {
       playBeep(280, 0.2);

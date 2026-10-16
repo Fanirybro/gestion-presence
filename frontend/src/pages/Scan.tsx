@@ -12,15 +12,13 @@ import {
   XCircle,
   LoaderCircle,
   ScanLine,
-  ArrowRight,
-  Keyboard,
   CircleHelp,
   QrCode,
   Video,
 } from "lucide-react";
 import { useSecretaryMode } from "../app/secretaryMode";
 import { useApp } from "../app/context";
-import { Field, Heading, Person, Empty } from "../components/ui";
+import { Heading, Person, Empty } from "../components/ui";
 import { dateLabel, nowTime, today } from "../utils";
 export default function ScanPage() {
   const { db, user, update } = useApp();
@@ -54,7 +52,6 @@ export default function ScanPage() {
   const retry = useRef<{ token: string; key: string } | null>(null);
   const { simple } = useSecretaryMode();
   const [help, setHelp] = useState(false);
-  const [token, setToken] = useState("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -83,7 +80,6 @@ export default function ScanPage() {
       retry.current = null;
       if (alive.current) {
         setFeedback({ state: "success", message: response.message });
-        setToken("");
       }
       void events.refetch().then((refreshed) => {
         if (refreshed.isError && alive.current)
@@ -142,7 +138,7 @@ export default function ScanPage() {
     } catch {
       if (alive.current)
         setError(
-          "Caméra indisponible. Autorisez son accès dans le navigateur ou utilisez la saisie du token QR.",
+          "Caméra indisponible. Autorisez son accès dans le navigateur pour scanner.",
         );
     } finally {
       if (alive.current) setStarting(false);
@@ -265,7 +261,7 @@ export default function ScanPage() {
                 </p>
                 <p>
                   Si le badge n’est pas reconnu, rapprochez-le et vérifiez
-                  l’éclairage. Vous pouvez aussi saisir son code ci-dessous.
+                  l’éclairage.
                 </p>
               </div>
             )}
@@ -275,36 +271,6 @@ export default function ScanPage() {
                 Arrêter la caméra
               </button>
             )}
-            <form
-              className="manual-scan"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submit(token);
-              }}
-            >
-              <h3>
-                <Keyboard size={18} />
-                Saisie de secours
-              </h3>
-              <Field label="Token du badge QR">
-                <div className="input-action">
-                  <input
-                    required
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    placeholder="Token QR"
-                  />
-                  <button
-                    className="button primary"
-                    type="submit"
-                    aria-label="Valider le pointage"
-                    disabled={feedback !== null}
-                  >
-                    <ArrowRight size={19} />
-                  </button>
-                </div>
-              </Field>
-            </form>
           </details>
         </section>
         {!simple && (

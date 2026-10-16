@@ -1,9 +1,8 @@
-import { useSecretaryMode } from "../app/secretaryMode";
+import { useSecretaryMode, SecretaryModeSelector } from "../app/secretaryMode";
 import SecretaryHome from "./SecretaryHome";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
-  ScanLine,
   Users,
   UserCheck,
   UserX,
@@ -58,10 +57,7 @@ export default function Dashboard() {
           <CalendarDays size={15} />
           {dateLabel(day)}
         </span>
-        <Link className="button primary" to="/scan">
-          <ScanLine size={16} />
-          <span>Ouvrir le pointage</span>
-        </Link>
+        <SecretaryModeSelector />
       </Heading>
       {/* KPI Metrics Strip (Model from Reports) */}
       <div className="rp-metrics-row">

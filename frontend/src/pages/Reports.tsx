@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import {
-  Download,
   FileText,
   Users,
   Percent,
@@ -12,8 +11,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading, Field } from "../components/ui";
-import { fullName, exportCsv } from "../utils";
-import { useSecretaryMode } from "../app/secretaryMode";
+import { fullName } from "../utils";
 
 /* ═══════════════════════════════════════════════════════════════
    Helpers
@@ -382,7 +380,6 @@ type ReportTab = "summary" | "payroll";
    Main Reports Page Component
    ═══════════════════════════════════════════════════════════════ */
 export default function Reports() {
-  const { simple } = useSecretaryMode();
   const { db, notify } = useApp();
 
   const [activeTab, setActiveTab] = useState<ReportTab>("summary");
@@ -506,27 +503,6 @@ export default function Reports() {
   }, [showDeptComparison, daysInMonth, monthAttendance, department, db.departments, activeDepartments, db.agents, db.attendance]);
 
   // Actions
-  const handleExportCsv = () => {
-    const headers = [
-      "Agent",
-      "Service",
-      "Jours travaillés",
-      "Cumul retards",
-      "Absences injustifiées",
-      "Absences justifiées",
-    ];
-    const data = tableRows.map((r) => [
-      fullName(r.agent),
-      r.dept,
-      String(r.worked),
-      fmtDuration(r.lateMin),
-      String(r.absences),
-      String(r.justified),
-    ]);
-    exportCsv([headers, ...data], `rapport-paie-${month}.csv`);
-    notify("Export CSV téléchargé.");
-  };
-
   const handleExportPdf = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -655,15 +631,6 @@ export default function Reports() {
       >
         <div className="rp-header-actions">
           <button
-            className="button"
-            onClick={handleExportCsv}
-            disabled={tableRows.length === 0}
-            title="Exporter les données au format CSV"
-          >
-            <Download size={15} />
-            <span>Exporter CSV</span>
-          </button>
-          <button
             className="button primary"
             onClick={handleExportPdf}
             disabled={tableRows.length === 0 || pdfBusy}
@@ -676,12 +643,7 @@ export default function Reports() {
         </div>
       </Heading>
 
-      {simple ? (
-        <p className="rp-simple-notice">
-          Les rapports avancés et l'export de paie sont réservés aux coordinateurs.
-        </p>
-      ) : (
-        <div className="rp-view-clean">
+      <div className="rp-view-clean">
           {/* 1. Global Filter Toolbar (Seamless, no card) */}
           <div className="rp-filter-strip">
             <div className="rp-filter-fields">
@@ -883,7 +845,6 @@ export default function Reports() {
             </section>
           )}
         </div>
-      )}
     </>
   );
 }

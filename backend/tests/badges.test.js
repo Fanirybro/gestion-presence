@@ -13,7 +13,7 @@ test("badges : génération, réimpression, révocation et pointage HTTP", async
   function reset() {
     state = { badges: [], events: [], summary: null, personActive: true };
     role = currentRole = "COORDINATOR"; org = "7"; failAudit = false; calls = [];
-    now = { now: "2026-10-08T05:30:00Z", date: "2026-10-08", day: 4, time: "08:30" };
+    now = { now: "2026-10-08T05:30:00Z", date: "2026-10-08", day: 4, time: "08:30", pointage_qr: true };
     scheduleRows = [{ jour_semaine: 4, fin_jour_suivant: false, start: "08:00", end: "12:00", tolerance: 15 }];
     failEvent = false;
   }
@@ -107,7 +107,7 @@ test("badges : génération, réimpression, révocation et pointage HTTP", async
   await t.test("scan secrétaire : arrivée persistée, retard et idempotence", async () => {
     const badge = await issue(); role = currentRole = "SECRETARY";
     const key = randomUUID(); assert.equal((await scan(badge.token, key)).status, 200);
-    assert.equal(state.summary.values[4], "LATE"); assert.equal(state.summary.values[5], 15);
+    assert.equal(state.summary.values[5], "LATE"); assert.equal(state.summary.values[6], 15);
     assert.equal((await scan(badge.token, key)).status, 200); assert.equal(state.events.length, 1);
     assert.equal((await scan(badge.token)).status, 409);
     now = { ...now, now: "2026-10-08T09:00:00Z", time: "12:00" };
@@ -128,7 +128,7 @@ test("badges : génération, réimpression, révocation et pointage HTTP", async
     scheduleRows = [{ jour_semaine: 4, fin_jour_suivant: true, start: "18:00", end: "02:00", tolerance: 15 }];
     now = { now: "2026-10-08T21:30:00Z", date: "2026-10-09", day: 5, time: "00:30" };
     assert.equal((await scan(badge.token)).status, 200);
-    assert.equal(state.summary.values[2], "2026-10-08"); assert.equal(state.summary.values[5], 375);
+    assert.equal(state.summary.values[2], "2026-10-08"); assert.equal(state.summary.values[6], 375);
     now = { ...now, now: "2026-10-08T23:05:00Z", time: "02:05" };
     scheduleRows = [];
     const res = await scan(badge.token); assert.equal(res.status, 200); assert.equal((await res.json()).type, "DEPARTURE");

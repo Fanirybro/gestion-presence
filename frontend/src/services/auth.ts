@@ -15,6 +15,8 @@ export interface Organisation {
   adresse: string | null;
   fuseau_horaire: string;
   organisation_code: number;
+  pointage_qr?: boolean;
+  pointage_facial?: boolean;
 }
 export interface Signup {
   nom: string;

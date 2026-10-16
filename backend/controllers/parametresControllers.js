@@ -1,7 +1,7 @@
 import pool from "../config/database.js";
 import { loadAccount } from "../utils/account.js";
 
-const organisationColumns = "id, nom, slug, adresse, fuseau_horaire, organisation_code";
+const organisationColumns = "id, nom, slug, adresse, fuseau_horaire, organisation_code, pointage_qr, pointage_facial";
 const periods = ["MATIN", "APRES_MIDI", "SOIR"];
 function invalid(message) { throw Object.assign(new Error(message), { status: 400 }); }
 function object(value, keys) {
@@ -12,9 +12,12 @@ function minutes(value) {
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
 }
 export function validateParametres(body) {
-  object(body, ["nom", "adresse", "horaires"]);
+  object(body, ["nom", "adresse", "horaires", "pointage_qr", "pointage_facial"]);
   if (typeof body.nom !== "string" || !body.nom.trim() || body.nom.trim().length > 100) invalid("Le nom de l’organisation doit contenir entre 1 et 100 caractères.");
   if (body.adresse !== null && (typeof body.adresse !== "string" || body.adresse.trim().length > 500)) invalid("Adresse invalide (500 caractères maximum).");
+  if (body.pointage_qr !== undefined && typeof body.pointage_qr !== "boolean") invalid("Le mode pointage QR doit être un booléen.");
+  if (body.pointage_facial !== undefined && typeof body.pointage_facial !== "boolean") invalid("Le mode pointage facial doit être un booléen.");
+  if (body.pointage_qr === false && body.pointage_facial === false) invalid("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.");
   if (!Array.isArray(body.horaires) || body.horaires.length !== 21) invalid("Renseignez les trois créneaux de chacun des sept jours.");
   const days = new Set();
   const intervals = [];
@@ -40,7 +43,13 @@ export function validateParametres(body) {
     if (intervals[i].start < intervals[i - 1].end) invalid("Les créneaux doivent suivre l’ordre matin, après-midi, soir et ne pas se chevaucher, même le lendemain.");
   }
   if (intervals.length && intervals.at(-1).end > intervals[0].start + 7 * 1440) invalid("Le créneau du samedi soir chevauche celui du dimanche.");
-  return { nom: body.nom.trim(), adresse: body.adresse?.trim() || null, horaires };
+  return {
+    nom: body.nom.trim(),
+    adresse: body.adresse?.trim() || null,
+    horaires,
+    pointage_qr: body.pointage_qr !== undefined ? body.pointage_qr : null,
+    pointage_facial: body.pointage_facial !== undefined ? body.pointage_facial : null,
+  };
 }
 async function read(client, organisationId) {
   const org = await client.query(`SELECT ${organisationColumns} FROM organisations WHERE id = $1 AND actif = true`, [organisationId]);
@@ -75,7 +84,10 @@ export async function updateParametres(req, res, next) {
     const actor = await loadAccount(client, { id: String(req.session.userId), organisationId });
     if (!actor?.actif || !actor.organisation_id || actor.role !== "COORDINATOR") throw Object.assign(new Error("Accès réservé au coordinateur actif."), { status: 403 });
     const before = await read(client, organisationId);
-    await client.query("UPDATE organisations SET nom = $2, adresse = $3, updated_at = now() WHERE id = $1", [organisationId, data.nom, data.adresse]);
+    await client.query(
+      "UPDATE organisations SET nom = $2, adresse = $3, pointage_qr = COALESCE($4, pointage_qr), pointage_facial = COALESCE($5, pointage_facial), updated_at = now() WHERE id = $1",
+      [organisationId, data.nom, data.adresse, data.pointage_qr, data.pointage_facial]
+    );
     for (const row of data.horaires) {
       await client.query(`INSERT INTO horaires_travail (organisation_id, jour_semaine, jour_travaille, heure_debut, heure_fin, heure_limite_absence, tolerance_retard_minutes, periode, fin_jour_suivant)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

@@ -1,7 +1,7 @@
 import pool from "../config/database.js";
 import { randomBytes, randomInt } from "node:crypto";
 
-const columns = "id, nom, slug, adresse, fuseau_horaire, organisation_code, actif, created_at, updated_at";
+const columns = "id, nom, slug, adresse, fuseau_horaire, organisation_code, actif, pointage_qr, pointage_facial, created_at, updated_at";
 
 // Une seule affectation possible ; le verrou empêche deux créations/adhésions simultanées.
 async function attachOrganisation(req, res, next, create) {

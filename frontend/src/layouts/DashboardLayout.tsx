@@ -75,9 +75,11 @@ export default function DashboardLayout() {
   );
 }
 function WorkspaceLayout() {
-  const { db, user, logout } = useApp();
+  const { db, user, organisation, logout } = useApp();
   const { simple } = useSecretaryMode();
   const location = useLocation();
+  const qrEnabled = organisation?.pointage_qr ?? db.settings.pointage_qr ?? true;
+  const facialEnabled = organisation?.pointage_facial ?? db.settings.pointage_facial ?? true;
   const secretary = user?.role === "SECRETARY";
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -210,10 +212,12 @@ function WorkspaceLayout() {
           <LayoutGroup id="sidebar">
             <nav>
               {groups.map((g) => {
-                const items = g.items.filter(
-                  (i) =>
-                    !i.admin || user?.role === "COORDINATOR",
-                );
+                const items = g.items.filter((i) => {
+                  if (i.admin && user?.role !== "COORDINATOR") return false;
+                  if (i.path === "/scan" && !qrEnabled) return false;
+                  if ((i.path === "/kiosk" || i.path === "/admin/face-setup") && !facialEnabled) return false;
+                  return true;
+                });
                 return items.length ? (
                   <section key={g.label}>
                     <h2>{g.label}</h2>

@@ -293,6 +293,47 @@ export function SettingsPage() {
               </Field>
             </div>
           </section>
+
+          <section className="settings-section" style={{ marginTop: "1.5rem" }}>
+            <h2>Modes de pointage autorisés</h2>
+            <p className="text-secondary" style={{ fontSize: "0.875rem", marginBottom: "1rem" }}>
+              Activez ou désactivez les méthodes de pointage selon les besoins opérationnels de votre entreprise. Au moins une méthode doit rester active.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontWeight: 500 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.pointage_qr ?? true}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    if (!next && !(settings.pointage_facial ?? true)) {
+                      notify("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.", true);
+                      return;
+                    }
+                    setSettings({ ...settings, pointage_qr: next });
+                  }}
+                />
+                <span>Pointage par QR Code (Scanners mobiles & bornes badges)</span>
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontWeight: 500 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.pointage_facial ?? true}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    if (!next && !(settings.pointage_qr ?? true)) {
+                      notify("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.", true);
+                      return;
+                    }
+                    setSettings({ ...settings, pointage_facial: next });
+                  }}
+                />
+                <span>Pointage par Reconnaissance Faciale (Borne Kiosk biométrique)</span>
+              </label>
+            </div>
+          </section>
+
           {error && (
             <p className="form-error" role="alert">
               {error}

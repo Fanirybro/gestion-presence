@@ -39,6 +39,7 @@ export async function auditPresence(client, req, entity, id, action, before, aft
     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)`, [req.user.organisation_id, req.session.userId, entity, id, action, motif, JSON.stringify(before), JSON.stringify(after)]);
 }
 export const attendanceSelect = `SELECT p.id, p.personnel_id AS "agentId", to_char(p.date_presence, 'YYYY-MM-DD') AS date,
+  p.periode,
   coalesce(to_char(p.arrivee_at AT TIME ZONE o.fuseau_horaire, 'HH24:MI'), '') AS "arrivalAt",
   coalesce(to_char(p.depart_at AT TIME ZONE o.fuseau_horaire, 'HH24:MI'), '') AS "departureAt",
   coalesce(to_char(p.arrivee_at AT TIME ZONE o.fuseau_horaire, 'YYYY-MM-DD'), '') AS "arrivalDate",
@@ -50,27 +51,27 @@ export async function attendanceById(client, org, id) {
   if (!row) fail(404, "Relevé introuvable.");
   return row;
 }
-// Materialize missing daily absences after the final applicable cutoff.
-// Never replace a QR arrival or an explicit manual correction.
+// Materialize missing absences per slot (MATIN, APRES_MIDI, SOIR) as soon as its cutoff has passed.
+// Never replace an arrival or an explicit manual correction.
 export async function reconcileAbsences(client, org, start, end) {
   await client.query(`WITH days AS (
     SELECT generate_series($2::date, $3::date, interval '1 day')::date AS day
   ), expected AS (
-    SELECT p.id AS person, d.day, max((d.day + h.heure_limite_absence +
-      CASE WHEN h.fin_jour_suivant AND h.heure_limite_absence < h.heure_debut THEN interval '1 day' ELSE interval '0 day' END)
-      AT TIME ZONE o.fuseau_horaire) AS cutoff,
-      bool_and(EXISTS (SELECT 1 FROM absences_autorisees a WHERE a.organisation_id = $1 AND a.personnel_id = p.id AND a.annule_at IS NULL
+    SELECT p.id AS person, d.day, h.periode,
+      ((d.day + h.heure_limite_absence +
+        CASE WHEN h.fin_jour_suivant AND h.heure_limite_absence < h.heure_debut THEN interval '1 day' ELSE interval '0 day' END)
+        AT TIME ZONE o.fuseau_horaire) AS cutoff,
+      EXISTS (SELECT 1 FROM absences_autorisees a WHERE a.organisation_id = $1 AND a.personnel_id = p.id AND a.annule_at IS NULL
         AND d.day BETWEEN a.date_debut AND a.date_fin AND (a.type = 'LEAVE' OR
-          (NOT h.fin_jour_suivant AND a.heure_debut <= h.heure_debut AND a.heure_fin >= h.heure_fin)))) AS justified
+          (NOT h.fin_jour_suivant AND a.heure_debut <= h.heure_debut AND a.heure_fin >= h.heure_fin))) AS justified
     FROM days d JOIN organisations o ON o.id = $1
     JOIN personnel p ON p.organisation_id = o.id AND p.actif = true
       AND d.day >= (p.created_at AT TIME ZONE o.fuseau_horaire)::date
       AND (p.date_embauche IS NULL OR d.day >= least(p.date_embauche, (CURRENT_TIMESTAMP AT TIME ZONE o.fuseau_horaire)::date))
     JOIN horaires_travail h ON h.organisation_id = o.id AND h.jour_travaille = true AND h.jour_semaine = extract(dow FROM d.day)
-    GROUP BY p.id, d.day
-  ) INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, statut, retard_minutes, source)
-    SELECT $1, person, day, CASE WHEN justified THEN 'JUSTIFIED' ELSE 'ABSENT' END, 0, 'AUTOMATIC' FROM expected WHERE cutoff <= CURRENT_TIMESTAMP
-    ON CONFLICT (organisation_id, personnel_id, date_presence) DO UPDATE SET statut = EXCLUDED.statut, updated_at = now()
+  ) INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, periode, statut, retard_minutes, source)
+    SELECT $1, person, day, periode, CASE WHEN justified THEN 'JUSTIFIED' ELSE 'ABSENT' END, 0, 'AUTOMATIC' FROM expected WHERE cutoff <= CURRENT_TIMESTAMP
+    ON CONFLICT (organisation_id, personnel_id, date_presence, periode) DO UPDATE SET statut = EXCLUDED.statut, updated_at = now()
     WHERE presences_journalieres.source = 'AUTOMATIC' AND presences_journalieres.arrivee_at IS NULL
       AND presences_journalieres.statut IS DISTINCT FROM EXCLUDED.statut`, [org, start, end]);
 }

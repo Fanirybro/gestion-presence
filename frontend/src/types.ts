@@ -26,6 +26,8 @@ export interface Attendance {
   id: string;
   agentId: string;
   date: string;
+  periode?: SchedulePeriod;
+  period?: SchedulePeriod;
   arrivalAt: string;
   departureAt: string;
   status: Status;
@@ -62,6 +64,8 @@ export interface Settings {
   organization: string;
   address: string;
   schedules: Schedule[];
+  pointage_qr?: boolean;
+  pointage_facial?: boolean;
 }
 export interface Database {
   agents: Agent[];

@@ -21,6 +21,7 @@ import {
   exportCsv,
   fullName,
   statusLabels,
+  periodLabels,
   today,
 } from "../utils";
 import { presencesApi } from "../services/presences";
@@ -64,12 +65,15 @@ export function Presences({
     }
   }, [searchParams, db.agents]);
   const [department, setDepartment] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
   const records = useQuery({ queryKey: ["presences", date, mode === "history" ? end : date], queryFn: () => presencesApi.list(date, mode === "history" ? end : date), enabled: date <= end });
   const rows = (records.data?.attendance ?? [])
     .filter((p) => {
       const a = db.agents.find((a) => a.id === p.agentId);
       const matchesDate = mode === "history" ? (p.date >= date && p.date <= end) : p.date === date;
       const matchesDept = simple || !department || a?.departmentId === department;
+      const slotPeriod = p.periode || p.period;
+      const matchesPeriod = !selectedPeriod || slotPeriod === selectedPeriod;
       const matchesSearch = fullName(a)
         .toLowerCase()
         .includes(search.toLowerCase());
@@ -80,7 +84,7 @@ export function Presences({
             ? (p.status === "ABSENT" || p.status === "JUSTIFIED")
             : (p.status === "PRESENT" || p.status === "LATE");
 
-      return matchesDate && matchesDept && matchesSearch && matchesMode;
+      return matchesDate && matchesDept && matchesPeriod && matchesSearch && matchesMode;
     })
     .sort(
       (a, b) =>
@@ -97,7 +101,7 @@ export function Presences({
   }[mode];
   const subtitle = {
     presences: "Consultez les pointages et relevés de présence de la journée.",
-    absences: "Liste des agents absents (injustifiés ou justifiés).",
+    absences: "Liste des agents absents par créneau (Matin, Après-midi, Soir).",
     retards: "Pointages enregistrés avec retard et cumul des minutes.",
     history: "Retrouvez les pointages sur la période de votre choix.",
   }[mode];
@@ -106,6 +110,7 @@ export function Presences({
       [
         [
           "Date",
+          "Créneau",
           "Agent",
           "Service",
           "Arrivée",
@@ -116,8 +121,10 @@ export function Presences({
         ],
         ...rows.map((p) => {
           const a = db.agents.find((a) => a.id === p.agentId);
+          const slot = p.periode || p.period || "MATIN";
           return [
             p.date,
+            periodLabels[slot] || slot,
             fullName(a),
             db.departments.find((d) => d.id === a?.departmentId)?.name || "",
             p.arrivalAt,
@@ -137,7 +144,7 @@ export function Presences({
         title={title}
         subtitle={subtitle}
       >
-        {!simple && <ExportButton onClick={download} />}
+        <ExportButton onClick={download} />
       </Heading>
 
       {/* Clean Tabs Navigation between tracking subviews */}
@@ -201,6 +208,16 @@ export function Presences({
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
+        <select
+          aria-label="Créneau"
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+        >
+          <option value="">Tous les créneaux</option>
+          <option value="MATIN">Matin</option>
+          <option value="APRES_MIDI">Après-midi</option>
+          <option value="SOIR">Soir</option>
+        </select>
         {!simple && (
           <select
             aria-label="Service"
@@ -224,6 +241,7 @@ export function Presences({
             setEnd(today());
             setSearch("");
             setDepartment("");
+            setSelectedPeriod("");
           }}
         >
           <RotateCcw size={15} />
@@ -251,6 +269,7 @@ export function Presences({
         {records.isError ? <p className="form-error" role="alert">{records.error.message}</p> : <Table
           headers={[
             "AGENT",
+            "CRÉNEAU",
             ...(!simple ? ["DATE", "SERVICE"] : []),
             "ARRIVÉE",
             "DÉPART",
@@ -261,8 +280,12 @@ export function Presences({
           rowKeys={rows.map((p) => p.id)}
           rows={rows.map((p) => {
             const a = db.agents.find((a) => a.id === p.agentId);
+            const slot = p.periode || p.period || "MATIN";
             return [
               <Person key="agent" agent={a} />,
+              <span key="period" className="badge" style={{ fontWeight: 600, fontSize: "0.8rem" }}>
+                {periodLabels[slot] || slot}
+              </span>,
               ...(!simple
                 ? [
                     dateLabel(p.date),
@@ -360,6 +383,10 @@ export function PresenceDetails() {
         )}
       </Heading>
       <div className="detail-strip">
+        <div>
+          <small>CRÉNEAU</small>
+          <strong>{periodLabels[p.periode || p.period || "MATIN"] || (p.periode || p.period || "Matin")}</strong>
+        </div>
         <div>
           <small>ARRIVÉE</small>
           <strong>{p.arrivalAt || "—"}</strong>

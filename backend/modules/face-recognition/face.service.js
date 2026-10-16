@@ -265,7 +265,92 @@ export class FaceService {
       };
     }
 
-    const nextType = last?.type === "ARRIVAL" ? "DEPARTURE" : "ARRIVAL";
+    let nextType = "ARRIVAL";
+    let clock = null;
+    let schedule = null;
+    let currentSlot = "MATIN";
+    let previous = null;
+
+    if (agent?.organisation_id) {
+      clock = (await pool.query(
+        `SELECT CURRENT_TIMESTAMP AS now, 
+                to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'YYYY-MM-DD') AS date,
+                to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'HH24:MI') AS time,
+                extract(dow FROM CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire)::int AS day,
+                pointage_facial
+         FROM organisations WHERE id = $1`,
+        [agent.organisation_id]
+      )).rows[0];
+
+      if (clock && clock.pointage_facial === false) {
+        return {
+          match: false,
+          confidence: verifyResult.confidence,
+          message: "Le pointage par reconnaissance faciale est désactivé pour votre organisation.",
+        };
+      }
+
+      if (clock) {
+        const schedules = (await pool.query(
+          `SELECT jour_semaine, periode, fin_jour_suivant, to_char(heure_debut, 'HH24:MI') AS start,
+                  to_char(heure_fin, 'HH24:MI') AS end, to_char(heure_limite_absence, 'HH24:MI') AS cutoff,
+                  tolerance_retard_minutes AS tolerance
+           FROM horaires_travail
+           WHERE organisation_id = $1 AND jour_travaille = true ORDER BY heure_debut`,
+          [agent.organisation_id]
+        )).rows;
+
+        previous = schedules.find(s => s.jour_semaine === (clock.day + 6) % 7 && s.fin_jour_suivant && clock.time < s.end);
+        const today = schedules.filter(s => s.jour_semaine === clock.day);
+        schedule = previous ?? today.find(s => clock.time >= s.start && (s.fin_jour_suivant || clock.time < s.end)) ?? today.find(s => clock.time < s.start) ?? today.at(-1);
+        currentSlot = schedule?.periode || "MATIN";
+
+        let slotDate = clock.date;
+        if (previous) {
+          const day = new Date(`${slotDate}T12:00:00Z`);
+          day.setUTCDate(day.getUTCDate() - 1);
+          slotDate = day.toISOString().slice(0, 10);
+        }
+
+        // Vérifier si le créneau courant possède déjà une arrivée ouverte sans départ
+        const currentOpen = (await pool.query(
+          `SELECT id FROM presences_journalieres 
+           WHERE organisation_id = $1 AND personnel_id = $2 AND date_presence = $3 AND periode = $4
+             AND arrivee_at IS NOT NULL AND depart_at IS NULL 
+           LIMIT 1`,
+          [agent.organisation_id, matchedPersonnelId, slotDate, currentSlot]
+        )).rows[0];
+
+        // S'il a déjà pointé son arrivée pour ce créneau, ce scan est son DÉPART.
+        // Sinon, c'est une ARRIVÉE pour ce créneau !
+        nextType = currentOpen ? "DEPARTURE" : "ARRIVAL";
+
+        // Si c'est une ARRIVÉE, vérifier l'heure limite d'absence
+        if (nextType === "ARRIVAL" && schedule?.cutoff) {
+          const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+          const arrivalMin = minutes(clock.time) + (previous ? 1440 : 0);
+          const cutoffMin = minutes(schedule.cutoff) + (schedule.fin_jour_suivant && schedule.cutoff < schedule.start ? 1440 : 0);
+          if (arrivalMin > cutoffMin) {
+            const periodeName = currentSlot.toLowerCase();
+            return {
+              match: true,
+              rejected: true,
+              confidence: verifyResult.confidence,
+              personnel: {
+                id: matchedPersonnelId,
+                nom: agent?.nom || "",
+                prenom: agent?.prenom || "",
+                poste: agent?.poste || "",
+                departement_nom: agent?.departement_nom || "",
+              },
+              message: `Pointage refusé : l’heure limite (${schedule.cutoff}) pour le créneau ${periodeName} est dépassée. Vous êtes comptabilisé absent. Contactez votre coordinateur pour régularisation.`,
+            };
+          }
+        }
+      }
+    } else {
+      nextType = last?.type === "ARRIVAL" ? "DEPARTURE" : "ARRIVAL";
+    }
 
     // Enregistrement dans la table attendances
     const insertQuery = `
@@ -281,32 +366,57 @@ export class FaceService {
     const attendanceRecord = attendanceRes.rows[0];
 
     // Synergie directe avec presences_journalieres
-    if (agent?.organisation_id) {
+    if (agent?.organisation_id && clock) {
       try {
-        const clock = (await pool.query(
-          `SELECT CURRENT_TIMESTAMP AS now, 
-                  to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'YYYY-MM-DD') AS date
-           FROM organisations WHERE id = $1`,
-          [agent.organisation_id]
-        )).rows[0];
+        let date = clock.date;
+        if (previous) {
+          const day = new Date(`${date}T12:00:00Z`);
+          day.setUTCDate(day.getUTCDate() - 1);
+          date = day.toISOString().slice(0, 10);
+        }
 
-        if (clock) {
-          if (nextType === "ARRIVAL") {
+        const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+        const late = schedule ? Math.max(0, minutes(clock.time) + (previous ? 1440 : 0) - minutes(schedule.start) - schedule.tolerance) : 0;
+
+        if (nextType === "ARRIVAL") {
+          // Si l'agent avait oublié de badger son départ lors d'un créneau précédent, on clôture ce créneau précédent
+          const staleOpen = (await pool.query(
+            `SELECT id FROM presences_journalieres 
+             WHERE organisation_id = $1 AND personnel_id = $2 AND arrivee_at IS NOT NULL AND depart_at IS NULL 
+             ORDER BY date_presence DESC, id DESC LIMIT 1`,
+            [agent.organisation_id, matchedPersonnelId]
+          )).rows[0];
+          if (staleOpen) {
             await pool.query(
-              `INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, arrivee_at, statut, retard_minutes, source)
-               VALUES ($1, $2, $3, $4, 'PRESENT', 0, 'AUTOMATIC')
-               ON CONFLICT (organisation_id, personnel_id, date_presence) 
-               DO UPDATE SET 
-                 arrivee_at = coalesce(presences_journalieres.arrivee_at, EXCLUDED.arrivee_at),
-                 updated_at = now()`,
-              [agent.organisation_id, matchedPersonnelId, clock.date, clock.now]
+              "UPDATE presences_journalieres SET depart_at = $3, updated_at = now() WHERE organisation_id = $1 AND id = $2",
+              [agent.organisation_id, staleOpen.id, clock.now]
             );
-          } else {
+          }
+
+          await pool.query(
+            `INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, periode, arrivee_at, statut, retard_minutes, source)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'AUTOMATIC')
+             ON CONFLICT (organisation_id, personnel_id, date_presence, periode) 
+             DO UPDATE SET 
+               arrivee_at = coalesce(presences_journalieres.arrivee_at, EXCLUDED.arrivee_at),
+               statut = CASE WHEN presences_journalieres.arrivee_at IS NULL THEN EXCLUDED.statut ELSE presences_journalieres.statut END,
+               retard_minutes = CASE WHEN presences_journalieres.arrivee_at IS NULL THEN EXCLUDED.retard_minutes ELSE presences_journalieres.retard_minutes END,
+               updated_at = now()`,
+            [agent.organisation_id, matchedPersonnelId, date, currentSlot, clock.now, late ? "LATE" : "PRESENT", late]
+          );
+        } else {
+          const open = (await pool.query(
+            `SELECT id FROM presences_journalieres 
+             WHERE organisation_id = $1 AND personnel_id = $2 AND date_presence = $3 AND periode = $4 AND arrivee_at IS NOT NULL AND depart_at IS NULL 
+             ORDER BY date_presence DESC, id DESC LIMIT 1`,
+            [agent.organisation_id, matchedPersonnelId, date, currentSlot]
+          )).rows[0];
+          if (open) {
             await pool.query(
               `UPDATE presences_journalieres 
                SET depart_at = $3, updated_at = now() 
-               WHERE organisation_id = $1 AND personnel_id = $2 AND date_presence = $4 AND depart_at IS NULL`,
-              [agent.organisation_id, matchedPersonnelId, clock.now, clock.date]
+               WHERE organisation_id = $1 AND id = $2`,
+              [agent.organisation_id, open.id, clock.now]
             );
           }
         }

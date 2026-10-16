@@ -11,6 +11,10 @@ try {
 }
 
 const { default: app } = await import("./server.js");
+const { startAbsenceScheduler } = await import("./utils/absenceScheduler.js");
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () => console.log(`API démarrée sur le port ${port}`));
+app.listen(port, () => {
+  console.log(`API démarrée sur le port ${port}`);
+  startAbsenceScheduler();
+});

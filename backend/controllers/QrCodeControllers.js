@@ -119,34 +119,76 @@ export const scanBadge = controller(async (req, client) => {
   }
   const clock = (await client.query(`SELECT CURRENT_TIMESTAMP AS now, to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'YYYY-MM-DD') AS date,
     to_char(CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire, 'HH24:MI') AS time,
-    extract(dow FROM CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire)::int AS day FROM organisations WHERE id = $1`, [org])).rows[0];
+    extract(dow FROM CURRENT_TIMESTAMP AT TIME ZONE fuseau_horaire)::int AS day,
+    pointage_qr FROM organisations WHERE id = $1`, [org])).rows[0];
+  if (clock && clock.pointage_qr === false) fail(403, "Le pointage par QR code est désactivé pour votre organisation.");
   const latest = (await client.query("SELECT type, horodatage FROM pointages WHERE organisation_id = $1 AND personnel_id = $2 ORDER BY horodatage DESC, id DESC LIMIT 1", [org, badge.personnel_id])).rows[0];
   if (latest && new Date(clock.now) - new Date(latest.horodatage) < 60000) fail(409, "Pointage déjà reçu. Patientez une minute avant le prochain scan.");
-  const type = latest?.type === "ARRIVAL" ? "DEPARTURE" : "ARRIVAL";
+
+  const schedules = (await client.query(`SELECT jour_semaine, periode, fin_jour_suivant, to_char(heure_debut, 'HH24:MI') AS start,
+    to_char(heure_fin, 'HH24:MI') AS end, to_char(heure_limite_absence, 'HH24:MI') AS cutoff,
+    tolerance_retard_minutes AS tolerance FROM horaires_travail
+    WHERE organisation_id = $1 AND jour_travaille = true ORDER BY heure_debut`, [org])).rows;
+  const previous = schedules.find(s => s.jour_semaine === (clock.day + 6) % 7 && s.fin_jour_suivant && clock.time < s.end);
+  const today = schedules.filter(s => s.jour_semaine === clock.day);
+  const schedule = previous ?? today.find(s => clock.time >= s.start && (s.fin_jour_suivant || clock.time < s.end)) ?? today.find(s => clock.time < s.start) ?? today.at(-1);
+
+  let date = clock.date;
+  if (previous) { const day = new Date(`${date}T12:00:00Z`); day.setUTCDate(day.getUTCDate() - 1); date = day.toISOString().slice(0, 10); }
+  const currentSlot = schedule?.periode || "MATIN";
+
+  // Vérifier si pour le créneau courant l'agent a déjà une arrivée ouverte (sans départ)
+  const currentOpen = (await client.query(
+    `SELECT id FROM presences_journalieres 
+     WHERE organisation_id = $1 AND personnel_id = $2 AND date_presence = $3 AND periode = $4
+       AND arrivee_at IS NOT NULL AND depart_at IS NULL 
+     LIMIT 1 FOR UPDATE`,
+    [org, badge.personnel_id, date, currentSlot]
+  )).rows[0];
+
+  // Si le créneau en cours a déjà une arrivée ouverte, ce scan est son DÉPART.
+  // Sinon (nouvelle journée ou nouveau créneau), c'est une ARRIVÉE pour ce créneau !
+  const type = currentOpen ? "DEPARTURE" : "ARRIVAL";
+
   if (type === "ARRIVAL") {
-    const schedules = (await client.query(`SELECT jour_semaine, fin_jour_suivant, to_char(heure_debut, 'HH24:MI') AS start,
-      to_char(heure_fin, 'HH24:MI') AS end, tolerance_retard_minutes AS tolerance FROM horaires_travail
-      WHERE organisation_id = $1 AND jour_travaille = true ORDER BY heure_debut`, [org])).rows;
-    const previous = schedules.find(s => s.jour_semaine === (clock.day + 6) % 7 && s.fin_jour_suivant && clock.time < s.end);
-    const today = schedules.filter(s => s.jour_semaine === clock.day);
-    const schedule = previous ?? today.find(s => clock.time >= s.start && (s.fin_jour_suivant || clock.time < s.end)) ?? today.find(s => clock.time < s.start) ?? today.at(-1);
     if (!schedule) fail(409, "Aucun créneau travaillé pour cette arrivée.");
+
+    // S'il avait oublié de badger son départ lors d'un créneau précédent, on clôture ce créneau précédent
+    const staleOpen = (await client.query(
+      `SELECT id FROM presences_journalieres 
+       WHERE organisation_id = $1 AND personnel_id = $2 AND arrivee_at IS NOT NULL AND depart_at IS NULL 
+       ORDER BY date_presence DESC, id DESC LIMIT 1 FOR UPDATE`,
+      [org, badge.personnel_id]
+    )).rows[0];
+    if (staleOpen) {
+      await client.query(
+        "UPDATE presences_journalieres SET depart_at = $3, updated_at = now() WHERE organisation_id = $1 AND id = $2",
+        [org, staleOpen.id, clock.now]
+      );
+    }
+
     const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+
+    // Vérifier si l'heure limite d'absence pour ce créneau est dépassée
+    if (schedule.cutoff) {
+      const arrivalMin = minutes(clock.time) + (previous ? 1440 : 0);
+      const cutoffMin = minutes(schedule.cutoff) + (schedule.fin_jour_suivant && schedule.cutoff < schedule.start ? 1440 : 0);
+      if (arrivalMin > cutoffMin) {
+        fail(403, `Pointage refusé : l’heure limite d’arrivée (${schedule.cutoff}) pour le créneau ${currentSlot.toLowerCase()} est dépassée. Vous êtes comptabilisé absent. Contactez votre coordinateur pour régularisation.`);
+      }
+    }
+
     const late = Math.max(0, minutes(clock.time) + (previous ? 1440 : 0) - minutes(schedule.start) - schedule.tolerance);
-    let date = clock.date;
-    if (previous) { const day = new Date(`${date}T12:00:00Z`); day.setUTCDate(day.getUTCDate() - 1); date = day.toISOString().slice(0, 10); }
-    await client.query(`INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, arrivee_at, statut, retard_minutes, source)
-      VALUES ($1, $2, $3, $4, $5, $6, 'QR_SCAN') ON CONFLICT (organisation_id, personnel_id, date_presence) DO UPDATE SET
+    await client.query(`INSERT INTO presences_journalieres (organisation_id, personnel_id, date_presence, periode, arrivee_at, statut, retard_minutes, source)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'QR_SCAN') ON CONFLICT (organisation_id, personnel_id, date_presence, periode) DO UPDATE SET
       arrivee_at = coalesce(presences_journalieres.arrivee_at, EXCLUDED.arrivee_at), depart_at = NULL,
       statut = CASE WHEN presences_journalieres.arrivee_at IS NULL THEN EXCLUDED.statut ELSE presences_journalieres.statut END,
       retard_minutes = CASE WHEN presences_journalieres.arrivee_at IS NULL THEN EXCLUDED.retard_minutes ELSE presences_journalieres.retard_minutes END,
-      source = 'QR_SCAN', updated_at = now()`, [org, badge.personnel_id, date, clock.now, late ? "LATE" : "PRESENT", late]);
+      source = 'QR_SCAN', updated_at = now()`, [org, badge.personnel_id, date, currentSlot, clock.now, late ? "LATE" : "PRESENT", late]);
   } else {
-    const open = (await client.query("SELECT id FROM presences_journalieres WHERE organisation_id = $1 AND personnel_id = $2 AND arrivee_at IS NOT NULL AND depart_at IS NULL ORDER BY date_presence DESC LIMIT 1 FOR UPDATE", [org, badge.personnel_id])).rows[0];
-    if (!open) fail(409, "Aucune arrivée ouverte à clôturer.");
-    await client.query("UPDATE presences_journalieres SET depart_at = $3, updated_at = now() WHERE organisation_id = $1 AND id = $2", [org, open.id, clock.now]);
+    await client.query("UPDATE presences_journalieres SET depart_at = $3, updated_at = now() WHERE organisation_id = $1 AND id = $2", [org, currentOpen.id, clock.now]);
   }
   await client.query(`INSERT INTO pointages (organisation_id, personnel_id, badge_id, type, horodatage, source, saisi_par, cle_idempotence)
     VALUES ($1, $2, $3, $4, $5, 'QR_SCAN', $6, $7)`, [org, badge.personnel_id, badge.id, type, clock.now, req.session.userId, input.cle_idempotence]);
-  return { type, message: `${type === "ARRIVAL" ? "Arrivée" : "Départ"} de ${badge.prenom} ${badge.nom} enregistré à ${clock.time}.` };
+  return { type, message: `${type === "ARRIVAL" ? "Arrivée" : "Départ"} (${currentSlot.toLowerCase()}) de ${badge.prenom} ${badge.nom} enregistré à ${clock.time}.` };
 }, { write: true, coordinator: false });

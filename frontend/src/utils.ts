@@ -33,6 +33,11 @@ export const statusLabels: Record<Status, string> = {
   ABSENT: "Absent",
   JUSTIFIED: "Justifié",
 };
+export const periodLabels: Record<string, string> = {
+  MATIN: "Matin",
+  APRES_MIDI: "Après-midi",
+  SOIR: "Soir",
+};
 export const minutes = (time: string) => {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;

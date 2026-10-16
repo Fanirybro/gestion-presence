@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  CalendarPlus,
-  CalendarDays,
+  Camera,
   ChevronRight,
   CircleHelp,
   Printer,
@@ -10,44 +9,54 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useApp } from "../app/context";
+import { SecretaryModeSelector } from "../app/secretaryMode";
 import { dateLabel, nowTime, today } from "../utils";
 
-const actions = [
-  {
-    to: "/conges-permissions",
-    title: "Congés et permissions",
-    description: "Recenser les absences déjà autorisées",
-    icon: CalendarDays,
-  },
-  {
-    to: "/scan",
-    title: "Ouvrir le pointage",
-    description: "Scanner les badges du personnel",
-    icon: ScanLine,
-  },
-  {
-    to: "/presences",
-    title: "Voir les présences",
-    description: "Consulter les arrivées et départs du jour",
-    icon: UsersRound,
-  },
-  {
-    to: "/reports?period=1",
-    title: "Imprimer une fiche",
-    description: "Présences et absences sur une période",
-    icon: Printer,
-  },
-  {
-    to: "/presences/ajouter",
-    title: "Ajouter un pointage",
-    description: "Faire régulariser un oubli de badge avec un motif",
-    icon: CalendarPlus,
-  },
-];
-
 export default function SecretaryHome() {
-  const { user } = useApp();
+  const { db, user, organisation } = useApp();
   const [clock, setClock] = useState(() => ({ day: today(), time: nowTime() }));
+
+  const qrEnabled = organisation?.pointage_qr ?? db.settings.pointage_qr ?? true;
+  const facialEnabled = organisation?.pointage_facial ?? db.settings.pointage_facial ?? true;
+
+  const actions = [
+    ...(qrEnabled
+      ? [
+          {
+            to: "/scan",
+            title: "Ouvrir le pointage QR Code",
+            description: "Scanner les badges du personnel",
+            icon: ScanLine,
+            featured: true,
+          },
+        ]
+      : []),
+    ...(facialEnabled
+      ? [
+          {
+            to: "/kiosk",
+            title: "Ouvrir le pointage par Visage",
+            description: "Borne de reconnaissance faciale en direct",
+            icon: Camera,
+            featured: !qrEnabled,
+          },
+        ]
+      : []),
+    {
+      to: "/presences",
+      title: "Voir les présences",
+      description: "Consulter les arrivées et départs du jour",
+      icon: UsersRound,
+      featured: false,
+    },
+    {
+      to: "/reports?period=1",
+      title: "Imprimer un rapport ou fiche de présence",
+      description: "Générer et imprimer le rapport et la fiche de présence",
+      icon: Printer,
+      featured: false,
+    },
+  ];
   useEffect(() => {
     const timer = setInterval(
       () => setClock({ day: today(), time: nowTime() }),
@@ -59,18 +68,21 @@ export default function SecretaryHome() {
     <section className="secretary-home">
       <div className="secretary-date">
         <span>{dateLabel(clock.day, true)}</span>
-        <time>{clock.time}</time>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <time>{clock.time}</time>
+          <SecretaryModeSelector />
+        </div>
       </div>
       <div className="secretary-welcome">
         <h1>Bonjour {user?.name.split(" ")[0]}</h1>
         <p>Que souhaitez-vous faire ?</p>
       </div>
       <nav className="secretary-actions" aria-label="Actions courantes">
-        {actions.map(({ to, title, description, icon: Icon }) => (
+        {actions.map(({ to, title, description, icon: Icon, featured }) => (
           <Link
             key={to}
             to={to}
-            className={`secretary-action ${to === "/scan" ? "featured" : ""}`}
+            className={`secretary-action ${featured ? "featured" : ""}`}
           >
             <Icon
               className="action-symbol"
