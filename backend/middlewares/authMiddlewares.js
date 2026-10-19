@@ -33,7 +33,31 @@ export function requireTrustedOrigin(origins) {
   return (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
     const origin = req.get("origin");
-    if ((origin && !origins.includes(origin)) || req.get("sec-fetch-site") === "cross-site") {
+    const host = req.get("host");
+
+    // Vérifier si l'origine est digne de confiance :
+    // 1. Liste explicite 'origins' (FRONTEND_URL, localhost, etc.)
+    // 2. Requête same-origin (l'Origin correspond au Host de la requête)
+    // 3. Déploiement Vercel (*.vercel.app)
+    let isAllowed = false;
+    if (!origin) {
+      isAllowed = true;
+    } else if (origins.includes(origin)) {
+      isAllowed = true;
+    } else if (host && (origin === `https://${host}` || origin === `http://${host}`)) {
+      isAllowed = true;
+    } else {
+      try {
+        const originUrl = new URL(origin);
+        if (originUrl.hostname.endsWith(".vercel.app")) {
+          isAllowed = true;
+        }
+      } catch {
+        isAllowed = false;
+      }
+    }
+
+    if (!isAllowed || req.get("sec-fetch-site") === "cross-site") {
       return res.status(403).json({ message: "Origine non autorisée." });
     }
     // Les mutations utilisent exclusivement du JSON, y compris sans Origin.

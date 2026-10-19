@@ -22,6 +22,19 @@ export function createApp({ sessionStore } = {}) {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  if (process.env.NODE_ENV !== "production") {
+    // En développement, tolérer localhost et 127.0.0.1 sur les ports usuels de Vite (5173, 5174, etc.)
+    const devOrigins = [
+      "http://localhost:5173", "http://127.0.0.1:5173",
+      "http://localhost:5174", "http://127.0.0.1:5174",
+      "http://localhost:5175", "http://127.0.0.1:5175",
+      "http://localhost:4173", "http://127.0.0.1:4173",
+      "http://localhost:3000", "http://127.0.0.1:3000"
+    ];
+    for (const devOrigin of devOrigins) {
+      if (!origins.includes(devOrigin)) origins.push(devOrigin);
+    }
+  }
   if (process.env.VERCEL_URL) {
     const vercelOrigin = `https://${process.env.VERCEL_URL}`;
     if (!origins.includes(vercelOrigin)) origins.push(vercelOrigin);
@@ -45,7 +58,17 @@ export function createApp({ sessionStore } = {}) {
     }
     next();
   });
-  app.use(cors({ origin: origins, credentials: true }));
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || origins.includes(origin)) return callback(null, true);
+      try {
+        const url = new URL(origin);
+        if (url.hostname.endsWith(".vercel.app")) return callback(null, true);
+      } catch {}
+      callback(null, false);
+    },
+    credentials: true,
+  }));
   app.use(requireTrustedOrigin(origins));
   app.use("/api/v1/face-recognition", express.json({ limit: "10mb" }));
   app.use(express.json({ limit: "16kb" }));
