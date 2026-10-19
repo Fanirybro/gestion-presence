@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { presencesApi } from "../services/presences";
 import {
   FileText,
   Users,
@@ -418,12 +420,20 @@ export default function Reports() {
     [targetAgents],
   );
 
+  const { data: serverPresences } = useQuery({
+    queryKey: ["presences", monthStart, monthEnd],
+    queryFn: () => presencesApi.list(monthStart, monthEnd),
+    enabled: Boolean(monthStart && monthEnd),
+  });
+
+  const attendanceSource = serverPresences?.attendance ?? db.attendance;
+
   // Filtered Attendance for target agents in month
   const monthAttendance = useMemo(() => {
-    return db.attendance.filter(
+    return attendanceSource.filter(
       (p) => targetAgentIds.has(p.agentId) && p.date >= monthStart && p.date <= monthEnd,
     );
-  }, [db.attendance, targetAgentIds, monthStart, monthEnd]);
+  }, [attendanceSource, targetAgentIds, monthStart, monthEnd]);
 
   // Active Departments
   const activeDepartments = useMemo(() => {

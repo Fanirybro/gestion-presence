@@ -18,40 +18,69 @@ import {
 } from "../components/MotionEffects";
 import { motion } from "motion/react";
 import { useMotionPreference as useReducedMotion } from "../components/useMotionPreference";
+import { useQuery } from "@tanstack/react-query";
+import { presencesApi } from "../services/presences";
+import { useMemo } from "react";
+
 export default function Dashboard() {
   const reduced = useReducedMotion();
   const { simple } = useSecretaryMode();
   const { db, user } = useApp();
   const day = today();
-  const activeAgentIds = new Set(
-    db.agents.filter((a) => a.isActive).map((a) => a.id),
+
+  const startDate = useMemo(() => {
+    const d = new Date(`${day}T12:00:00+03:00`);
+    d.setDate(d.getDate() - 4);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Indian/Antananarivo",
+    }).format(d);
+  }, [day]);
+
+  const { data: serverPresences } = useQuery({
+    queryKey: ["presences", startDate, day],
+    queryFn: () => presencesApi.list(startDate, day),
+    refetchInterval: 15_000,
+  });
+
+  const attendanceSource = serverPresences?.attendance ?? db.attendance;
+
+  const activeAgentIds = useMemo(
+    () => new Set(db.agents.filter((a) => a.isActive).map((a) => a.id)),
+    [db.agents],
   );
-  const records = db.attendance.filter(
-    (p) => p.date === day && activeAgentIds.has(p.agentId),
+
+  const records = useMemo(
+    () => attendanceSource.filter((p) => p.date === day && activeAgentIds.has(p.agentId)),
+    [attendanceSource, day, activeAgentIds],
   );
+
   const total = activeAgentIds.size;
   const present = records.filter(
     (p) => p.status === "PRESENT" || p.status === "LATE",
   ).length;
   const late = records.filter((p) => p.status === "LATE").length;
   const absent = records.filter((p) => p.status === "ABSENT").length;
-  const week = Array.from({ length: 5 }, (_, i) => {
-    const date = new Date(`${day}T12:00:00+03:00`);
-    date.setDate(date.getDate() - 4 + i);
-    const key = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Indian/Antananarivo",
-    }).format(date);
-    const list = db.attendance.filter(
-      (p) => p.date === key && activeAgentIds.has(p.agentId),
-    );
-    return {
-      key,
-      label: date.toLocaleDateString("fr-FR", { weekday: "short" }),
-      present: list.filter((p) => p.status === "PRESENT").length,
-      late: list.filter((p) => p.status === "LATE").length,
-      absent: list.filter((p) => p.status === "ABSENT").length,
-    };
-  });
+
+  const week = useMemo(() => {
+    return Array.from({ length: 5 }, (_, i) => {
+      const date = new Date(`${day}T12:00:00+03:00`);
+      date.setDate(date.getDate() - 4 + i);
+      const key = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Indian/Antananarivo",
+      }).format(date);
+      const list = attendanceSource.filter(
+        (p) => p.date === key && activeAgentIds.has(p.agentId),
+      );
+      return {
+        key,
+        label: date.toLocaleDateString("fr-FR", { weekday: "short" }),
+        present: list.filter((p) => p.status === "PRESENT").length,
+        late: list.filter((p) => p.status === "LATE").length,
+        absent: list.filter((p) => p.status === "ABSENT").length,
+      };
+    });
+  }, [day, attendanceSource, activeAgentIds]);
+
   const chartMax = Math.max(
     total,
     ...week.map((w) => w.present + w.late + w.absent),
