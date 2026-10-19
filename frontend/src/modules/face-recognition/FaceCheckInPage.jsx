@@ -198,18 +198,23 @@ export default function FaceCheckInPage() {
     try {
       const res = await faceApi.recognizeAndCheckIn(b64Image);
 
-      if (res.status === "MATCH_FOUND") {
+      const isSuccess = res.match === true || res.status === "MATCH_FOUND";
+      const agent = res.personnel || res.agent;
+      const attendanceType = res.type || res.attendance_type;
+
+      if (isSuccess && agent) {
         playBeep(880, 0.25);
         setCameraModal({
           status: "success",
-          title: "Pointage Confirmé !",
-          agent: res.agent,
-          type: res.attendance_type,
+          title: res.alreadyProcessed ? "Pointage déjà enregistré" : "Pointage Confirmé !",
+          agent: agent,
+          type: attendanceType,
           confidence: res.confidence,
           message:
-            res.attendance_type === "ARRIVAL"
+            res.message ||
+            (attendanceType === "ARRIVAL"
               ? "Bienvenue ! Votre arrivée a été enregistrée avec succès."
-              : "Au revoir ! Votre départ a été enregistré avec succès.",
+              : "Au revoir ! Votre départ a été enregistré avec succès."),
         });
         setResultCooldown(5);
         void fetchHealthAndHistory();
