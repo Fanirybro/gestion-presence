@@ -23,8 +23,13 @@ export default function Dashboard() {
   const { simple } = useSecretaryMode();
   const { db, user } = useApp();
   const day = today();
-  const records = db.attendance.filter((p) => p.date === day);
-  const total = db.agents.filter((a) => a.isActive).length;
+  const activeAgentIds = new Set(
+    db.agents.filter((a) => a.isActive).map((a) => a.id),
+  );
+  const records = db.attendance.filter(
+    (p) => p.date === day && activeAgentIds.has(p.agentId),
+  );
+  const total = activeAgentIds.size;
   const present = records.filter(
     (p) => p.status === "PRESENT" || p.status === "LATE",
   ).length;
@@ -36,7 +41,9 @@ export default function Dashboard() {
     const key = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Indian/Antananarivo",
     }).format(date);
-    const list = db.attendance.filter((p) => p.date === key);
+    const list = db.attendance.filter(
+      (p) => p.date === key && activeAgentIds.has(p.agentId),
+    );
     return {
       key,
       label: date.toLocaleDateString("fr-FR", { weekday: "short" }),
@@ -45,6 +52,11 @@ export default function Dashboard() {
       absent: list.filter((p) => p.status === "ABSENT").length,
     };
   });
+  const chartMax = Math.max(
+    total,
+    ...week.map((w) => w.present + w.late + w.absent),
+    1,
+  );
   if (simple) return <SecretaryHome />;
   return (
     <>
@@ -143,8 +155,8 @@ export default function Dashboard() {
               .join(". ")}
           >
             <div className="chart-y">
-              <span>{total}</span>
-              <span>{Math.round(total / 2)}</span>
+              <span>{chartMax}</span>
+              <span>{chartMax > 1 ? Math.round(chartMax / 2) : ""}</span>
               <span>0</span>
             </div>
             {week.map((w, dayIndex) => (
@@ -154,6 +166,7 @@ export default function Dashboard() {
               >
                 <motion.div
                   className="bar-stack"
+                  style={{ transformOrigin: "bottom" }}
                   initial={{ scaleY: reduced ? 1 : 0 }}
                   animate={{ scaleY: 1 }}
                   transition={{
@@ -171,7 +184,7 @@ export default function Dashboard() {
                       key={color}
                       className={`chart-bar ${color}`}
                       style={{
-                        height: `${(Number(count) / Math.max(1, total)) * 100}%`,
+                        height: `${(Number(count) / chartMax) * 100}%`,
                       }}
                       title={`${count}`}
                     />

@@ -77,12 +77,26 @@ export const faceApi = {
   },
 
   /**
+   * Alias de compatibilité pour checkIn().
+   */
+  async recognizeAndCheckIn(imageBase64, options = {}) {
+    return this.checkIn(imageBase64, options);
+  },
+
+  /**
    * Récupère l'historique récent des pointages par reconnaissance faciale.
    * @param {number} [limit=20]
    */
   async getAttendances(limit = 20) {
     const res = await client.get(`/attendances?limit=${limit}`);
     return res.data.attendances || [];
+  },
+
+  /**
+   * Alias de compatibilité pour getAttendances().
+   */
+  async getRecentAttendances(limit = 20) {
+    return this.getAttendances(limit);
   },
 };
 

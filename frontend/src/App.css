@@ -518,11 +518,14 @@
   width: 31px;
   max-width: 100%;
   position: relative;
+  overflow: hidden;
+  border-radius: 4px;
 }
 .chart-bar {
   border-radius: 3px;
   min-height: 0;
   flex-shrink: 0;
+  width: 100%;
 }
 .chart-column.current > span {
   color: #387658;
