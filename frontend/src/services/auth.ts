@@ -1,4 +1,4 @@
-import type { User } from "../types";
+import type { User, UserPermissions } from "../types";
 export interface Account {
   id: string;
   nom: string;
@@ -7,6 +7,7 @@ export interface Account {
   role: "COORDINATOR" | "SECRETARY" | null;
   actif: boolean;
   organisation_id: string | null;
+  permissions?: UserPermissions;
 }
 export interface Organisation {
   id: string;
@@ -32,4 +33,5 @@ export const toUser = (account: Account): User => ({
   isActive: account.actif,
   organisationId:
     account.organisation_id == null ? null : String(account.organisation_id),
+  permissions: account.permissions || {},
 });

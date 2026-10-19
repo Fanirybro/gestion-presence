@@ -265,20 +265,12 @@
 }
 .toast {
   gap: 12px;
-  align-items: center;
 }
-.toast > span {
-  flex: 1;
-}
-.toast button {
+.toast-close {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-}
-.toast button:hover {
-  background: #ffffff18;
+  width: 26px;
+  height: 26px;
 }
 dialog {
   transform-origin: center;

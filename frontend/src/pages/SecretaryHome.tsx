@@ -11,13 +11,16 @@ import {
 import { useApp } from "../app/context";
 import { SecretaryModeSelector } from "../app/secretaryMode";
 import { dateLabel, nowTime, today } from "../utils";
+import { hasPermission } from "../types";
 
 export default function SecretaryHome() {
   const { db, user, organisation } = useApp();
   const [clock, setClock] = useState(() => ({ day: today(), time: nowTime() }));
 
-  const qrEnabled = organisation?.pointage_qr ?? db.settings.pointage_qr ?? true;
-  const facialEnabled = organisation?.pointage_facial ?? db.settings.pointage_facial ?? true;
+  const qrEnabled = (organisation?.pointage_qr ?? db.settings.pointage_qr ?? true) && hasPermission(user, "scan");
+  const facialEnabled = (organisation?.pointage_facial ?? db.settings.pointage_facial ?? true) && hasPermission(user, "kiosk");
+  const presencesEnabled = hasPermission(user, "presences");
+  const reportsEnabled = hasPermission(user, "reports");
 
   const actions = [
     ...(qrEnabled
@@ -42,20 +45,28 @@ export default function SecretaryHome() {
           },
         ]
       : []),
-    {
-      to: "/presences",
-      title: "Voir les présences",
-      description: "Consulter les arrivées et départs du jour",
-      icon: UsersRound,
-      featured: false,
-    },
-    {
-      to: "/reports?period=1",
-      title: "Imprimer un rapport ou fiche de présence",
-      description: "Générer et imprimer le rapport et la fiche de présence",
-      icon: Printer,
-      featured: false,
-    },
+    ...(presencesEnabled
+      ? [
+          {
+            to: "/presences",
+            title: "Voir les présences",
+            description: "Consulter les arrivées et départs du jour",
+            icon: UsersRound,
+            featured: false,
+          },
+        ]
+      : []),
+    ...(reportsEnabled
+      ? [
+          {
+            to: "/reports?period=1",
+            title: "Imprimer un rapport ou fiche de présence",
+            description: "Générer et imprimer le rapport et la fiche de présence",
+            icon: Printer,
+            featured: false,
+          },
+        ]
+      : []),
   ];
   useEffect(() => {
     const timer = setInterval(

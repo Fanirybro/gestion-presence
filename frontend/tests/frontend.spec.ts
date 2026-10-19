@@ -106,8 +106,8 @@ test("correction chronology, audit, absence justification and PDF", async ({
 }) => {
   await login(page);
   await page.goto("/presences");
-  await page.locator("tbody .icon-button").first().click();
-  await page.getByRole("button", { name: "Corriger", exact: true }).click();
+  await page.locator(".row-actions-trigger").first().click();
+  await page.getByRole("menuitem", { name: "Corriger", exact: true }).click();
   await page.getByLabel("Arrivée", { exact: true }).fill("09:00");
   await page.getByLabel("Départ", { exact: true }).fill("08:00");
   await page.getByLabel("Motif obligatoire").fill("Correction test");
@@ -116,17 +116,17 @@ test("correction chronology, audit, absence justification and PDF", async ({
   await page.getByLabel("Départ", { exact: true }).fill("17:00");
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(
-    page.getByText("Correction de présence", { exact: true }),
+    page.getByText("Correction de présence", { exact: false }),
   ).toBeVisible();
   await page.goto("/absences");
-  await page.locator("tbody .icon-button").first().click();
-  await page.getByRole("button", { name: "Justifier l’absence" }).click();
+  await page.locator(".row-actions-trigger").first().click();
+  await page.getByRole("menuitem", { name: "Justifier l’absence", exact: true }).click();
   await page
     .getByLabel("Motif obligatoire")
     .fill("Congé autorisé par la direction");
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(
-    page.getByText("Justification d’absence", { exact: true }),
+    page.getByText("Justification d’absence", { exact: false }),
   ).toBeVisible();
   await page.goto("/reports");
   const download = page.waitForEvent("download");

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireOrganisation, requireRole } from "../middlewares/authMiddlewares.js";
-import { getUsers, getUserById, createUser, updateUser, updateUserRole, updateUserStatus } from "../controllers/usersControllers.js";
+import { getUsers, getUserById, createUser, updateUser, updateUserRole, updateUserStatus, updateUserPermissions } from "../controllers/usersControllers.js";
 
 const router = Router();
 router.use(requireAuth, requireOrganisation, requireRole("COORDINATOR"));
@@ -10,4 +10,5 @@ router.post("/", createUser);
 router.patch("/:id", updateUser);
 router.patch("/:id/role", updateUserRole);
 router.patch("/:id/status", updateUserStatus);
+router.patch("/:id/permissions", updateUserPermissions);
 export default router;

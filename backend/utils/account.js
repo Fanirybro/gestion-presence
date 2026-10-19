@@ -2,11 +2,13 @@
 export async function loadAccount(db, { id = null, email = null, organisationId = null } = {}) {
   const { rows } = await db.query(
     `SELECT u.id, u.nom, u.prenom, u.email, u.actif, u.password_hash,
-            m.organisation_id, m.role, m.status AS membership_status
+            m.organisation_id, m.role, m.status AS membership_status, m.permissions
      FROM users u
      LEFT JOIN LATERAL (
-       SELECT om.organisation_id, om.role, om.status
+       SELECT om.organisation_id, om.role, om.status,
+              (COALESCE(r.permissions, '{}'::jsonb) || COALESCE(om.permissions, '{}'::jsonb)) AS permissions
        FROM organisation_members om JOIN organisations o ON o.id = om.organisation_id
+       LEFT JOIN organisation_roles r ON r.organisation_id = om.organisation_id AND r.code = om.role
        WHERE om.user_id = u.id AND om.status = 'ACTIVE' AND o.actif = true
          AND ($3::bigint IS NULL OR om.organisation_id = $3)
        ORDER BY om.id LIMIT 1

@@ -92,22 +92,25 @@ function Protected() {
     <Outlet />
   );
 }
-function Coordinator() {
+import { hasPermission } from "./types";
+
+function PermissionGuard({ permission }: { permission: string }) {
   const { user } = useApp();
-  return user?.role === "COORDINATOR" ? (
+  return hasPermission(user, permission) ? (
     <Outlet />
   ) : (
     <Navigate to="/403" replace />
   );
 }
+
 function ErrorPage({ forbidden = false }: { forbidden?: boolean }) {
   return (
     <div className="error-page">
       <span className="eyebrow">{forbidden ? "403" : "404"}</span>
-      <h1>{forbidden ? "Accès réservé" : "Page introuvable"}</h1>
+      <h1>{forbidden ? "Accès restreint" : "Page introuvable"}</h1>
       <p>
         {forbidden
-          ? "Cette page est réservée aux coordinateurs."
+          ? "Vous ne disposez pas des autorisations nécessaires pour accéder à ce module."
           : "Cette adresse ne correspond à aucune page."}
       </p>
       <Link to="/" className="button primary">
@@ -158,36 +161,48 @@ export default function App() {
                 <Route element={<Protected />}>
                   <Route element={<DashboardLayout />}>
                     <Route index element={<Dashboard />} />
-                    <Route path="/scan" element={<Scan />} />
-                    <Route path="/kiosk" element={<FaceCheckInPage />} />
-                    <Route
-                      path="/conges-permissions"
-                      element={<AuthorizedAbsences />}
-                    />
-                    <Route path="/presences" element={<Presences mode="presences" />} />
-                    <Route path="/retards" element={<Presences mode="retards" />} />
-                    <Route path="/absences" element={<Presences mode="absences" />} />
-                    <Route
-                      path="/presences/ajouter"
-                      element={<ForgottenAttendance />}
-                    />
-                    <Route
-                      path="/presences/:id"
-                      element={<PresenceDetails />}
-                    />
-                    <Route
-                      path="/retards/:id"
-                      element={<PresenceDetails />}
-                    />
-                    <Route
-                      path="/absences/:id"
-                      element={<PresenceDetails />}
-                    />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/reports/daily" element={<Reports />} />
+                    <Route element={<PermissionGuard permission="scan" />}>
+                      <Route path="/scan" element={<Scan />} />
+                    </Route>
+                    <Route element={<PermissionGuard permission="kiosk" />}>
+                      <Route path="/kiosk" element={<FaceCheckInPage />} />
+                    </Route>
+                    <Route element={<PermissionGuard permission="leaves" />}>
+                      <Route
+                        path="/conges-permissions"
+                        element={<AuthorizedAbsences />}
+                      />
+                    </Route>
+                    <Route element={<PermissionGuard permission="presences" />}>
+                      <Route path="/presences" element={<Presences mode="presences" />} />
+                      <Route path="/retards" element={<Presences mode="retards" />} />
+                      <Route path="/absences" element={<Presences mode="absences" />} />
+                      <Route
+                        path="/presences/:id"
+                        element={<PresenceDetails />}
+                      />
+                      <Route
+                        path="/retards/:id"
+                        element={<PresenceDetails />}
+                      />
+                      <Route
+                        path="/absences/:id"
+                        element={<PresenceDetails />}
+                      />
+                    </Route>
+                    <Route element={<PermissionGuard permission="presences_add" />}>
+                      <Route
+                        path="/presences/ajouter"
+                        element={<ForgottenAttendance />}
+                      />
+                    </Route>
+                    <Route element={<PermissionGuard permission="reports" />}>
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/reports/daily" element={<Reports />} />
+                    </Route>
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/403" element={<ErrorPage forbidden />} />
-                    <Route element={<Coordinator />}>
+                    <Route element={<PermissionGuard permission="agents" />}>
                       <Route path="/agents" element={<Agents />} />
                       <Route path="/agents/badges" element={<AgentBadges />} />
                       <Route
@@ -197,19 +212,29 @@ export default function App() {
                       <Route path="/agents/:id" element={<AgentDetails />} />
                       <Route path="/agents/:id/edit" element={<AgentForm />} />
                       <Route path="/agents/:id/qr" element={<AgentQr />} />
+                    </Route>
+                    <Route element={<PermissionGuard permission="departments" />}>
                       <Route path="/departments" element={<DepartmentsPage />} />
                       <Route
                         path="/departements"
                         element={<Navigate to="/departments" replace />}
                       />
+                    </Route>
+                    <Route element={<PermissionGuard permission="schedules" />}>
                       <Route path="/schedules" element={<SchedulesPage />} />
                       <Route
                         path="/horaires"
                         element={<Navigate to="/schedules" replace />}
                       />
+                    </Route>
+                    <Route element={<PermissionGuard permission="users" />}>
                       <Route path="/users" element={<UsersPage />} />
                       <Route path="/users/new" element={<UserCreate />} />
+                    </Route>
+                    <Route element={<PermissionGuard permission="settings" />}>
                       <Route path="/settings" element={<SettingsPage />} />
+                    </Route>
+                    <Route element={<PermissionGuard permission="face_enroll" />}>
                       <Route path="/admin/face-setup" element={<FaceEnrollComponent />} />
                       <Route path="/face-enroll" element={<Navigate to="/admin/face-setup" replace />} />
                     </Route>

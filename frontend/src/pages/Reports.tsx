@@ -8,10 +8,15 @@ import {
   LoaderCircle,
   TrendingUp,
   TableProperties,
+  Calendar,
+  Building2,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { Heading, Field } from "../components/ui";
+import { Heading } from "../components/ui";
 import { fullName } from "../utils";
+import { hasPermission } from "../types";
 
 /* ═══════════════════════════════════════════════════════════════
    Helpers
@@ -380,7 +385,7 @@ type ReportTab = "summary" | "payroll";
    Main Reports Page Component
    ═══════════════════════════════════════════════════════════════ */
 export default function Reports() {
-  const { db, notify } = useApp();
+  const { db, user, notify } = useApp();
 
   const [activeTab, setActiveTab] = useState<ReportTab>("summary");
   const [month, setMonth] = useState(currentYM());
@@ -629,35 +634,54 @@ export default function Reports() {
         title="Rapports"
         subtitle="Agrégation des présences, indicateurs d'assiduité et préparation de la paie."
       >
-        <div className="rp-header-actions">
-          <button
-            className="button primary"
-            onClick={handleExportPdf}
-            disabled={tableRows.length === 0 || pdfBusy}
-            aria-busy={pdfBusy}
-            title="Générer et télécharger le rapport officiel PDF"
-          >
-            {pdfBusy ? <LoaderCircle className="busy-icon" size={15} /> : <FileText size={15} />}
-            <span>{pdfBusy ? "Génération…" : "Télécharger Rapport PDF"}</span>
-          </button>
-        </div>
+        {hasPermission(user, "reports_print") && (
+          <div className="rp-header-actions">
+            <button
+              className="button primary"
+              onClick={handleExportPdf}
+              disabled={tableRows.length === 0 || pdfBusy}
+              aria-busy={pdfBusy}
+              title="Générer et télécharger le rapport officiel PDF"
+            >
+              {pdfBusy ? <LoaderCircle className="busy-icon" size={15} /> : <FileText size={15} />}
+              <span>{pdfBusy ? "Génération…" : "Télécharger Rapport PDF"}</span>
+            </button>
+          </div>
+        )}
       </Heading>
 
       <div className="rp-view-clean">
-          {/* 1. Global Filter Toolbar (Seamless, no card) */}
-          <div className="rp-filter-strip">
-            <div className="rp-filter-fields">
-              <Field label="Période (Mois / Année)">
+          {/* 1. Global Filter Toolbar (Unified Capsule Bar) */}
+          <section aria-label="Filtres du rapport" className="unified-filter-bar">
+            {/* 1. Période (Mois / Année) */}
+            <div className="unified-filter-segment segment-date" style={{ flex: 1, minWidth: 180 }}>
+              <Calendar size={16} className="segment-icon" aria-hidden="true" />
+              <div className="segment-input-group">
+                <span className="segment-label">Période (Mois / Année)</span>
                 <input
                   type="month"
                   value={month}
                   max={currentYM()}
                   onChange={(e) => setMonth(e.target.value)}
+                  className="unified-date-input"
+                  aria-label="Période (Mois / Année)"
                 />
-              </Field>
+              </div>
+            </div>
 
-              <Field label="Service / Département">
-                <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+            <div className="unified-filter-divider" aria-hidden="true" />
+
+            {/* 2. Service / Département */}
+            <div className="unified-filter-segment segment-dept" style={{ flex: 1.3, minWidth: 200 }}>
+              <Building2 size={16} className="segment-icon" aria-hidden="true" />
+              <div className="segment-input-group">
+                <span className="segment-label">Service / Département</span>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="unified-select"
+                  aria-label="Service / Département"
+                >
                   <option value="">Tous les services</option>
                   {db.departments.map((d) => (
                     <option key={d.id} value={d.id}>
@@ -665,9 +689,38 @@ export default function Reports() {
                     </option>
                   ))}
                 </select>
-              </Field>
+              </div>
+              {department && (
+                <button
+                  type="button"
+                  className="segment-clear-btn"
+                  onClick={() => setDepartment("")}
+                  title="Effacer le filtre service"
+                  aria-label="Effacer le filtre service"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
-          </div>
+
+            {(department || month !== currentYM()) && (
+              <>
+                <div className="unified-filter-divider" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="unified-reset-btn"
+                  title="Réinitialiser les filtres"
+                  onClick={() => {
+                    setMonth(currentYM());
+                    setDepartment("");
+                  }}
+                >
+                  <RotateCcw size={13} />
+                  <span>Réinitialiser</span>
+                </button>
+              </>
+            )}
+          </section>
 
           {/* 2. KPI Metrics Flat Row */}
           <div className="rp-metrics-row">

@@ -6,6 +6,20 @@ import {
   detectSingleFace,
   checkFaceAlignment,
 } from "./faceDetector";
+import { Heading } from "../../components/ui";
+import {
+  Camera,
+  CameraOff,
+  Sparkles,
+  RefreshCw,
+  ScanLine,
+  UserCheck,
+  CheckCircle2,
+  Clock,
+  User,
+  AlertTriangle,
+  X,
+} from "lucide-react";
 import "./face-recognition.css";
 
 // Petit bip audio via Web Audio API (aucun fichier externe requis)
@@ -98,139 +112,134 @@ export default function FaceCheckInPage() {
       const health = await faceApi.checkHealth();
       setHealthStatus(health);
     } catch {
-      setHealthStatus({ online: false });
+      setHealthStatus({
+        status: "DEGRADED",
+        pythonService: { online: false },
+      });
     }
+
     try {
-      const list = await faceApi.getAttendances(10);
-      setAttendances(list);
+      const history = await faceApi.getRecentAttendances();
+      setAttendances(history || []);
     } catch (err) {
-      console.warn("Impossible de charger les pointages récents:", err);
+      console.warn("Échec récupération historique pointages:", err);
     }
   };
 
   useEffect(() => {
-    startCamera();
-    fetchHealthAndHistory();
-    loadFaceDetectionModels().catch((e) => console.warn("face-api loading:", e));
+    void startCamera();
+    void fetchHealthAndHistory();
 
+    loadFaceDetectionModels().catch((err) => {
+      console.warn("Modèle face-api non disponible immédiatement:", err);
+    });
+
+    const interval = setInterval(fetchHealthAndHistory, 30000);
     return () => {
+      clearInterval(interval);
       stopCamera();
     };
   }, []);
 
-  // 3. Capture d'une frame webcam vers Base64
-  const captureFrameBase64 = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return null;
-
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.85);
-  }, []);
-
-  // 4. Exécution du pointage biométrique
-  const performCheckIn = useCallback(async () => {
-    const now = Date.now();
-    if (now - lastRequestTimeRef.current < 1000) return;
-    if (isProcessing) return;
-
-    const base64Image = captureFrameBase64();
-    if (!base64Image) return;
-
-    lastRequestTimeRef.current = now;
-    setIsProcessing(true);
-    setCountdown(null);
-
-    try {
-      const response = await faceApi.checkIn(base64Image);
-
-      if (response.match && !response.rejected) {
-        const agent = response.personnel || response.user;
-        playBeep(920, 0.28);
-
-        // Affichage du modal de succès dans le cadre caméra
-        setCameraModal({
-          status: "success",
-          title: response.alreadyProcessed ? "Pointage Déjà Enregistré" : "Pointage Validé !",
-          message: response.message,
-          agent,
-          type: response.type,
-          confidence: response.confidence,
-        });
-
-        // 5 secondes d'affichage pour laisser le temps à la personne de lire
-        setResultCooldown(5);
-
-        // Mise à jour de l'historique
-        try {
-          const updated = await faceApi.getAttendances(10);
-          setAttendances(updated);
-        } catch {}
-      } else {
-        playBeep(280, 0.2);
-
-        // Affichage du modal de refus / erreur dans le cadre caméra
-        setCameraModal({
-          status: "error",
-          title: response.rejected ? "Pointage Refusé (Absent)" : "Visage Non Reconnu",
-          message: response.message || "Aucun profil biométrique correspondant trouvé.",
-          confidence: response.confidence || 0,
-        });
-
-        // 4 secondes de pause avant de relancer la détection
-        setResultCooldown(4);
-      }
-    } catch (err) {
-      playBeep(280, 0.2);
-      setCameraModal({
-        status: "error",
-        title: "Erreur de Pointage",
-        message:
-          err.response?.data?.message ||
-          err.message ||
-          "Erreur lors de la communication avec la borne.",
+  // Décompte de temporisation post-pointage
+  useEffect(() => {
+    if (resultCooldown === null) return;
+    if (resultCooldown <= 0) {
+      setResultCooldown(null);
+      setCameraModal(null);
+      setFaceAlignment({
+        isCentered: false,
+        reason: "no_face",
+        message: "Placez votre visage dans le repère circulaire",
       });
-      setResultCooldown(3);
-    } finally {
-      setIsProcessing(false);
+      return;
     }
-  }, [isProcessing, captureFrameBase64]);
+    const timer = setTimeout(() => {
+      setResultCooldown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [resultCooldown]);
 
-  // 5. Fermeture du modal de résultat et reprise
-  const dismissModal = useCallback(() => {
-    setCameraModal(null);
+  const dismissModal = () => {
     setResultCooldown(null);
-    setCountdown(null);
+    setCameraModal(null);
     setFaceAlignment({
       isCentered: false,
       reason: "no_face",
       message: "Placez votre visage dans le repère circulaire",
     });
-  }, []);
+  };
 
-  // Décompte de temporisation pour le modal de résultat
-  useEffect(() => {
-    if (resultCooldown === null) return;
+  // 3. Traitement du pointage (automatique ou manuel)
+  const performCheckIn = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRequestTimeRef.current < 2500) return;
+    if (isProcessing || !videoRef.current || cameraModal !== null) return;
 
-    if (resultCooldown > 0) {
-      const timer = setTimeout(() => {
-        setResultCooldown((c) => (c !== null ? c - 1 : null));
-      }, 1000);
-      return () => clearTimeout(timer);
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2) return;
+
+    lastRequestTimeRef.current = now;
+    setIsProcessing(true);
+    setCountdown(null);
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setIsProcessing(false);
+      return;
     }
 
-    if (resultCooldown === 0) {
-      dismissModal();
-    }
-  }, [resultCooldown, dismissModal]);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const b64Image = canvas.toDataURL("image/jpeg", 0.9);
 
-  // 6. Détection faciale automatique en continu avec compte à rebours 3s
-  // Activée seulement si caméra active, autoScan activé, pas de modal affiché et pas en traitement
+    try {
+      const res = await faceApi.recognizeAndCheckIn(b64Image);
+
+      if (res.status === "MATCH_FOUND") {
+        playBeep(880, 0.25);
+        setCameraModal({
+          status: "success",
+          title: "Pointage Confirmé !",
+          agent: res.agent,
+          type: res.attendance_type,
+          confidence: res.confidence,
+          message:
+            res.attendance_type === "ARRIVAL"
+              ? "Bienvenue ! Votre arrivée a été enregistrée avec succès."
+              : "Au revoir ! Votre départ a été enregistré avec succès.",
+        });
+        setResultCooldown(5);
+        void fetchHealthAndHistory();
+      } else {
+        playBeep(300, 0.3);
+        setCameraModal({
+          status: "error",
+          title: "Visage Non Reconnu",
+          agent: null,
+          message:
+            res.message ||
+            "Profil non répertorié. Veuillez vous rapprocher de l'administration pour l'enrôlement.",
+        });
+        setResultCooldown(4);
+      }
+    } catch (err) {
+      playBeep(250, 0.35);
+      setCameraModal({
+        status: "error",
+        title: "Erreur de Pointage",
+        agent: null,
+        message: err.message || "Erreur de communication avec le serveur.",
+      });
+      setResultCooldown(4);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing, cameraModal]);
+
+  // 4. Détection continue du visage
   useEffect(() => {
     if (!cameraActive || !autoScan || cameraModal !== null || isProcessing) return;
 
@@ -256,19 +265,21 @@ export default function FaceCheckInPage() {
           const alignment = checkFaceAlignment(detection, videoRef.current);
           setFaceAlignment(alignment);
 
-          if (!alignment.isCentered) {
+          if (alignment.isCentered) {
+            setCountdown((prev) => {
+              if (prev === null) return 3;
+              return prev;
+            });
+          } else {
             setCountdown(null);
-          } else if (autoScan && cameraModal === null && !isProcessing) {
-            // Visage parfaitement dans le cercle ! Lancer le compte à rebours 3s
-            setCountdown((prev) => (prev === null ? 3 : prev));
           }
         }
-      } catch (err) {
-        console.error("Erreur détection borne:", err);
+      } catch {
+        // Détection silencieuse
       } finally {
         isDetecting = false;
       }
-    }, 200);
+    }, 250);
 
     return () => {
       isMounted = false;
@@ -276,7 +287,7 @@ export default function FaceCheckInPage() {
     };
   }, [cameraActive, autoScan, cameraModal, isProcessing]);
 
-  // 7. Gestionnaire du compte à rebours 3s -> 2s -> 1s -> 📸 Pointage
+  // 5. Gestionnaire du compte à rebours 3s
   useEffect(() => {
     if (countdown === null || cameraModal !== null || isProcessing) return;
 
@@ -301,293 +312,334 @@ export default function FaceCheckInPage() {
   }`;
 
   return (
-    <div className="face-module-container">
-      {/* En-tête */}
-      <div className="face-module-header">
-        <div>
-          <h1>
-            <span>📸</span> Borne de Pointage Faciale
-          </h1>
-          <p style={{ color: "#94a3b8", margin: "0.25rem 0 0 0", fontSize: "0.95rem" }}>
-            Détection automatique par IA (face-api.js) avec compte à rebours et confirmation directe
-          </p>
+    <>
+      <Heading
+        eyebrow="BORNE DE POINTAGE"
+        title="Pointage facial"
+        subtitle="Détection automatique et enregistrement instantané des arrivées et départs par caméra"
+      >
+        <div
+          className={`face-status-pill ${
+            healthStatus?.pythonService?.online ? "online" : "offline"
+          }`}
+          title={
+            healthStatus?.pythonService?.online
+              ? `Moteur IA actif : ${healthStatus.pythonService.engine}`
+              : "Microservice IA injoignable"
+          }
+        >
+          <span className="dot" />
+          <span>
+            {healthStatus?.pythonService?.online ? "IA Connectée" : "IA Déconnectée"}
+          </span>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <div
-            className={`face-status-pill ${
-              healthStatus?.pythonService?.online ? "online" : "offline"
-            }`}
-            title={
-              healthStatus?.pythonService?.online
-                ? `Moteur IA actif : ${healthStatus.pythonService.engine}`
-                : "Microservice IA injoignable"
-            }
-          >
-            <span className="dot" />
-            <span>
-              {healthStatus?.pythonService?.online ? "IA Connectée" : "IA Déconnectée"}
-            </span>
-          </div>
+        <Link to="/admin/face-setup" className="button">
+          <UserCheck size={16} />
+          <span>Enrôlement</span>
+        </Link>
+      </Heading>
 
-          <Link to="/admin/face-setup" className="face-btn face-btn-secondary">
-            ⚙️ Enrôlement
-          </Link>
-        </div>
-      </div>
-
-      {/* Grille principale */}
-      <div className="face-grid">
-        {/* Colonne Gauche : Webcam et Action */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div className="webcam-card">
-            <div className="webcam-viewport">
-              <video ref={videoRef} autoPlay playsInline muted />
-              <canvas ref={canvasRef} style={{ display: "none" }} />
-
-              {/* Réticule de visée (visible quand aucun modal n'est affiché) */}
-              {cameraModal === null && <div className={reticleClass} />}
-
-              {/* Bulle d'instruction en temps réel */}
-              {cameraModal === null && (
-                <div
-                  className={`face-instruction-pill ${
-                    countdown !== null
-                      ? "aligned"
-                      : faceAlignment.isCentered
-                      ? "aligned"
-                      : faceAlignment.reason === "no_face"
-                      ? ""
-                      : "warning"
-                  }`}
-                >
-                  {countdown !== null ? (
-                    <span>⏳ Ne bougez plus ! Pointage dans {countdown}s...</span>
-                  ) : (
-                    <span>
-                      {faceAlignment.isCentered ? "✨ " : faceAlignment.reason === "no_face" ? "👤 " : "⚠️ "}
-                      {faceAlignment.message}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Compte à rebours animé 3s au centre du cercle */}
-              {cameraModal === null && countdown !== null && (
-                <div className="face-countdown-container">
-                  <div className="face-countdown-circle">{countdown}</div>
-                  <p
-                    style={{
-                      color: "#ffffff",
-                      fontWeight: 700,
-                      marginTop: "0.75rem",
-                      fontSize: "1rem",
-                      textShadow: "0 2px 10px rgba(0, 0, 0, 0.8)",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Ne bougez plus...
-                  </p>
-                </div>
-              )}
-
-              {/* Flash visuel lors du déclenchement */}
-              {isFlashing && <div className="camera-flash" />}
-
-              {/* MODAL DE RÉSULTAT DIRECTEMENT DANS LA CAMÉRA (SUCCÈS / ERREUR) */}
-              {cameraModal !== null && (
-                <div className="kiosk-camera-modal">
-                  <div className={`kiosk-modal-icon ${cameraModal.status}`}>
-                    {cameraModal.status === "success" ? "✓" : "✗"}
-                  </div>
-
-                  <h3 className="kiosk-modal-title">{cameraModal.title}</h3>
-
-                  {cameraModal.status === "success" && cameraModal.agent && (
-                    <>
-                      {cameraModal.type && (
-                        <span
-                          className={`kiosk-modal-type-tag ${
-                            cameraModal.type === "ARRIVAL" ? "arrival" : "departure"
-                          }`}
-                        >
-                          {cameraModal.type === "ARRIVAL"
-                            ? "🟢 Pointage : ARRIVÉE"
-                            : "🟣 Pointage : DÉPART"}
-                        </span>
-                      )}
-
-                      <p className="kiosk-modal-name">
-                        {cameraModal.agent.prenom} {cameraModal.agent.nom}
-                      </p>
-
-                      <p className="kiosk-modal-dept">
-                        {cameraModal.agent.poste || "Agent"}{" "}
-                        {cameraModal.agent.departement_nom
-                          ? `• ${cameraModal.agent.departement_nom}`
-                          : ""}
-                      </p>
-                    </>
-                  )}
-
-                  <p className="kiosk-modal-desc">{cameraModal.message}</p>
-
-                  {resultCooldown !== null && (
-                    <div className="kiosk-cooldown-timer">
-                      <span>⏳ Prochain scan dans {resultCooldown}s...</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={dismissModal}
-                    className="face-btn face-btn-primary"
-                    style={{ padding: "0.55rem 1.4rem" }}
-                  >
-                    {cameraModal.status === "success" ? "➕ Agent Suivant" : "🔄 Réessayer"}
-                  </button>
-                </div>
-              )}
-
-              {cameraError && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "rgba(15, 23, 42, 0.9)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "#f87171",
-                    zIndex: 40,
-                  }}
-                >
-                  <div>
-                    <p style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>⚠️ {cameraError}</p>
-                    <button className="face-btn face-btn-primary" onClick={startCamera}>
-                      Réactiver la caméra
-                    </button>
-                  </div>
-                </div>
-              )}
+      <div className="face-page-layout">
+        {/* Colonne Gauche : Caméra et Actions */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="face-card">
+            <div className="section-heading">
+              <h2>
+                <ScanLine size={18} />
+                <span>Caméra biométrique</span>
+              </h2>
+              <span className={`badge ${cameraActive ? "present" : ""}`}>
+                {cameraActive ? "Caméra active" : "Caméra arrêtée"}
+              </span>
             </div>
 
-            {/* Barre de contrôles */}
-            <div className="webcam-controls">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setAutoScan(!autoScan)}
-                  className="face-btn face-btn-secondary"
-                  style={{ fontSize: "0.85rem" }}
-                >
-                  {autoScan ? "⚡ Auto-Pointage : Activé" : "✋ Pointage : Manuel"}
-                </button>
+            <div className="face-camera-container">
+              <div className="face-camera-viewport">
+                <video ref={videoRef} autoPlay playsInline muted />
+                <canvas ref={canvasRef} style={{ display: "none" }} />
+
+                {/* Réticule de visée (visible quand aucun modal n'est affiché) */}
+                {cameraModal === null && <div className={reticleClass} />}
+
+                {/* Bulle d'instruction en temps réel */}
+                {cameraModal === null && (
+                  <div
+                    className={`face-instruction-pill ${
+                      countdown !== null
+                        ? "aligned"
+                        : faceAlignment.isCentered
+                        ? "aligned"
+                        : faceAlignment.reason === "no_face"
+                        ? ""
+                        : "warning"
+                    }`}
+                  >
+                    {countdown !== null ? (
+                      <span>⏳ Ne bougez plus ! Pointage dans {countdown}s...</span>
+                    ) : (
+                      <span>
+                        {faceAlignment.isCentered
+                          ? "✨ "
+                          : faceAlignment.reason === "no_face"
+                          ? "👤 "
+                          : "⚠️ "}
+                        {faceAlignment.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Compte à rebours animé 3s au centre */}
+                {cameraModal === null && countdown !== null && (
+                  <div className="face-countdown-container">
+                    <div className="face-countdown-circle">{countdown}</div>
+                  </div>
+                )}
+
+                {/* Flash visuel lors du déclenchement */}
+                {isFlashing && <div className="camera-flash" />}
+
+                {/* MODAL DE RÉSULTAT DIRECTEMENT DANS LA CAMÉRA */}
+                {cameraModal !== null && (
+                  <div className="kiosk-camera-modal">
+                    <div className={`kiosk-modal-icon ${cameraModal.status}`}>
+                      {cameraModal.status === "success" ? "✓" : "✕"}
+                    </div>
+
+                    <h3 className="kiosk-modal-title">{cameraModal.title}</h3>
+
+                    {cameraModal.status === "success" && cameraModal.agent && (
+                      <>
+                        {cameraModal.type && (
+                          <span
+                            className={`kiosk-modal-type-tag ${
+                              cameraModal.type === "ARRIVAL" ? "arrival" : "departure"
+                            }`}
+                          >
+                            {cameraModal.type === "ARRIVAL"
+                              ? "Pointage : ARRIVÉE"
+                              : "Pointage : DÉPART"}
+                          </span>
+                        )}
+
+                        <p className="kiosk-modal-name">
+                          {cameraModal.agent.prenom} {cameraModal.agent.nom}
+                        </p>
+
+                        <p className="kiosk-modal-dept">
+                          {cameraModal.agent.poste || "Agent"}{" "}
+                          {cameraModal.agent.departement_nom
+                            ? `• ${cameraModal.agent.departement_nom}`
+                            : ""}
+                        </p>
+                      </>
+                    )}
+
+                    <p className="kiosk-modal-desc">{cameraModal.message}</p>
+
+                    {resultCooldown !== null && (
+                      <div className="kiosk-cooldown-timer">
+                        <span>Prochain scan dans {resultCooldown}s...</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={dismissModal}
+                      className="button primary"
+                    >
+                      {cameraModal.status === "success"
+                        ? "Agent suivant"
+                        : "Réessayer"}
+                    </button>
+                  </div>
+                )}
+
+                {cameraError && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(15, 23, 42, 0.92)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "24px",
+                      textAlign: "center",
+                      color: "#f87171",
+                      zIndex: 40,
+                    }}
+                  >
+                    <div>
+                      <AlertTriangle
+                        size={36}
+                        style={{ margin: "0 auto 12px", display: "block" }}
+                      />
+                      <p style={{ fontSize: "14px", marginBottom: "16px" }}>
+                        {cameraError}
+                      </p>
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={startCamera}
+                      >
+                        Réactiver la caméra
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Barre de contrôles sous la caméra */}
+            <div className="face-camera-controls">
+              <button
+                type="button"
+                onClick={() => setAutoScan(!autoScan)}
+                className="button"
+              >
+                <Sparkles size={16} />
+                <span>
+                  {autoScan ? "Auto-pointage : Activé" : "Pointage : Manuel"}
+                </span>
+              </button>
 
               <button
-                className="face-btn face-btn-primary"
+                type="button"
+                className="button primary"
                 onClick={performCheckIn}
                 disabled={isProcessing || !cameraActive || cameraModal !== null}
               >
-                {isProcessing ? "Vérification..." : "📸 Pointer Manuellement"}
+                <Camera size={16} />
+                <span>
+                  {isProcessing
+                    ? "Vérification en cours..."
+                    : "Pointer manuellement"}
+                </span>
               </button>
             </div>
           </div>
 
           {/* Feedback sous la caméra */}
-          <div className={`feedback-card ${cameraModal?.status || "idle"}`}>
-            <div className="avatar">
-              {cameraModal?.status === "success"
-                ? "✓"
-                : cameraModal?.status === "error"
-                ? "✗"
-                : "👤"}
+          <div className={`face-feedback-card ${cameraModal?.status || "idle"}`}>
+            <div className="avatar-icon">
+              {cameraModal?.status === "success" ? (
+                <CheckCircle2 size={20} />
+              ) : cameraModal?.status === "error" ? (
+                <AlertTriangle size={20} />
+              ) : (
+                <User size={20} />
+              )}
             </div>
-            <div className="feedback-info">
+            <div className="face-feedback-text">
               {cameraModal?.status === "success" && cameraModal.agent ? (
                 <>
-                  <h3 style={{ color: "#22c55e" }}>
+                  <h3>
                     {cameraModal.agent.prenom} {cameraModal.agent.nom}
                   </h3>
                   <p>
-                    {cameraModal.type === "ARRIVAL" ? "🟢 Arrivée confirmée" : "🟣 Départ confirmé"}
+                    {cameraModal.type === "ARRIVAL"
+                      ? "Arrivée confirmée"
+                      : "Départ confirmé"}
                     {cameraModal.confidence
-                      ? ` (Confiance: ${Math.round(cameraModal.confidence * 100)}%)`
+                      ? ` (Confiance: ${Math.round(
+                          cameraModal.confidence * 100
+                        )}%)`
                       : ""}
                   </p>
                 </>
               ) : cameraModal?.status === "error" ? (
                 <>
-                  <h3 style={{ color: "#ef4444" }}>Visage Inconnu</h3>
+                  <h3>Visage non reconnu</h3>
                   <p>{cameraModal.message}</p>
                 </>
               ) : (
                 <>
                   <h3>En attente d'un visage...</h3>
-                  <p>Placez votre visage dans le repère pour lancer le compte à rebours automatique.</p>
+                  <p>
+                    Placez votre visage dans le repère pour déclencher le
+                    pointage automatique.
+                  </p>
                 </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Colonne Droite : Historique des pointages récents */}
+        {/* Colonne Droite : Derniers Pointages */}
         <div className="face-side-panel">
-          <div className="side-card">
-            <h2>
-              <span>Derniers Pointages</span>
+          <div className="face-card">
+            <div className="section-heading">
+              <h2>
+                <Clock size={16} />
+                <span>Derniers pointages</span>
+              </h2>
               <button
+                type="button"
+                className="button"
+                style={{ padding: "4px 10px", fontSize: "12px" }}
                 onClick={fetchHealthAndHistory}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#38bdf8",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                }}
               >
-                Actualiser
+                <RefreshCw size={13} />
+                <span>Actualiser</span>
               </button>
-            </h2>
+            </div>
 
             {attendances.length === 0 ? (
-              <p style={{ color: "#64748b", fontSize: "0.9rem", textAlign: "center", margin: "2rem 0" }}>
-                Aucun pointage récent par reconnaissance faciale.
-              </p>
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: "var(--muted, #536b61)",
+                  fontSize: "13px",
+                }}
+              >
+                Aucun pointage facial récent enregistré aujourd'hui.
+              </div>
             ) : (
-              <div className="attendance-list">
-                {attendances.map((item) => (
-                  <div key={item.id} className="attendance-item">
-                    <div>
-                      <div className="user-name">
-                        {item.prenom} {item.nom}
+              <div className="face-item-list">
+                {attendances.map((item) => {
+                  const initials = `${item.prenom?.[0] || ""}${
+                    item.nom?.[0] || ""
+                  }`.toUpperCase();
+                  const time = new Date(item.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  });
+                  const date = new Date(item.timestamp).toLocaleDateString();
+
+                  return (
+                    <div key={item.id} className="face-list-item">
+                      <div className="face-list-item-left">
+                        <div className="face-item-avatar">
+                          {initials || "A"}
+                        </div>
+                        <div className="face-item-info">
+                          <div className="face-item-name">
+                            {item.prenom} {item.nom}
+                          </div>
+                          <div className="face-item-meta">
+                            {time} • {date}
+                          </div>
+                        </div>
                       </div>
-                      <div className="meta">
-                        {new Date(item.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}{" "}
-                        • {new Date(item.timestamp).toLocaleDateString()}
-                      </div>
+                      <span
+                        className={`tag-badge ${
+                          item.type === "ARRIVAL" ? "arrival" : "departure"
+                        }`}
+                      >
+                        {item.type === "ARRIVAL" ? "Arrivée" : "Départ"}
+                      </span>
                     </div>
-                    <span
-                      className={`badge-tag ${
-                        item.type === "ARRIVAL" ? "arrival" : "departure"
-                      }`}
-                    >
-                      {item.type === "ARRIVAL" ? "Arrivée" : "Départ"}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

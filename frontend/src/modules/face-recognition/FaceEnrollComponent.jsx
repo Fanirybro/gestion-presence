@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import faceApi from "./faceApi";
 import {
@@ -6,6 +6,21 @@ import {
   detectSingleFace,
   checkFaceAlignment,
 } from "./faceDetector";
+import { Heading } from "../../components/ui";
+import {
+  Camera,
+  CameraOff,
+  Sparkles,
+  Search,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw,
+  Check,
+  UserCheck,
+  Users,
+  Clock,
+} from "lucide-react";
 import "./face-recognition.css";
 
 // Petit bip audio via Web Audio API (aucun fichier externe requis)
@@ -38,6 +53,10 @@ export default function FaceEnrollComponent() {
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+
+  // Filtre et recherche dans l'annuaire d'agents
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState("all"); // 'all' | 'unenrolled' | 'enrolled'
 
   // Détection faciale & Compte à rebours automatique
   const [autoCapture, setAutoCapture] = useState(true);
@@ -102,7 +121,9 @@ export default function FaceEnrollComponent() {
       const list = await faceApi.getPersonnel();
       setPersonnelList(list);
       if (list.length > 0 && !selectedPersonnelId) {
-        setSelectedPersonnelId(String(list[0].id));
+        // Sélectionner par défaut le premier non enrôlé, ou le premier de la liste
+        const firstUnenrolled = list.find((p) => !p.is_enrolled);
+        setSelectedPersonnelId(String(firstUnenrolled ? firstUnenrolled.id : list[0].id));
       }
     } catch (err) {
       setAlert({
@@ -211,8 +232,7 @@ export default function FaceEnrollComponent() {
     }
   }, [capturedPhoto]);
 
-  // 4. Détection automatique du visage dans le cercle avec face-api.js
-  // DÉSACTIVÉE si capturedPhoto est présent OU si postEnrollCooldown est en cours !
+  // 4. Détection continue du visage
   useEffect(() => {
     if (!cameraActive || capturedPhoto || postEnrollCooldown !== null) return;
 
@@ -233,17 +253,14 @@ export default function FaceEnrollComponent() {
             reason: "no_face",
             message: "Positionnez votre visage dans le repère circulaire",
           });
-          // Si le visage sort pendant le compte à rebours, on annule
           setCountdown(null);
         } else {
           const alignment = checkFaceAlignment(detection, videoRef.current);
           setFaceAlignment(alignment);
 
           if (!alignment.isCentered) {
-            // Pas centré ou trop loin : annuler le compte à rebours
             setCountdown(null);
           } else if (autoCapture && !capturedPhoto && postEnrollCooldown === null) {
-            // Visage parfaitement dans le cercle ! Lancer le compte à rebours de 3s
             setCountdown((prev) => (prev === null ? 3 : prev));
           }
         }
@@ -260,7 +277,7 @@ export default function FaceEnrollComponent() {
     };
   }, [cameraActive, capturedPhoto, autoCapture, postEnrollCooldown]);
 
-  // 5. Gestionnaire du compte à rebours 3s -> 2s -> 1s -> 📸 Capture automatique
+  // 5. Compte à rebours 3s -> 2s -> 1s -> Capture automatique
   useEffect(() => {
     if (countdown === null || capturedPhoto || postEnrollCooldown !== null) return;
 
@@ -273,7 +290,6 @@ export default function FaceEnrollComponent() {
     }
 
     if (countdown === 0) {
-      // Déclenchement de la photo automatique !
       setIsFlashing(true);
       playBeep(920, 0.22);
       handleCapture();
@@ -282,7 +298,7 @@ export default function FaceEnrollComponent() {
     }
   }, [countdown, capturedPhoto, postEnrollCooldown, handleCapture]);
 
-  // 6. Gestionnaire du cooldown post-enrôlement (décompte 10s)
+  // 6. Temporisation post-enrôlement 10s
   useEffect(() => {
     if (postEnrollCooldown === null) return;
 
@@ -294,17 +310,16 @@ export default function FaceEnrollComponent() {
     }
 
     if (postEnrollCooldown === 0) {
-      // Les 10 secondes sont écoulées : réactivation automatique pour le prochain agent
       handleProceedNext();
     }
   }, [postEnrollCooldown, handleProceedNext]);
 
-  // 7. Envoi de l'enrôlement au backend
+  // 7. Envoi de l'enrôlement
   const handleEnrollSubmit = async () => {
     if (!selectedPersonnelId) {
       setAlert({
         type: "error",
-        message: "Veuillez sélectionner un membre du personnel.",
+        message: "Veuillez sélectionner un membre du personnel dans l'annuaire.",
       });
       return;
     }
@@ -332,7 +347,6 @@ export default function FaceEnrollComponent() {
         message: response.message || "Profil facial enregistré avec succès pour cet agent !",
       });
 
-      // Lancement du délai de 10 secondes avec écran de succès
       setPostEnrollCooldown(10);
       await loadPersonnel();
     } catch (err) {
@@ -350,7 +364,7 @@ export default function FaceEnrollComponent() {
     }
   };
 
-  // 8. Suppression éventuelle d'un profil
+  // 8. Suppression d'un profil existant
   const handleDeleteProfile = async (personnelId) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer le profil facial de cet agent ?")) {
       return;
@@ -372,7 +386,6 @@ export default function FaceEnrollComponent() {
 
   const selectedAgent = personnelList.find((p) => String(p.id) === String(selectedPersonnelId));
 
-  // Sélection manuelle d'un agent : réinitialise le cooldown
   const handleSelectAgent = (id) => {
     setSelectedPersonnelId(id);
     if (postEnrollCooldown !== null) {
@@ -383,281 +396,303 @@ export default function FaceEnrollComponent() {
     }
   };
 
-  // Classe dynamique du réticule
+  // Filtrage du personnel pour la liste
+  const filteredPersonnel = useMemo(() => {
+    return personnelList.filter((p) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        `${p.prenom || ""} ${p.nom || ""}`.toLowerCase().includes(q) ||
+        (p.poste || "").toLowerCase().includes(q) ||
+        (p.departement_nom || "").toLowerCase().includes(q);
+
+      if (!matchSearch) return false;
+
+      if (filterMode === "enrolled") return p.is_enrolled;
+      if (filterMode === "unenrolled") return !p.is_enrolled;
+      return true;
+    });
+  }, [personnelList, searchQuery, filterMode]);
+
+  const enrolledCount = personnelList.filter((p) => p.is_enrolled).length;
+  const unenrolledCount = personnelList.length - enrolledCount;
+
   const reticleClass = `face-reticle ${
     faceAlignment.isCentered ? "aligned" : faceAlignment.reason === "no_face" ? "" : "warning"
   }`;
 
+  const selectedInitials = selectedAgent
+    ? `${selectedAgent.prenom?.[0] || ""}${selectedAgent.nom?.[0] || ""}`.toUpperCase()
+    : "";
+
   return (
-    <div className="face-module-container">
-      {/* En-tête */}
-      <div className="face-module-header">
-        <div>
-          <h1>
-            <span>👤</span> Enrôlement Biométrique du Personnel
-          </h1>
-          <p style={{ color: "#94a3b8", margin: "0.25rem 0 0 0", fontSize: "0.95rem" }}>
-            Détection automatique par IA (face-api.js) avec temporisation de sécurité post-enrôlement
-          </p>
-        </div>
+    <>
+      <Heading
+        eyebrow="BIOMÉTRIE & SÉCURITÉ"
+        title="Enrôlement facial"
+        subtitle="Enregistrez et configurez le profil biométrique du personnel pour la borne de pointage"
+      >
+        <button
+          type="button"
+          onClick={() => setAutoCapture(!autoCapture)}
+          className="button"
+          title="Activer ou désactiver la capture automatique après stabilisation du visage"
+        >
+          <Sparkles size={16} />
+          <span>{autoCapture ? "Auto-capture : Activée" : "Capture : Manuelle"}</span>
+        </button>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => setAutoCapture(!autoCapture)}
-            className="face-btn face-btn-secondary"
-            style={{ fontSize: "0.85rem" }}
-            title="Activer ou désactiver la capture automatique à 3 secondes"
-          >
-            {autoCapture ? "⚡ Auto-Capture : Activée" : "✋ Capture : Manuelle"}
-          </button>
-
-          <Link to="/kiosk" className="face-btn face-btn-secondary">
-            📷 Accéder à la Borne
-          </Link>
-        </div>
-      </div>
+        <Link to="/kiosk" className="button">
+          <Camera size={16} />
+          <span>Accéder à la borne</span>
+        </Link>
+      </Heading>
 
       {alert && (
-        <div className={`feedback-card ${alert.type}`}>
-          <div className="avatar">{alert.type === "success" ? "✓" : "!"}</div>
-          <div className="feedback-info">
-            <p style={{ fontWeight: 600 }}>{alert.message}</p>
+        <div
+          className={`face-feedback-card ${alert.type}`}
+          style={{ margin: "0 0 20px 0" }}
+        >
+          <div className="avatar-icon">
+            {alert.type === "success" ? <Check size={20} /> : <AlertTriangle size={20} />}
+          </div>
+          <div className="face-feedback-text">
+            <h3>{alert.type === "success" ? "Opération réussie" : "Attention"}</h3>
+            <p>{alert.message}</p>
           </div>
         </div>
       )}
 
-      <div className="face-grid">
-        {/* Colonne Gauche : Formulaire & Caméra */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          {/* Sélection de l'agent */}
-          <div className="side-card">
-            <div className="enroll-form-group">
-              <label className="enroll-label">
-                Sélectionner l'agent à enrôler :
-              </label>
-              <select
-                className="enroll-select"
-                value={selectedPersonnelId}
-                onChange={(e) => handleSelectAgent(e.target.value)}
-                disabled={isLoading}
-              >
-                {personnelList.length === 0 ? (
-                  <option value="">Chargement du personnel...</option>
-                ) : (
-                  personnelList.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.prenom} {p.nom} ({p.poste || "Agent"}{p.departement_nom ? ` • ${p.departement_nom}` : ""}){" "}
-                      {p.is_enrolled ? "— [Déjà Enrôlé]" : "— [Non Enrôlé]"}
-                    </option>
-                  ))
-                )}
-              </select>
+      <div className="face-page-layout">
+        {/* Colonne Gauche : Caméra et Agent Actif */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="face-card">
+            {/* Bannière de l'agent actif sélectionné (Remplace le menu déroulant redondant) */}
+            <div className="active-agent-banner">
+              <div className="active-agent-info">
+                <div className="active-agent-avatar">
+                  {selectedInitials || "A"}
+                </div>
+                <div className="active-agent-text">
+                  <strong>
+                    {selectedAgent
+                      ? `${selectedAgent.prenom} ${selectedAgent.nom}`
+                      : "Aucun agent sélectionné"}
+                  </strong>
+                  <small>
+                    {selectedAgent
+                      ? `${selectedAgent.poste || "Agent"} ${
+                          selectedAgent.departement_nom
+                            ? `• ${selectedAgent.departement_nom}`
+                            : ""
+                        }`
+                      : "Veuillez choisir un agent dans la liste à droite"}
+                  </small>
+                </div>
+              </div>
+
+              <div className="active-agent-meta">
+                {selectedAgent ? (
+                  <>
+                    <span
+                      className={`tag-badge ${
+                        selectedAgent.is_enrolled ? "success" : "neutral"
+                      }`}
+                    >
+                      {selectedAgent.is_enrolled ? "✓ Profil actif" : "Non enrôlé"}
+                    </span>
+
+                    {selectedAgent.is_enrolled && (
+                      <button
+                        type="button"
+                        className="button agent-delete"
+                        style={{ padding: "4px 10px", fontSize: "12px" }}
+                        onClick={() => handleDeleteProfile(selectedAgent.id)}
+                        title="Supprimer le profil biométrique actuel"
+                      >
+                        <Trash2 size={13} />
+                        <span>Supprimer</span>
+                      </button>
+                    )}
+                  </>
+                ) : null}
+              </div>
             </div>
 
-            {selectedAgent && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background: "rgba(255, 255, 255, 0.04)",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "0.75rem",
-                  fontSize: "0.9rem",
-                }}
-              >
-                <div>
-                  <span style={{ color: "#94a3b8" }}>Statut actuel : </span>
-                  {selectedAgent.is_enrolled ? (
-                    <span style={{ color: "#4ade80", fontWeight: 700 }}>
-                      ✓ Profil facial actif
-                    </span>
-                  ) : (
-                    <span style={{ color: "#f87171", fontWeight: 700 }}>
-                      ✗ Aucun profil enregistré
-                    </span>
-                  )}
-                </div>
+            {/* Cadre Caméra */}
+            <div className="face-camera-container">
+              <div className="face-camera-viewport">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    display:
+                      capturedPhoto || postEnrollCooldown !== null ? "none" : "block",
+                  }}
+                />
+                <canvas ref={canvasRef} style={{ display: "none" }} />
 
-                {selectedAgent.is_enrolled && (
-                  <button
-                    onClick={() => handleDeleteProfile(selectedAgent.id)}
+                {/* Réticule de visée biométrique */}
+                {!capturedPhoto && postEnrollCooldown === null && (
+                  <div className={reticleClass} />
+                )}
+
+                {/* Bulle d'instruction en temps réel */}
+                {!capturedPhoto && postEnrollCooldown === null && (
+                  <div
+                    className={`face-instruction-pill ${
+                      countdown !== null
+                        ? "aligned"
+                        : faceAlignment.isCentered
+                        ? "aligned"
+                        : faceAlignment.reason === "no_face"
+                        ? ""
+                        : "warning"
+                    }`}
+                  >
+                    {countdown !== null ? (
+                      <span>⏳ Ne bougez plus ! Capture dans {countdown}s...</span>
+                    ) : (
+                      <span>
+                        {faceAlignment.isCentered
+                          ? "✨ "
+                          : faceAlignment.reason === "no_face"
+                          ? "👤 "
+                          : "⚠️ "}
+                        {faceAlignment.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Compte à rebours animé 3s au centre */}
+                {!capturedPhoto && postEnrollCooldown === null && countdown !== null && (
+                  <div className="face-countdown-container">
+                    <div className="face-countdown-circle">{countdown}</div>
+                  </div>
+                )}
+
+                {/* Flash visuel lors de la prise de vue */}
+                {isFlashing && <div className="camera-flash" />}
+
+                {/* Aperçu de la photo capturée */}
+                {capturedPhoto && postEnrollCooldown === null && (
+                  <img
+                    src={capturedPhoto}
+                    alt="Aperçu capturé"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                )}
+
+                {/* Écran de confirmation temporisé 10s */}
+                {postEnrollCooldown !== null && (
+                  <div className="enroll-success-overlay">
+                    <div className="enroll-success-icon">✓</div>
+                    <h3 className="enroll-success-title">Enrôlement réussi !</h3>
+                    <p className="enroll-success-desc">
+                      Le profil biométrique de{" "}
+                      <strong style={{ color: "var(--ink, #203b33)" }}>
+                        {enrolledAgentInfo?.name}
+                      </strong>{" "}
+                      est désormais actif et prêt pour la borne de pointage.
+                    </p>
+                    <div className="enroll-cooldown-badge">
+                      <span>Réactivation dans {postEnrollCooldown}s...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleProceedNext}
+                      className="button primary"
+                    >
+                      Enrôler le prochain agent
+                    </button>
+                  </div>
+                )}
+
+                {cameraError && !capturedPhoto && postEnrollCooldown === null && (
+                  <div
                     style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                      textDecoration: "underline",
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(15, 23, 42, 0.92)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "24px",
+                      textAlign: "center",
+                      color: "#f87171",
                     }}
                   >
-                    Supprimer
-                  </button>
+                    <div>
+                      <AlertTriangle
+                        size={36}
+                        style={{ margin: "0 auto 12px", display: "block" }}
+                      />
+                      <p style={{ fontSize: "14px", marginBottom: "16px" }}>
+                        {cameraError}
+                      </p>
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={startCamera}
+                      >
+                        Réactiver la caméra
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Capture Webcam */}
-          <div className="webcam-card">
-            <div className="webcam-viewport">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  display: capturedPhoto || postEnrollCooldown !== null ? "none" : "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-              <canvas ref={canvasRef} style={{ display: "none" }} />
-
-              {/* Réticule de visée biométrique (visible uniquement si pas en cooldown ni capturé) */}
-              {!capturedPhoto && postEnrollCooldown === null && (
-                <div className={reticleClass} />
-              )}
-
-              {/* Bulle d'instruction en temps réel */}
-              {!capturedPhoto && postEnrollCooldown === null && (
-                <div
-                  className={`face-instruction-pill ${
-                    countdown !== null
-                      ? "aligned"
-                      : faceAlignment.isCentered
-                      ? "aligned"
-                      : faceAlignment.reason === "no_face"
-                      ? ""
-                      : "warning"
-                  }`}
-                >
-                  {countdown !== null ? (
-                    <span>⏳ Ne bougez plus ! Capture dans {countdown}s...</span>
-                  ) : (
-                    <span>
-                      {faceAlignment.isCentered ? "✨ " : faceAlignment.reason === "no_face" ? "👤 " : "⚠️ "}
-                      {faceAlignment.message}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Compte à rebours animé 3s au centre du cercle */}
-              {!capturedPhoto && postEnrollCooldown === null && countdown !== null && (
-                <div className="face-countdown-container">
-                  <div className="face-countdown-circle">{countdown}</div>
-                  <p
-                    style={{
-                      color: "#ffffff",
-                      fontWeight: 700,
-                      marginTop: "0.75rem",
-                      fontSize: "1rem",
-                      textShadow: "0 2px 10px rgba(0, 0, 0, 0.8)",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Ne bougez plus...
-                  </p>
-                </div>
-              )}
-
-              {/* Flash visuel lors de la prise de vue */}
-              {isFlashing && <div className="camera-flash" />}
-
-              {/* Aperçu de la photo capturée (avant validation) */}
-              {capturedPhoto && postEnrollCooldown === null && (
-                <img
-                  src={capturedPhoto}
-                  alt="Aperçu capturé"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              )}
-
-              {/* Écran de succès post-enrôlement avec temporisation de 10s */}
-              {postEnrollCooldown !== null && (
-                <div className="enroll-success-overlay">
-                  <div className="enroll-success-icon">✓</div>
-                  <h3 className="enroll-success-title">
-                    Enrôlement Réussi !
-                  </h3>
-                  <p className="enroll-success-desc">
-                    Le profil biométrique de <strong style={{ color: "#38bdf8" }}>{enrolledAgentInfo?.name}</strong> est désormais actif et prêt pour le pointage.
-                  </p>
-                  <div className="enroll-cooldown-badge">
-                    <span>⏳ Réactivation de la caméra dans {postEnrollCooldown}s...</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleProceedNext}
-                    className="face-btn face-btn-primary"
-                    style={{ padding: "0.6rem 1.4rem" }}
-                  >
-                    ➕ Enrôler le prochain agent maintenant
-                  </button>
-                </div>
-              )}
-
-              {cameraError && !capturedPhoto && postEnrollCooldown === null && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "rgba(15, 23, 42, 0.9)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "#f87171",
-                  }}
-                >
-                  <p>⚠️ {cameraError}</p>
-                </div>
-              )}
             </div>
 
-            <div className="webcam-controls">
+            {/* Barre d'actions sous la caméra */}
+            <div className="face-camera-controls">
               {postEnrollCooldown !== null ? (
-                <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
-                  <button
-                    className="face-btn face-btn-primary"
-                    onClick={handleProceedNext}
-                    style={{ width: "100%" }}
-                  >
-                    🚀 Enrôler un autre agent (ou attendre {postEnrollCooldown}s)
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={handleProceedNext}
+                  style={{ width: "100%" }}
+                >
+                  Passer immédiatement à l'agent suivant
+                </button>
               ) : !capturedPhoto ? (
-                <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
-                  <button
-                    className="face-btn face-btn-primary"
-                    onClick={handleCapture}
-                    disabled={!cameraActive}
-                    style={{ width: "100%" }}
-                  >
-                    📸 Prendre la Photo Manuellement
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={handleCapture}
+                  disabled={!cameraActive}
+                  style={{ width: "100%" }}
+                >
+                  <Camera size={16} />
+                  <span>Prendre la photo manuellement</span>
+                </button>
               ) : (
-                <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
+                <div style={{ display: "flex", gap: "10px", width: "100%" }}>
                   <button
-                    className="face-btn face-btn-secondary"
+                    type="button"
+                    className="button"
                     onClick={handleRetake}
                     style={{ flex: 1 }}
                     disabled={isSubmitting}
                   >
-                    🔄 Reprendre
+                    <RotateCcw size={15} />
+                    <span>Reprendre</span>
                   </button>
                   <button
-                    className="face-btn face-btn-primary"
+                    type="button"
+                    className="button primary"
                     onClick={handleEnrollSubmit}
                     disabled={isSubmitting}
                     style={{ flex: 2 }}
                   >
-                    {isSubmitting ? "Enregistrement en cours..." : "✓ Valider l'Enrôlement de l'Agent"}
+                    <Check size={16} />
+                    <span>
+                      {isSubmitting
+                        ? "Enregistrement..."
+                        : "Valider l'enrôlement"}
+                    </span>
                   </button>
                 </div>
               )}
@@ -665,62 +700,128 @@ export default function FaceEnrollComponent() {
           </div>
         </div>
 
-        {/* Colonne Droite : Liste récapitulative des agents */}
+        {/* Colonne Droite : Annuaire unique du Personnel */}
         <div className="face-side-panel">
-          <div className="side-card">
-            <h2>
-              <span>Personnel & Agents</span>
-              <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
-                {personnelList.filter((p) => p.is_enrolled).length} / {personnelList.length} enrôlés
+          <div className="face-card">
+            <div className="section-heading">
+              <h2>
+                <Users size={16} />
+                <span>Personnel & Agents</span>
+              </h2>
+              <span className="count">
+                {enrolledCount} / {personnelList.length} enrôlés
               </span>
-            </h2>
-
-            <div className="attendance-list">
-              {personnelList.map((p) => (
-                <div
-                  key={p.id}
-                  className={`attendance-item ${
-                    String(p.id) === String(selectedPersonnelId) ? "selected" : ""
-                  }`}
-                  onClick={() => handleSelectAgent(String(p.id))}
-                  style={{
-                    cursor: "pointer",
-                    border:
-                      String(p.id) === String(selectedPersonnelId)
-                        ? "1px solid #38bdf8"
-                        : "1px solid transparent",
-                  }}
-                >
-                  <div
-                    className="avatar"
-                    style={{
-                      background: p.is_enrolled
-                        ? "rgba(34, 197, 94, 0.2)"
-                        : "rgba(148, 163, 184, 0.15)",
-                      color: p.is_enrolled ? "#4ade80" : "#94a3b8",
-                    }}
-                  >
-                    {p.prenom?.charAt(0) || "P"}
-                  </div>
-                  <div className="info">
-                    <p className="name">
-                      {p.prenom} {p.nom}
-                    </p>
-                    <p className="time">
-                      {p.poste || "Agent"} {p.departement_nom ? `• ${p.departement_nom}` : ""}
-                    </p>
-                  </div>
-                  <span
-                    className={`status-badge ${p.is_enrolled ? "success" : "failed"}`}
-                  >
-                    {p.is_enrolled ? "Enrôlé" : "Non enrôlé"}
-                  </span>
-                </div>
-              ))}
             </div>
+
+            {/* Barre de recherche et filtres rapides */}
+            <div className="panel-filter-bar">
+              <label className="search-input" style={{ width: "100%" }}>
+                <Search size={15} />
+                <input
+                  type="search"
+                  placeholder="Rechercher un agent..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </label>
+
+              <div className="filter-pills">
+                <button
+                  type="button"
+                  className={`filter-pill ${filterMode === "all" ? "active" : ""}`}
+                  onClick={() => setFilterMode("all")}
+                >
+                  Tous ({personnelList.length})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${filterMode === "unenrolled" ? "active" : ""}`}
+                  onClick={() => setFilterMode("unenrolled")}
+                >
+                  À enrôler ({unenrolledCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${filterMode === "enrolled" ? "active" : ""}`}
+                  onClick={() => setFilterMode("enrolled")}
+                >
+                  Enrôlés ({enrolledCount})
+                </button>
+              </div>
+            </div>
+
+            {/* Liste unique des agents */}
+            {isLoading ? (
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: "var(--muted, #536b61)",
+                  fontSize: "13px",
+                }}
+              >
+                Chargement de la liste du personnel...
+              </div>
+            ) : filteredPersonnel.length === 0 ? (
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: "var(--muted, #536b61)",
+                  fontSize: "13px",
+                }}
+              >
+                Aucun agent ne correspond à votre recherche.
+              </div>
+            ) : (
+              <div className="face-item-list">
+                {filteredPersonnel.map((p) => {
+                  const isSelected = String(p.id) === String(selectedPersonnelId);
+                  const initials = `${p.prenom?.[0] || ""}${p.nom?.[0] || ""}`.toUpperCase();
+
+                  return (
+                    <div
+                      key={p.id}
+                      className={`face-list-item ${isSelected ? "selected" : ""}`}
+                      onClick={() => handleSelectAgent(String(p.id))}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleSelectAgent(String(p.id));
+                        }
+                      }}
+                    >
+                      <div className="face-list-item-left">
+                        <div className="face-item-avatar">
+                          {initials || "A"}
+                        </div>
+                        <div className="face-item-info">
+                          <div className="face-item-name">
+                            {p.prenom} {p.nom}
+                          </div>
+                          <div className="face-item-meta">
+                            {p.poste || "Agent"}{" "}
+                            {p.departement_nom ? `• ${p.departement_nom}` : ""}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`tag-badge ${
+                          p.is_enrolled ? "success" : "neutral"
+                        }`}
+                      >
+                        {p.is_enrolled ? "Enrôlé" : "Non enrôlé"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

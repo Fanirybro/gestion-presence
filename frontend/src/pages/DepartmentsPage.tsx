@@ -10,10 +10,13 @@ import {
   XCircle,
   Pencil,
   ArrowUpRight,
+  Power,
+  X,
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading, Empty, Modal, Confirm } from "../components/ui";
 import { personnelApi } from "../services/personnel";
+import { RowActionsMenu } from "../components/RowActionsMenu";
 
 type DepartmentItem = { id: string; name: string; isActive?: boolean };
 
@@ -231,15 +234,40 @@ export default function DepartmentsPage() {
           </button>
         </div>
 
-        <label className="search-input dept-search">
-          <Search size={16} />
-          <input
-            aria-label="Rechercher un département"
-            placeholder="Rechercher par nom de service…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
+        <div
+          className="unified-filter-bar"
+          style={{
+            marginBottom: 0,
+            minHeight: 44,
+            padding: "2px 10px 2px 14px",
+            width: "100%",
+            maxWidth: 360,
+          }}
+        >
+          <div className="unified-filter-segment segment-search" style={{ flex: 1, height: 38 }}>
+            <Search size={15} className="segment-icon" aria-hidden="true" />
+            <div className="segment-input-group">
+              <input
+                aria-label="Rechercher un département"
+                placeholder="Rechercher par nom de service…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="unified-search-input"
+              />
+            </div>
+            {search && (
+              <button
+                type="button"
+                className="segment-clear-btn"
+                onClick={() => setSearch("")}
+                title="Effacer la recherche"
+                aria-label="Effacer la recherche"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Departments Table / Cards */}
@@ -338,40 +366,28 @@ export default function DepartmentsPage() {
                       </td>
 
                       <td style={{ textAlign: "right" }}>
-                        <div
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className="button small"
-                            title="Renommer le département"
-                            disabled={pending}
-                            onClick={() => handleOpenRename(dept)}
-                          >
-                            <Pencil size={13} />
-                            Renommer
-                          </button>
-
-                          <button
-                            type="button"
-                            className={`agent-action-btn ${isActive ? "deactivate" : "activate"}`}
-                            disabled={pending}
-                            onClick={() => setConfirmToggle(dept)}
-                            title={
-                              isActive
-                                ? stats.active > 0
+                        <RowActionsMenu
+                          ariaLabel={`Actions pour le département ${dept.name}`}
+                          items={[
+                            {
+                              label: "Renommer",
+                              icon: <Pencil size={14} />,
+                              disabled: pending,
+                              onClick: () => handleOpenRename(dept),
+                            },
+                            {
+                              label: isActive ? "Désactiver le département" : "Réactiver le département",
+                              icon: <Power size={14} />,
+                              variant: isActive ? "danger" : "default",
+                              disabled: pending || (isActive && stats.active > 0),
+                              title:
+                                isActive && stats.active > 0
                                   ? "Ce département contient des agents actifs et ne peut pas être désactivé"
-                                  : "Désactiver le département"
-                                : "Réactiver le département"
-                            }
-                          >
-                            {isActive ? "Désactiver" : "Réactiver"}
-                          </button>
-                        </div>
+                                  : undefined,
+                              onClick: () => setConfirmToggle(dept),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );

@@ -22,7 +22,7 @@ import {
   type Signup,
 } from "../services/auth";
 import { BootstrapSkeleton } from "../components/Skeleton";
-import { CheckCircle2, CircleAlert, X } from "lucide-react";
+import { Toaster, type ToastNotification } from "../components/Toaster";
 type Context = {
   db: Database;
   refreshPersonnel: () => Promise<void>;
@@ -83,21 +83,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     setOrganisation(result.organisation);
   };
-  const [toast, setToast] = useState<{
-    message: string;
-    error: boolean;
-    id: number;
-  } | null>(null);
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const notify = useCallback((message: string, error = false) => {
-    clearTimeout(toastTimer.current);
-    setToast({ message, error, id: Date.now() });
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  const dismissToast = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+  const notify = useCallback(
+    (message: string, error = false) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const newToast: ToastNotification = {
+        id,
+        message,
+        error: Boolean(error),
+        createdAt: Date.now(),
+      };
+      setToasts((prev) => [...prev.slice(-2), newToast]);
+      const timer = setTimeout(() => {
+        dismissToast(id);
+      }, 4500);
+      timersRef.current.set(id, timer);
+    },
+    [dismissToast],
+  );
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
   useEffect(() => {
     const sync = (event: StorageEvent) => {
       if (event.key === getStoreKey())
@@ -266,37 +288,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {createPortal(
-        <>
-          {toast && (
-            <div
-              key={toast.id}
-              role={toast.error ? "alert" : "status"}
-              className={`toast ${toast.error ? "error" : ""}`}
-            >
-              {toast.error ? (
-                <CircleAlert size={19} />
-              ) : (
-                <CheckCircle2 size={19} />
-              )}
-              <span>
-                <strong className="toast-title">
-                  {toast.error ? "Erreur" : "Confirmation"}
-                </strong>
-                {toast.message}
-              </span>
-              <button
-                aria-label="Fermer la notification"
-                type="button"
-                onClick={() => {
-                  clearTimeout(toastTimer.current);
-                  setToast(null);
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-        </>,
+        <Toaster toasts={toasts} onDismiss={dismissToast} />,
         document.body,
       )}
     </AppContext.Provider>

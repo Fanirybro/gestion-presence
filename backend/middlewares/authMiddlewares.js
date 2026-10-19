@@ -29,6 +29,17 @@ export function requireRole(...roles) {
   };
 }
 
+export function requirePermission(...permissionKeys) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ message: "Connexion requise." });
+    if (req.user.role === "COORDINATOR") return next();
+    const perms = req.user.permissions || {};
+    const hasAny = permissionKeys.some((key) => perms[key] === true);
+    if (hasAny) return next();
+    return res.status(403).json({ message: "Accès interdit : permission requise." });
+  };
+}
+
 export function requireTrustedOrigin(origins) {
   return (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();

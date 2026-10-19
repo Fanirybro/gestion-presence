@@ -2,7 +2,7 @@ import { loadAccount } from "../utils/account.js";
 import { hashPassword } from "../utils/password.js";
 import pool from "../config/database.js";
 
-const publicColumns = "u.id, m.organisation_id, u.nom, u.prenom, u.email, m.role, (u.actif AND m.status = 'ACTIVE') AS actif, m.status AS membership_status, u.created_at, u.updated_at";
+const publicColumns = "u.id, m.organisation_id, u.nom, u.prenom, u.email, m.role, (u.actif AND m.status = 'ACTIVE') AS actif, m.status AS membership_status, COALESCE(m.permissions, '{}'::jsonb) AS permissions, u.created_at, u.updated_at";
 const memberJoin = "users u JOIN organisation_members m ON m.user_id = u.id";
 const roles = ["COORDINATOR", "SECRETARY"];
 
@@ -41,9 +41,16 @@ function email(value) {
   return value.trim().toLowerCase();
 }
 
-function role(value) {
-  if (!roles.includes(value)) fail(400, "Rôle invalide.");
-  return value;
+async function checkRole(client, organisationId, value) {
+  if (typeof value !== "string" || !value.trim() || value.length > 50) fail(400, "Rôle invalide.");
+  const upper = value.trim().toUpperCase();
+  if (roles.includes(upper)) return upper;
+  const { rows } = await client.query(
+    "SELECT code FROM organisation_roles WHERE organisation_id = $1 AND code = $2",
+    [organisationId, upper],
+  );
+  if (!rows.length) fail(400, "Rôle invalide.");
+  return upper;
 }
 
 // Chaque appel recharge le compte : les changements de rôle et désactivations
@@ -142,7 +149,7 @@ export const createUser = controller(async (req, client, actor) => {
   const nom = name(body.nom, "Le nom");
   const prenom = name(body.prenom, "Le prénom");
   const address = email(body.email);
-  const userRole = role(body.role);
+  const userRole = await checkRole(client, actor.organisation_id, body.role);
   if (typeof body.password !== "string" || body.password.length < 12 || body.password.length > 128) {
     fail(400, "Le mot de passe doit contenir entre 12 et 128 caractères.");
   }
@@ -191,7 +198,7 @@ async function protectLastCoordinator(client, user) {
 }
 
 export const updateUserRole = controller(async (req, client, actor) => {
-  const newRole = role(bodyOf(req, ["role"]).role);
+  const newRole = await checkRole(client, actor.organisation_id, bodyOf(req, ["role"]).role);
   const user = await findUser(client, req.params.id, actor.organisation_id);
   if (newRole !== "COORDINATOR") await protectLastCoordinator(client, user);
   await client.query(
@@ -211,4 +218,17 @@ export const updateUserStatus = controller(async (req, client, actor) => {
     [actif ? "ACTIVE" : "REJECTED", req.params.id, actor.organisation_id],
   );
   return { body: { user: await findUser(client, req.params.id, actor.organisation_id) } };
+}, { write: true, byId: true });
+
+export const updateUserPermissions = controller(async (req, client, actor) => {
+  const body = bodyOf(req, ["permissions"]);
+  if (!body.permissions || typeof body.permissions !== "object" || Array.isArray(body.permissions)) {
+    fail(400, "Les permissions doivent être un objet valide.");
+  }
+  const user = await findUser(client, req.params.id, actor.organisation_id);
+  await client.query(
+    `UPDATE organisation_members SET permissions = $1 WHERE user_id = $2 AND organisation_id = $3`,
+    [JSON.stringify(body.permissions), user.id, actor.organisation_id],
+  );
+  return { body: { user: await findUser(client, user.id, actor.organisation_id) } };
 }, { write: true, byId: true });

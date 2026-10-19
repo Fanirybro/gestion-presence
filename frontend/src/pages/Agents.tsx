@@ -20,6 +20,9 @@ import {
   Sparkles,
   CheckCircle2,
   MoreVertical,
+  Building2,
+  RotateCcw,
+  ArrowUpDown,
 } from "lucide-react";
 import { useApp } from "../app/context";
 import {
@@ -582,46 +585,137 @@ export function Agents() {
       </Heading>
 
       {/* Search & Filter Toolbar */}
-      <div className="filters agent-filters-bar">
-        <label className="search-input">
-          <Search size={17} />
-          <input
-            aria-label="Rechercher un agent"
-            placeholder="Rechercher un nom ou prénom…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        <select
-          aria-label="Département"
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
-        >
-          <option value="">Tous les départements</option>
-          {db.departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Statut de l’agent"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">Tous les statuts</option>
-          <option value="true">Actifs</option>
-          <option value="false">Inactifs</option>
-        </select>
-        <select
-          aria-label="Trier les agents"
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-        >
-          <option value="name">Trier par nom (A-Z)</option>
-          <option value="age">Trier par âge</option>
-        </select>
-      </div>
+      <section aria-label="Filtres du personnel" className="unified-filter-bar">
+        {/* 1. Recherche */}
+        <div className="unified-filter-segment segment-search" style={{ flex: 1.5, minWidth: 200 }}>
+          <Search size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Agent</span>
+            <input
+              aria-label="Rechercher un agent"
+              placeholder="Rechercher un nom ou prénom…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="unified-search-input"
+            />
+          </div>
+          {search && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => setSearch("")}
+              title="Effacer la recherche"
+              aria-label="Effacer la recherche"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 2. Département */}
+        <div className="unified-filter-segment segment-dept" style={{ flex: 1.2, minWidth: 170 }}>
+          <Building2 size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Département</span>
+            <select
+              aria-label="Département"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="unified-select"
+            >
+              <option value="">Tous les départements</option>
+              {db.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {department && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => setDepartment("")}
+              title="Effacer le filtre département"
+              aria-label="Effacer le filtre département"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 3. Statut */}
+        <div className="unified-filter-segment segment-status" style={{ flex: 1, minWidth: 145 }}>
+          <UserCheck size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Statut</span>
+            <select
+              aria-label="Statut de l’agent"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="unified-select"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="true">Actifs</option>
+              <option value="false">Inactifs</option>
+            </select>
+          </div>
+          {status && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => setStatus("")}
+              title="Effacer le filtre statut"
+              aria-label="Effacer le filtre statut"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 4. Tri */}
+        <div className="unified-filter-segment segment-sort" style={{ flex: 1, minWidth: 155 }}>
+          <ArrowUpDown size={15} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Tri</span>
+            <select
+              aria-label="Trier les agents"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="unified-select"
+            >
+              <option value="name">Par nom (A-Z)</option>
+              <option value="age">Par âge</option>
+            </select>
+          </div>
+        </div>
+
+        {(search || department || status || sort !== "name") && (
+          <>
+            <div className="unified-filter-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="unified-reset-btn"
+              title="Réinitialiser les filtres"
+              onClick={() => {
+                setSearch("");
+                setDepartment("");
+                setStatus("");
+                setSort("name");
+              }}
+            >
+              <RotateCcw size={13} />
+              <span>Réinitialiser</span>
+            </button>
+          </>
+        )}
+      </section>
 
       {/* Cards Grid Section */}
       <section className="agent-cards-container">

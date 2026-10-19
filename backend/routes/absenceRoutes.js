@@ -1,10 +1,10 @@
 import {Router} from "express";
-import {requireAuth,requireOrganisation,requireRole} from "../middlewares/authMiddlewares.js";
+import {requireAuth,requireOrganisation,requirePermission} from "../middlewares/authMiddlewares.js";
 import {listAbsences,saveAbsence,cancelAbsence} from "../controllers/absenceControllers.js";
 const router=Router();
 router.use(requireAuth,requireOrganisation);
 router.get("/",listAbsences);
-router.use(requireRole("COORDINATOR"));
+router.use(requirePermission("leaves"));
 router.post("/",saveAbsence);
 router.patch("/:id",saveAbsence);
 router.post("/:id/cancel",cancelAbsence);

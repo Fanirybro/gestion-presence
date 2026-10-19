@@ -33,36 +33,38 @@ import {
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { initials } from "../utils";
+import { hasPermission } from "../types";
 const groups = [
   {
     label: "ESPACE DE TRAVAIL",
     items: [
-      { path: "/", name: "Tableau de bord", icon: LayoutDashboard },
-      { path: "/scan", name: "Pointage QR", icon: ScanLine },
-      { path: "/kiosk", name: "Pointage Facial (Borne)", icon: Camera },
-      { path: "/agents", name: "Personnel", icon: Users, admin: true },
+      { path: "/", name: "Tableau de bord", icon: LayoutDashboard, permission: "dashboard" },
+      { path: "/scan", name: "Pointage QR", icon: ScanLine, permission: "scan" },
+      { path: "/kiosk", name: "Pointage Facial (Borne)", icon: Camera, permission: "kiosk" },
+      { path: "/agents", name: "Personnel", icon: Users, permission: "agents" },
     ],
   },
   {
   label: "SUIVI DES PRÉSENCES",
   items: [
-    { path: "/presences", name: "Présences", icon: CalendarCheck },
-    { path: "/reports", name: "Rapports", icon: Files },
+    { path: "/presences", name: "Présences", icon: CalendarCheck, permission: "presences" },
+    { path: "/reports", name: "Rapports", icon: Files, permission: "reports" },
     {
       path: "/conges-permissions",
       name: "Congés et permissions",
       icon: CalendarDays,
+      permission: "leaves",
     },
   ],
 },
   {
     label: "ADMINISTRATION",
     items: [
-      { path: "/departments", name: "Départements", icon: Building2, admin: true },
-      { path: "/schedules", name: "Horaires", icon: Clock, admin: true },
-      { path: "/users", name: "Utilisateurs", icon: ShieldCheck, admin: true },
-      { path: "/admin/face-setup", name: "Enrôlement Facial", icon: Camera, admin: true },
-      { path: "/settings", name: "Paramètres", icon: Settings, admin: true },
+      { path: "/departments", name: "Départements", icon: Building2, permission: "departments" },
+      { path: "/schedules", name: "Horaires", icon: Clock, permission: "schedules" },
+      { path: "/users", name: "Utilisateurs & Rôles", icon: ShieldCheck, permission: "users" },
+      { path: "/admin/face-setup", name: "Enrôlement Facial", icon: Camera, permission: "face_enroll" },
+      { path: "/settings", name: "Paramètres", icon: Settings, permission: "settings" },
     ],
   },
 ];
@@ -213,7 +215,7 @@ function WorkspaceLayout() {
             <nav>
               {groups.map((g) => {
                 const items = g.items.filter((i) => {
-                  if (i.admin && user?.role !== "COORDINATOR") return false;
+                  if (i.permission && !hasPermission(user, i.permission)) return false;
                   if (i.path === "/scan" && !qrEnabled) return false;
                   if ((i.path === "/kiosk" || i.path === "/admin/face-setup") && !facialEnabled) return false;
                   return true;

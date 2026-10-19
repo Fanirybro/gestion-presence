@@ -57,7 +57,8 @@ test("leave and permission lifecycle, filters, modes and isolated storage", asyn
   await page.getByLabel("Employé", { exact: true }).selectOption("a2");
   await page.getByLabel("Type", { exact: true }).selectOption("PERMISSION");
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page.getByRole("button", { name: "Modifier", exact: true }).click();
+  await page.locator(".row-actions-trigger").first().click();
+  await page.getByRole("menuitem", { name: "Modifier", exact: true }).click();
   await page
     .getByRole("dialog")
     .getByLabel("Remarque (facultatif)")
@@ -65,10 +66,12 @@ test("leave and permission lifecycle, filters, modes and isolated storage", asyn
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByText("Rendez-vous", { exact: true })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await page.locator(".row-actions-trigger").first().click();
+  await page.getByRole("menuitem", { name: "Annuler", exact: true }).click();
   await page.getByRole("button", { name: "Conserver" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await page.locator(".row-actions-trigger").first().click();
+  await page.getByRole("menuitem", { name: "Annuler", exact: true }).click();
   await page.getByRole("button", { name: "Confirmer l’annulation" }).click();
   await expect(
     page.getByText("Enregistrement annulé", { exact: true }),

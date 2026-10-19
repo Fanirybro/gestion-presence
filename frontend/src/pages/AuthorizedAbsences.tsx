@@ -21,6 +21,7 @@ import {
   type AuthorizedAbsence,
 } from "../services/authorizedAbsences";
 import { dateLabel, fullName, today } from "../utils";
+import { RowActionsMenu } from "../components/RowActionsMenu";
 import "./authorizedAbsences.css";
 
 const label = (r: AuthorizedAbsence) =>
@@ -328,25 +329,33 @@ export default function AuthorizedAbsences() {
                 <span key="remark" className="absence-remark">
                   {r.remark || "—"}
                 </span>,
-                r.cancelled || !canManage ? (
-                  "Annulé"
+                r.cancelled ? (
+                  <span key="actions" className="badge absent" style={{ fontSize: "11px" }}>
+                    Annulé
+                  </span>
+                ) : !canManage ? (
+                  <span key="actions" style={{ color: "#8a968f", fontSize: "12px" }}>—</span>
                 ) : (
-                  <div key="actions" className="actions">
-                    <button className="button" onClick={() => open(r)}>
-                      <Pencil size={16} />
-                      Modifier
-                    </button>
-                    <button
-                      className="button agent-delete"
-                      onClick={() => {
-                        setError("");
-                        setCancelling(r);
-                      }}
-                    >
-                      <X size={16} />
-                      Annuler
-                    </button>
-                  </div>
+                  <RowActionsMenu
+                    key="actions"
+                    ariaLabel={`Actions pour la demande de ${fullName(agent)}`}
+                    items={[
+                      {
+                        label: "Modifier",
+                        icon: <Pencil size={14} />,
+                        onClick: () => open(r),
+                      },
+                      {
+                        label: "Annuler",
+                        icon: <X size={14} />,
+                        variant: "danger",
+                        onClick: () => {
+                          setError("");
+                          setCancelling(r);
+                        },
+                      },
+                    ]}
+                  />
                 ),
               ];
             })}

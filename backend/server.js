@@ -6,6 +6,7 @@ import { createSessionMiddleware } from "./config/session.js";
 import { requireTrustedOrigin } from "./middlewares/authMiddlewares.js";
 import authRoutes from "./routes/authRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
+import rolesRoutes from "./routes/rolesRoutes.js";
 import organisationsRoutes from "./routes/organisationsRoutes.js";
 import personnelsRoutes from "./routes/personnelsRoutes.js";
 import departementsRoutes from "./routes/departementsRoutes.js";
@@ -76,6 +77,7 @@ export function createApp({ sessionStore } = {}) {
   app.use("/api", (req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
   app.use("/api/auth", authRoutes);
   app.use("/api/users", usersRoutes);
+  app.use("/api/roles", rolesRoutes);
   app.use("/api/organisations", organisationsRoutes);
   app.use("/api/personnels", personnelsRoutes);
   app.use("/api/departements", departementsRoutes);

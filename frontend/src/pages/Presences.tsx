@@ -3,8 +3,21 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { ArrowUpRight, RotateCcw, Search, Pencil, UserCheck, Clock3, UserX } from "lucide-react";
+import {
+  RotateCcw,
+  Search,
+  Pencil,
+  UserCheck,
+  Clock3,
+  UserX,
+  CheckSquare,
+  Calendar,
+  CalendarCheck,
+  Building2,
+  X,
+} from "lucide-react";
 import { useApp } from "../app/context";
+import { hasPermission } from "../types";
 import {
   Back,
   Badge,
@@ -24,7 +37,8 @@ import {
   periodLabels,
   today,
 } from "../utils";
-import { presencesApi } from "../services/presences";
+import { presencesApi, type PresenceRecord } from "../services/presences";
+import { RowActionsMenu } from "../components/RowActionsMenu";
 export function Presences({
   mode: propMode,
 }: {
@@ -38,7 +52,46 @@ export function Presences({
       : location.pathname.startsWith("/absences")
         ? "absences"
         : "presences");
-  const { db } = useApp();
+  const { db, user, notify } = useApp();
+  const client = useQueryClient();
+  const [modal, setModal] = useState<{
+    type: "correct" | "justify";
+    record: PresenceRecord;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveModal = async (form: HTMLFormElement) => {
+    if (!modal) return;
+    setSaving(true);
+    setError("");
+    const p = modal.record;
+    const values = new FormData(form);
+    const reason = String(values.get("reason") || "").trim();
+    try {
+      if (modal.type === "justify") {
+        await presencesApi.justify(p.id, { reason, version: p.version });
+        notify("Justification d’absence enregistrée avec succès.");
+      } else {
+        await presencesApi.correct(p.id, {
+          arrival: String(values.get("arrival") || ""),
+          departure: String(values.get("departure") || ""),
+          arrivalDate: String(values.get("arrivalDate") || p.date),
+          departureDate: String(values.get("departureDate") || p.date),
+          reason,
+          version: p.version,
+        });
+        notify("Correction de présence enregistrée avec succès.");
+      }
+      await client.invalidateQueries({ queryKey: ["presences"] });
+      setModal(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const { simple } = useSecretaryMode();
   const [date, setDate] = useState(today());
   const [end, setEnd] = useState(today());
@@ -178,76 +231,163 @@ export function Presences({
         </Link>
       </div>
 
-      <div className="clean-filter-strip">
-        <Field label={mode === "history" ? "Du" : "Date"}>
-          <input
-            aria-label="Date de début"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-        </Field>
-        {mode === "history" && (
-          <Field label="Au">
+      <section aria-label="Filtres" className="unified-filter-bar">
+        {/* 1. Recherche agent */}
+        <div className="unified-filter-segment segment-search" style={{ flex: 1.4, minWidth: 200 }}>
+          <Search size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Agent</span>
             <input
-              aria-label="Date de fin"
-              type="date"
-              min={date}
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              aria-label="Rechercher une présence"
+              placeholder="Rechercher un agent…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="unified-search-input"
             />
-          </Field>
+          </div>
+          {search && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => setSearch("")}
+              title="Effacer la recherche"
+              aria-label="Effacer la recherche"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 2. Date */}
+        <div className="unified-filter-segment segment-date" style={{ flex: 1, minWidth: 155 }}>
+          <Calendar size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">{mode === "history" ? "Du" : "Date"}</span>
+            <input
+              aria-label="Date de début"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="unified-date-input"
+              required
+            />
+          </div>
+        </div>
+
+        {mode === "history" && (
+          <>
+            <div className="unified-filter-divider" aria-hidden="true" />
+            <div className="unified-filter-segment segment-date" style={{ flex: 1, minWidth: 155 }}>
+              <CalendarCheck size={16} className="segment-icon" aria-hidden="true" />
+              <div className="segment-input-group">
+                <span className="segment-label">Au</span>
+                <input
+                  aria-label="Date de fin"
+                  type="date"
+                  min={date}
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="unified-date-input"
+                />
+              </div>
+            </div>
+          </>
         )}
-        <label className="search-input">
-          <Search size={16} />
-          <input
-            aria-label="Rechercher une présence"
-            placeholder="Rechercher un agent…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        <select
-          aria-label="Créneau"
-          value={selectedPeriod}
-          onChange={(e) => setSelectedPeriod(e.target.value)}
-        >
-          <option value="">Tous les créneaux</option>
-          <option value="MATIN">Matin</option>
-          <option value="APRES_MIDI">Après-midi</option>
-          <option value="SOIR">Soir</option>
-        </select>
+
+        <div className="unified-filter-divider" aria-hidden="true" />
+
+        {/* 3. Créneau */}
+        <div className="unified-filter-segment segment-period" style={{ flex: 1, minWidth: 145 }}>
+          <Clock3 size={16} className="segment-icon" aria-hidden="true" />
+          <div className="segment-input-group">
+            <span className="segment-label">Créneau</span>
+            <select
+              aria-label="Créneau"
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="unified-select"
+            >
+              <option value="">Tous les créneaux</option>
+              <option value="MATIN">Matin</option>
+              <option value="APRES_MIDI">Après-midi</option>
+              <option value="SOIR">Soir</option>
+            </select>
+          </div>
+          {selectedPeriod && (
+            <button
+              type="button"
+              className="segment-clear-btn"
+              onClick={() => setSelectedPeriod("")}
+              title="Effacer le filtre créneau"
+              aria-label="Effacer le filtre créneau"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
         {!simple && (
-          <select
-            aria-label="Service"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-          >
-            <option value="">Tous les services</option>
-            {db.departments.map((d) => (
-              <option value={d.id} key={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <>
+            <div className="unified-filter-divider" aria-hidden="true" />
+            {/* 4. Service */}
+            <div className="unified-filter-segment segment-dept" style={{ flex: 1.1, minWidth: 165 }}>
+              <Building2 size={16} className="segment-icon" aria-hidden="true" />
+              <div className="segment-input-group">
+                <span className="segment-label">Service</span>
+                <select
+                  aria-label="Service"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="unified-select"
+                >
+                  <option value="">Tous les services</option>
+                  {db.departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {department && (
+                <button
+                  type="button"
+                  className="segment-clear-btn"
+                  onClick={() => setDepartment("")}
+                  title="Effacer le filtre service"
+                  aria-label="Effacer le filtre service"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </>
         )}
-        <button
-          className="button"
-          title="Réinitialiser les filtres"
-          aria-label="Réinitialiser les filtres"
-          onClick={() => {
-            setDate(today());
-            setEnd(today());
-            setSearch("");
-            setDepartment("");
-            setSelectedPeriod("");
-          }}
-        >
-          <RotateCcw size={15} />
-          <span>Réinitialiser</span>
-        </button>
-      </div>
+
+        {/* 5. Réinitialiser */}
+        {(search || selectedPeriod || department || (mode === "history" ? date !== today() || end !== today() : date !== today())) && (
+          <>
+            <div className="unified-filter-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="unified-reset-btn"
+              title="Réinitialiser les filtres"
+              aria-label="Réinitialiser les filtres"
+              onClick={() => {
+                setDate(today());
+                setEnd(today());
+                setSearch("");
+                setDepartment("");
+                setSelectedPeriod("");
+              }}
+            >
+              <RotateCcw size={13} />
+              <span>Réinitialiser</span>
+            </button>
+          </>
+        )}
+      </section>
       {date > end && mode === "history" && (
         <p className="form-error">
           La date de fin doit suivre la date de début.
@@ -275,12 +415,15 @@ export function Presences({
             "DÉPART",
             "STATUT",
             ...(!simple ? ["RETARD"] : []),
-            "",
+            "ACTIONS",
           ]}
           rowKeys={rows.map((p) => p.id)}
           rows={rows.map((p) => {
             const a = db.agents.find((a) => a.id === p.agentId);
             const slot = p.periode || p.period || "MATIN";
+            const canCorrect = hasPermission(user, "presences_add");
+            const canJustify = ["ABSENT", "JUSTIFIED"].includes(p.status) && hasPermission(user, "presences_justify");
+
             return [
               <Person key="agent" agent={a} />,
               <span key="period" className="badge" style={{ fontWeight: 600, fontSize: "0.8rem" }}>
@@ -302,18 +445,121 @@ export function Presences({
               ...(!simple
                 ? [p.lateMinutes ? `${p.lateMinutes} min` : "—"]
                 : []),
-              <Link
-                className="icon-button"
-                key="detail"
-                aria-label={`Détail de ${fullName(a)}`}
-                to={`/${mode === "presences" ? "presences" : mode}/${p.id}`}
-              >
-                <ArrowUpRight size={17} />
-              </Link>,
+              canCorrect || canJustify ? (
+                <RowActionsMenu
+                  key="actions"
+                  ariaLabel={`Actions pour ${fullName(a)}`}
+                  items={[
+                    canCorrect && {
+                      label: "Corriger",
+                      icon: <Pencil size={14} />,
+                      onClick: () => {
+                        setError("");
+                        setModal({ type: "correct", record: p });
+                      },
+                    },
+                    canJustify && {
+                      label: "Justifier l’absence",
+                      icon: <CheckSquare size={14} />,
+                      onClick: () => {
+                        setError("");
+                        setModal({ type: "justify", record: p });
+                      },
+                    },
+                  ]}
+                />
+              ) : (
+                <span key="actions" style={{ color: "#8a968f", fontSize: "12px" }}>—</span>
+              ),
             ];
           })}
         />}
       </section>
+
+      <AnimatePresence>
+        {modal && (
+          <Modal
+            key="presence-inline-edit"
+            title={
+              modal.type === "correct"
+                ? `Corriger la présence — ${fullName(db.agents.find((a) => a.id === modal.record.agentId))}`
+                : `Justifier l’absence — ${fullName(db.agents.find((a) => a.id === modal.record.agentId))}`
+            }
+            close={() => {
+              if (!saving) setModal(null);
+            }}
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSaveModal(e.currentTarget);
+              }}
+            >
+              {modal.type === "correct" && (
+                <div className="form-grid">
+                  <Field label="Arrivée">
+                    <input
+                      name="arrival"
+                      type="time"
+                      defaultValue={modal.record.arrivalAt}
+                    />
+                  </Field>
+                  <Field label="Date d’arrivée">
+                    <input
+                      name="arrivalDate"
+                      type="date"
+                      defaultValue={modal.record.arrivalDate || modal.record.date}
+                    />
+                  </Field>
+                  <Field label="Départ">
+                    <input
+                      name="departure"
+                      type="time"
+                      defaultValue={modal.record.departureAt}
+                    />
+                  </Field>
+                  <Field label="Date de départ">
+                    <input
+                      name="departureDate"
+                      type="date"
+                      defaultValue={modal.record.departureDate || modal.record.date}
+                    />
+                  </Field>
+                </div>
+              )}
+              <Field label="Motif obligatoire" hint="Veuillez préciser la raison de cette modification">
+                <textarea
+                  name="reason"
+                  required
+                  minLength={5}
+                  maxLength={500}
+                  defaultValue={modal.record.note}
+                  placeholder="Ex: Justificatif médical, autorisation hiérarchique, etc."
+                  rows={4}
+                />
+              </Field>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <footer>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={saving}
+                  onClick={() => setModal(null)}
+                >
+                  Annuler
+                </button>
+                <button className="button primary" disabled={saving}>
+                  {saving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </footer>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -358,7 +604,7 @@ export function PresenceDetails() {
         subtitle={dateLabel(p.date, true)}
       >
         <Badge status={p.status} />
-        {["ABSENT", "JUSTIFIED"].includes(p.status) && (
+        {["ABSENT", "JUSTIFIED"].includes(p.status) && hasPermission(user, "presences_justify") && (
           <button
             className="button"
             onClick={() => {
@@ -369,7 +615,7 @@ export function PresenceDetails() {
             Justifier l’absence
           </button>
         )}
-        {user?.role === "COORDINATOR" && (
+        {hasPermission(user, "presences_add") && (
           <button
             className="button primary"
             onClick={() => {

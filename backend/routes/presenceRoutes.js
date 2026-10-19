@@ -1,11 +1,10 @@
 import { Router } from "express";
-import { requireAuth, requireOrganisation, requireRole } from "../middlewares/authMiddlewares.js";
+import { requireAuth, requireOrganisation, requirePermission } from "../middlewares/authMiddlewares.js";
 import { listPresences, getPresence, correctPresence, justifyAbsence } from "../controllers/presenceControllers.js";
 const router = Router();
 router.use(requireAuth, requireOrganisation);
 router.get("/", listPresences);
 router.get("/:id", getPresence);
-router.use(requireRole("COORDINATOR"));
-router.patch("/:id", correctPresence);
-router.post("/:id/justify", justifyAbsence);
+router.patch("/:id", requirePermission("presences_add", "presences"), correctPresence);
+router.post("/:id/justify", requirePermission("presences_justify", "presences"), justifyAbsence);
 export default router;
