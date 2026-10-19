@@ -68,7 +68,8 @@ export async function deleteProfile(req, res, next) {
 export async function listAttendances(req, res, next) {
   try {
     const limit = Number(req.query.limit) || 20;
-    const attendances = await FaceService.getRecentAttendances(limit);
+    const orgId = req.user?.organisation_id || req.query.organisation_id || null;
+    const attendances = await FaceService.getRecentAttendances(limit, orgId);
     return res.status(200).json({ attendances });
   } catch (error) {
     next(error);

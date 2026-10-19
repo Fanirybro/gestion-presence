@@ -486,7 +486,15 @@ export class FaceService {
   /**
    * Récupère l'historique récent des pointages de présence.
    */
-  static async getRecentAttendances(limit = 20) {
+  static async getRecentAttendances(limit = 20, orgId = null) {
+    let whereClause = "";
+    const params = [Math.min(limit, 100)];
+
+    if (orgId) {
+      params.push(orgId);
+      whereClause = `WHERE (p.organisation_id = $2 OR u.id IN (SELECT user_id FROM organisation_members WHERE organisation_id = $2))`;
+    }
+
     const query = `
       SELECT 
         a.id, 
@@ -504,10 +512,11 @@ export class FaceService {
       LEFT JOIN personnel p ON p.id = a.personnel_id
       LEFT JOIN departements d ON d.id = p.departement_id
       LEFT JOIN users u ON u.id = a.user_id
+      ${whereClause}
       ORDER BY a.timestamp DESC, a.id DESC
       LIMIT $1
     `;
-    const { rows } = await pool.query(query, [Math.min(limit, 100)]);
+    const { rows } = await pool.query(query, params);
     return rows;
   }
 }
