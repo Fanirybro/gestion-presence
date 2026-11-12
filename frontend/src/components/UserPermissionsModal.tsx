@@ -278,7 +278,7 @@ export default function UserPermissionsModal({ targetUser, close, onSave }: Prop
             <span>{targetUser.email}</span>
           </div>
           <span className={`badge ${targetUser.role === "COORDINATOR" ? "role-coord" : "role-sec"}`}>
-            {targetUser.role === "COORDINATOR" ? "Coordinateur (Superadmin)" : "Secrétaire / Utilisateur"}
+            {targetUser.role === "COORDINATOR" ? "SuperAdmin" : "Responsable de division"}
           </span>
         </div>
 
@@ -286,9 +286,9 @@ export default function UserPermissionsModal({ targetUser, close, onSave }: Prop
           <div className="perm-superadmin-banner">
             <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Superadmin permanent :</strong> En tant que Coordinateur, cet utilisateur bénéficie
+              <strong>Superadmin permanent :</strong> En tant que SuperAdmin, cet utilisateur bénéficie
               automatiquement d'un accès intégral et sans restriction à tous les modules. Pour restreindre ses privilèges,
-              modifiez son rôle en Secrétaire dans la liste des utilisateurs.
+              modifiez son rôle en Responsable de division dans la liste des utilisateurs.
             </div>
           </div>
         ) : (

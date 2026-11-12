@@ -239,8 +239,8 @@ export function GestionUtilisateurs() {
                   ))
                 ) : (
                   <>
-                    <option value="COORDINATOR">Coordinateur</option>
-                    <option value="SECRETARY">Secrétaire</option>
+                    <option value="COORDINATOR">SuperAdmin</option>
+                    <option value="SECRETARY">Responsable de division</option>
                   </>
                 )}
               </select>,
@@ -576,8 +576,8 @@ export function CreerUtilisateur() {
                 ))
               ) : (
                 <>
-                  <option value="SECRETARY">Secrétaire</option>
-                  <option value="COORDINATOR">Coordinateur</option>
+                  <option value="SECRETARY">Responsable de division</option>
+                  <option value="COORDINATOR">SuperAdmin</option>
                 </>
               )}
             </select>

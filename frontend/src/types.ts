@@ -110,7 +110,17 @@ export function hasPermission(
   if (!user) return false;
   if (user.role === "COORDINATOR") return true;
   if (Array.isArray(user.managed_division_ids) && user.managed_division_ids.length > 0) {
-    if (key === "departments" || key === "agents" || key === "leaves" || key === "presences" || key === "face_enroll") {
+    if (
+      key === "departments" ||
+      key === "agents" ||
+      key === "agents_manage" ||
+      key === "leaves" ||
+      key === "presences" ||
+      key === "presences_add" ||
+      key === "presences_justify" ||
+      key === "face_enroll" ||
+      key === "reports"
+    ) {
       return true;
     }
   }

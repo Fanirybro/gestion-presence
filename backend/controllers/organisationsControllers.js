@@ -103,8 +103,8 @@ async function attachOrganisation(req, res, next, create) {
       await client.query(
         `INSERT INTO organisation_roles (organisation_id, code, nom, description, permissions, is_system)
          VALUES 
-           ($1, 'COORDINATOR', 'Coordinateur', 'Superadministrateur avec accès total et irrévocable à l''ensemble du système', '{}'::jsonb, true),
-           ($1, 'SECRETARY', 'Secrétaire', 'Rôle standard de pointage, consultation des présences et impression des rapports', '{"scan": true, "kiosk": true, "leaves": true, "reports": true, "dashboard": true, "presences": true, "reports_print": true, "presences_add": false, "presences_justify": false}'::jsonb, false)
+           ($1, 'COORDINATOR', 'SuperAdmin', 'Superadministrateur avec accès total et irrévocable à l''ensemble du système', '{}'::jsonb, true),
+           ($1, 'SECRETARY', 'Responsable de division', 'Responsable de division avec gestion des personnels, pointages et présences de son périmètre', '{"scan": true, "kiosk": true, "leaves": true, "reports": true, "dashboard": true, "presences": true, "reports_print": true, "presences_add": false, "presences_justify": false}'::jsonb, false)
          ON CONFLICT (organisation_id, code) DO NOTHING`,
         [organisation.id]
       );

@@ -33,6 +33,8 @@ const STANDARD_METADATA_KEYS = new Set([
   "date_prise_service",
 ]);
 
+const CATEGORIES_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"] as const;
+
 const transitionConfig = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
@@ -52,10 +54,16 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
     day: "2-digit",
   }).format(new Date());
 
+  const managedDivisions = Array.isArray(user?.managed_division_ids)
+    ? user.managed_division_ids.map(String)
+    : [];
+
   const [formulaire, setFormulaire] = useState<PersonnelInput>({
     nom: agent?.lastName ?? "",
     prenom: agent?.firstName ?? "",
-    departement_id: agent?.departmentId ?? "",
+    departement_id:
+      agent?.departmentId ??
+      (managedDivisions.length === 1 ? managedDivisions[0] : ""),
     utilisateur_id: null,
     date_naissance: agent?.birthDate ?? "",
     date_embauche: agent?.hireDate || null,
@@ -99,9 +107,6 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
   const [enAttente, setEnAttente] = useState(false);
 
   const isCoordinator = user?.role === "COORDINATOR";
-  const managedDivisions = Array.isArray(user?.managed_division_ids)
-    ? user.managed_division_ids.map(String)
-    : [];
   const departements = isCoordinator
     ? db.departments
     : db.departments.filter((d) => managedDivisions.includes(String(d.id)));
@@ -582,12 +587,29 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
                             </select>
                           </Field>
 
-                          <Field label="Catégorie" hint="Ex: I, II, III, IV, V, VI, VII, VIII">
-                            <input
-                              placeholder="Ex: VI"
+                          <Field label="Catégorie">
+                            <select
                               value={metadata.categorie ?? ""}
-                              onChange={(e) => setMetadata({ ...metadata, categorie: e.target.value })}
-                            />
+                              onChange={(e) =>
+                                setMetadata({
+                                  ...metadata,
+                                  categorie: e.target.value || null,
+                                })
+                              }
+                            >
+                              <option value="">Sélectionner une catégorie</option>
+                              {CATEGORIES_ROMAN.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                              {metadata.categorie &&
+                                !CATEGORIES_ROMAN.includes(metadata.categorie as any) && (
+                                  <option value={metadata.categorie}>
+                                    {metadata.categorie}
+                                  </option>
+                                )}
+                            </select>
                           </Field>
 
                           <Field label="Date d'entrée dans l'administration">

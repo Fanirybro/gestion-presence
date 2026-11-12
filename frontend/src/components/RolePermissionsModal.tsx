@@ -278,7 +278,7 @@ export default function RolePermissionsModal({ role, close, onSave }: Props) {
     <Modal
       title={
         isSuperadmin
-          ? "Privilèges du Rôle : Coordinateur (Non modifiable)"
+          ? "Privilèges du Rôle : SuperAdmin (Non modifiable)"
           : `Modifier le Rôle : ${role.nom}`
       }
       close={close}
@@ -290,7 +290,7 @@ export default function RolePermissionsModal({ role, close, onSave }: Props) {
             <span>Code système : <code>{role.code}</code></span>
           </div>
           <span className={`badge ${isSuperadmin ? "role-coord" : "role-sec"}`}>
-            {isSuperadmin ? "Superadmin (Racine)" : "Rôle Modifiable"}
+            {isSuperadmin ? "SuperAdmin (Racine)" : "Rôle Modifiable"}
           </span>
         </div>
 
@@ -320,7 +320,7 @@ export default function RolePermissionsModal({ role, close, onSave }: Props) {
           <div className="perm-superadmin-banner">
             <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Superadmin permanent (Non modifiable) :</strong> Le rôle Coordinateur possède de manière inhérente
+              <strong>Superadmin permanent (Non modifiable) :</strong> Le rôle SuperAdmin possède de manière inhérente
               tous les droits sur l'ensemble de la plateforme. Ses privilèges ne peuvent être ni modifiés ni supprimés.
             </div>
           </div>

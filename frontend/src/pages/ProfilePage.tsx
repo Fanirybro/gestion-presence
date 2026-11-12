@@ -139,7 +139,7 @@ export default function ProfilePage() {
             <strong>{user?.name}</strong>
             <small>
               <ShieldCheck size={12} style={{ display: "inline-block", verticalAlign: "-1px", marginRight: 3 }} />
-              {isCoordinator ? "Coordinateur" : "Secrétaire"} · {db.settings.organization}
+              {isCoordinator ? "SuperAdmin" : "Responsable de division"} · {db.settings.organization}
             </small>
           </div>
         </div>
@@ -213,8 +213,8 @@ export default function ProfilePage() {
                   disabled
                   value={
                     isCoordinator
-                      ? "Coordinateur (Droits d'administration)"
-                      : "Secrétaire (Opérations de pointage)"
+                      ? "SuperAdmin (Droits d'administration)"
+                      : "Responsable de division (Gestion de division & pointage)"
                   }
                 />
               </Field>

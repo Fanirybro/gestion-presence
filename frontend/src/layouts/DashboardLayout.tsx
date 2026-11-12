@@ -283,7 +283,7 @@ export default function DashboardLayout() {
             <span>
               <strong>{user?.name}</strong>
               <small>
-                {user?.role === "COORDINATOR" ? "Coordinateur" : "Secrétaire"}
+                {user?.role === "COORDINATOR" ? "SuperAdmin" : "Responsable de division"}
               </small>
             </span>
           </Link>

@@ -48,6 +48,25 @@ export function requirePermission(...permissionKeys) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: "Connexion requise." });
     if (req.user.role === "COORDINATOR") return next();
+
+    // Les responsables de division ont accès opérationnel aux actions de leur périmètre
+    if (Array.isArray(req.user.managed_division_ids) && req.user.managed_division_ids.length > 0) {
+      const divisionScopedPermissions = [
+        "departments",
+        "agents",
+        "agents_manage",
+        "presences",
+        "presences_add",
+        "presences_justify",
+        "leaves",
+        "face_enroll",
+        "reports",
+      ];
+      if (permissionKeys.some((key) => divisionScopedPermissions.includes(key))) {
+        return next();
+      }
+    }
+
     const perms = req.user.permissions || {};
     const hasAny = permissionKeys.some((key) => perms[key] === true);
     if (hasAny) return next();
