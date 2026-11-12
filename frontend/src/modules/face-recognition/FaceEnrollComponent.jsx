@@ -22,6 +22,7 @@ import {
   Users,
   Clock,
   X,
+  Loader2,
 } from "lucide-react";
 import "./face-recognition.css";
 
@@ -176,18 +177,19 @@ export default function FaceEnrollComponent({
   const handleCapture = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return;
+    if (!video || !canvas || video.readyState < 2) return null;
 
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const b64 = canvas.toDataURL("image/jpeg", 0.9);
     setCapturedPhoto(b64);
     setCountdown(null);
     setAlert(null);
+    return b64;
   }, []);
 
   const handleRetake = () => {
@@ -243,6 +245,77 @@ export default function FaceEnrollComponent({
     }
   }, [selectedPersonnelId]);
 
+  // validation et soumission de l'enrôlement biométrique
+  const executeEnroll = useCallback(
+    async (photoToUse) => {
+      const photo = photoToUse || capturedPhoto;
+      if (!selectedPersonnelId) {
+        setAlert({
+          type: "error",
+          message: "Veuillez sélectionner un membre du personnel dans l'annuaire.",
+        });
+        return;
+      }
+      if (!photo) {
+        setAlert({
+          type: "error",
+          message: "Veuillez d'abord capturer une photo du visage.",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+      setAlert(null);
+
+      const targetAgent = personnelList.find((p) => String(p.id) === String(selectedPersonnelId));
+
+      try {
+        const response = await faceApi.enrollFace(selectedPersonnelId, photo, currentOrgId);
+        setEnrolledAgentInfo({
+          name: targetAgent ? `${targetAgent.prenom} ${targetAgent.nom}` : "Agent",
+          photo: photo,
+        });
+
+        if (onSuccess) {
+          onSuccess(targetAgent);
+          if (onClose) {
+            onClose();
+          }
+        } else {
+          setAlert({
+            type: "success",
+            message: response.message || "Profil facial enregistré avec succès pour cet agent !",
+          });
+          setPostEnrollCooldown(10);
+        }
+        await loadPersonnel();
+      } catch (err) {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.detail ||
+          err.message ||
+          "Erreur lors de l'enregistrement biométrique.";
+        setAlert({
+          type: "error",
+          message: msg,
+        });
+        // Si l'enrôlement échoue, on réactive la caméra pour permettre une nouvelle détection automatique
+        setCapturedPhoto(null);
+        if (videoRef.current && streamRef.current && streamRef.current.active) {
+          if (videoRef.current.srcObject !== streamRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+          }
+          videoRef.current.play().catch(() => {});
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [capturedPhoto, selectedPersonnelId, personnelList, currentOrgId, onSuccess, onClose, loadPersonnel]
+  );
+
+  const handleEnrollSubmit = () => executeEnroll();
+
   // Assurer la continuité de la lecture vidéo quand la photo est réinitialisée
   useEffect(() => {
     if (!capturedPhoto && videoRef.current && streamRef.current) {
@@ -255,7 +328,7 @@ export default function FaceEnrollComponent({
 
   // détection continue
   useEffect(() => {
-    if (!cameraActive || capturedPhoto || postEnrollCooldown !== null) return;
+    if (!cameraActive || capturedPhoto || postEnrollCooldown !== null || isSubmitting) return;
 
     let isMounted = true;
     let isDetecting = false;
@@ -281,7 +354,7 @@ export default function FaceEnrollComponent({
 
           if (!alignment.isCentered) {
             setCountdown(null);
-          } else if (!capturedPhoto && postEnrollCooldown === null) {
+          } else if (!capturedPhoto && postEnrollCooldown === null && !isSubmitting) {
             setCountdown((prev) => (prev === null ? 3 : prev));
           }
         }
@@ -296,11 +369,11 @@ export default function FaceEnrollComponent({
       isMounted = false;
       clearInterval(interval);
     };
-  }, [cameraActive, capturedPhoto, postEnrollCooldown]);
+  }, [cameraActive, capturedPhoto, postEnrollCooldown, isSubmitting]);
 
   // compte à rebours pour capture auto
   useEffect(() => {
-    if (countdown === null || capturedPhoto || postEnrollCooldown !== null) return;
+    if (countdown === null || capturedPhoto || postEnrollCooldown !== null || isSubmitting) return;
 
     if (countdown > 0) {
       playBeep(550 + (4 - countdown) * 120, 0.1);
@@ -313,11 +386,14 @@ export default function FaceEnrollComponent({
     if (countdown === 0) {
       setIsFlashing(true);
       playBeep(920, 0.22);
-      handleCapture();
+      const photo = handleCapture();
       const flashTimer = setTimeout(() => setIsFlashing(false), 380);
+      if (photo) {
+        void executeEnroll(photo);
+      }
       return () => clearTimeout(flashTimer);
     }
-  }, [countdown, capturedPhoto, postEnrollCooldown, handleCapture]);
+  }, [countdown, capturedPhoto, postEnrollCooldown, isSubmitting, handleCapture, executeEnroll]);
 
   // pause après enrôlement
   useEffect(() => {
@@ -334,60 +410,6 @@ export default function FaceEnrollComponent({
       handleProceedNext();
     }
   }, [postEnrollCooldown, handleProceedNext]);
-
-  // validation enrôlement
-  const handleEnrollSubmit = async () => {
-    if (!selectedPersonnelId) {
-      setAlert({
-        type: "error",
-        message: "Veuillez sélectionner un membre du personnel dans l'annuaire.",
-      });
-      return;
-    }
-    if (!capturedPhoto) {
-      setAlert({
-        type: "error",
-        message: "Veuillez d'abord capturer une photo du visage.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setAlert(null);
-
-    const targetAgent = personnelList.find((p) => String(p.id) === String(selectedPersonnelId));
-
-    try {
-      const response = await faceApi.enrollFace(selectedPersonnelId, capturedPhoto, currentOrgId);
-      setEnrolledAgentInfo({
-        name: targetAgent ? `${targetAgent.prenom} ${targetAgent.nom}` : "Agent",
-        photo: capturedPhoto,
-      });
-      setAlert({
-        type: "success",
-        message: response.message || "Profil facial enregistré avec succès pour cet agent !",
-      });
-
-      if (onSuccess) {
-        onSuccess(targetAgent);
-      } else {
-        setPostEnrollCooldown(10);
-      }
-      await loadPersonnel();
-    } catch (err) {
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.detail ||
-        err.message ||
-        "Erreur lors de l'enregistrement biométrique.";
-      setAlert({
-        type: "error",
-        message: msg,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // suppression profil
   const handleDeleteProfile = async (personnelId) => {
@@ -518,57 +540,59 @@ export default function FaceEnrollComponent({
         {/* Colonne Gauche : Caméra et Agent Actif */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
           <div className="face-card">
-            {/* Bannière de l'agent actif sélectionné (Remplace le menu déroulant redondant) */}
-            <div className="active-agent-banner">
-              <div className="active-agent-info">
-                <div className="active-agent-avatar">
-                  {selectedInitials || "A"}
+            {/* Bannière de l'agent actif sélectionné (Remplace le menu déroulant redondant sur la page standalone) */}
+            {!isModal && (
+              <div className="active-agent-banner">
+                <div className="active-agent-info">
+                  <div className="active-agent-avatar">
+                    {selectedInitials || "A"}
+                  </div>
+                  <div className="active-agent-text">
+                    <strong>
+                      {selectedAgent
+                        ? `${selectedAgent.prenom} ${selectedAgent.nom}`
+                        : "Aucun agent sélectionné"}
+                    </strong>
+                    <small>
+                      {selectedAgent
+                        ? `${selectedAgent.poste || "Agent"} ${
+                            selectedAgent.departement_nom
+                              ? `• ${selectedAgent.departement_nom}`
+                              : ""
+                          }`
+                        : "Veuillez choisir un agent dans la liste à droite"}
+                    </small>
+                  </div>
                 </div>
-                <div className="active-agent-text">
-                  <strong>
-                    {selectedAgent
-                      ? `${selectedAgent.prenom} ${selectedAgent.nom}`
-                      : "Aucun agent sélectionné"}
-                  </strong>
-                  <small>
-                    {selectedAgent
-                      ? `${selectedAgent.poste || "Agent"} ${
-                          selectedAgent.departement_nom
-                            ? `• ${selectedAgent.departement_nom}`
-                            : ""
-                        }`
-                      : "Veuillez choisir un agent dans la liste à droite"}
-                  </small>
-                </div>
-              </div>
 
-              <div className="active-agent-meta">
-                {selectedAgent ? (
-                  <>
-                    <span
-                      className={`tag-badge ${
-                        selectedAgent.is_enrolled ? "success" : "neutral"
-                      }`}
-                    >
-                      {selectedAgent.is_enrolled ? "✓ Profil actif" : "Non enrôlé"}
-                    </span>
-
-                    {selectedAgent.is_enrolled && (
-                      <button
-                        type="button"
-                        className="button agent-delete"
-                        style={{ padding: "4px 10px", fontSize: "12px" }}
-                        onClick={() => handleDeleteProfile(selectedAgent.id)}
-                        title="Supprimer le profil biométrique actuel"
+                <div className="active-agent-meta">
+                  {selectedAgent ? (
+                    <>
+                      <span
+                        className={`tag-badge ${
+                          selectedAgent.is_enrolled ? "success" : "neutral"
+                        }`}
                       >
-                        <Trash2 size={13} />
-                        <span>Supprimer</span>
-                      </button>
-                    )}
-                  </>
-                ) : null}
+                        {selectedAgent.is_enrolled ? "✓ Profil actif" : "Non enrôlé"}
+                      </span>
+
+                      {selectedAgent.is_enrolled && (
+                        <button
+                          type="button"
+                          className="button agent-delete"
+                          style={{ padding: "4px 10px", fontSize: "12px" }}
+                          onClick={() => handleDeleteProfile(selectedAgent.id)}
+                          title="Supprimer le profil biométrique actuel"
+                        >
+                          <Trash2 size={13} />
+                          <span>Supprimer</span>
+                        </button>
+                      )}
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Cadre Caméra */}
             <div className="face-camera-container">
@@ -628,13 +652,42 @@ export default function FaceEnrollComponent({
                 {/* Flash visuel lors de la prise de vue */}
                 {isFlashing && <div className="camera-flash" />}
 
-                {/* Aperçu de la photo capturée */}
+                {/* Aperçu de la photo capturée & indicateur de traitement automatique */}
                 {capturedPhoto && postEnrollCooldown === null && (
-                  <img
-                    src={capturedPhoto}
-                    alt="Aperçu capturé"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
+                  <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                    <img
+                      src={capturedPhoto}
+                      alt="Aperçu capturé"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                    {isSubmitting && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: "rgba(15, 23, 42, 0.7)",
+                          backdropFilter: "blur(3px)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "14px",
+                          color: "#fff",
+                          zIndex: 10,
+                        }}
+                      >
+                        <Loader2 className="animate-spin" size={40} color="#4ade80" />
+                        <div style={{ textAlign: "center" }}>
+                          <span style={{ fontSize: "15px", fontWeight: 700, display: "block" }}>
+                            Traitement biométrique en cours...
+                          </span>
+                          <span style={{ fontSize: "12px", opacity: 0.85 }}>
+                            Extraction des points nodaux et enregistrement sécurisé
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Écran de confirmation temporisé 10s */}
@@ -708,6 +761,27 @@ export default function FaceEnrollComponent({
                 >
                   Passer immédiatement à l'agent suivant
                 </button>
+              ) : isSubmitting ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: "#e8f5ed",
+                    borderRadius: "10px",
+                    border: "1px solid #96dfb2",
+                    color: "#163d32",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    textAlign: "center",
+                  }}
+                >
+                  <Loader2 size={16} className="animate-spin" color="#1e6b52" />
+                  <span>Enregistrement du profil biométrique en cours...</span>
+                </div>
               ) : !capturedPhoto ? (
                 <div
                   style={{
@@ -751,16 +825,12 @@ export default function FaceEnrollComponent({
                   <button
                     type="button"
                     className="button primary"
-                    onClick={handleEnrollSubmit}
+                    onClick={() => executeEnroll()}
                     disabled={isSubmitting}
                     style={{ flex: 2 }}
                   >
                     <Check size={16} />
-                    <span>
-                      {isSubmitting
-                        ? "Enregistrement..."
-                        : "Valider l'enrôlement"}
-                    </span>
+                    <span>Valider l'enrôlement</span>
                   </button>
                 </div>
               )}
