@@ -204,11 +204,26 @@ export default function FaceCheckInPage() {
         organisation_id: currentOrgId,
       });
 
-      const isSuccess = res.match === true || res.status === "MATCH_FOUND";
+      const isRejected = res.rejected === true;
+      const isSuccess = (res.match === true || res.status === "MATCH_FOUND") && !isRejected;
       const agent = res.personnel || res.agent;
       const attendanceType = res.type || res.attendance_type;
 
-      if (isSuccess && agent) {
+      if (isRejected && agent) {
+        playBeep(480, 0.25);
+        setCameraModal({
+          status: "warning",
+          title: "Heure limite dépassée !",
+          agent: agent,
+          type: "REJECTED",
+          confidence: res.confidence,
+          message:
+            res.message ||
+            "Heure limite de retard dépassée. Pointage non validé.",
+        });
+        setResultCooldown(5);
+        void fetchHealthAndHistory();
+      } else if (isSuccess && agent) {
         playBeep(880, 0.25);
         setCameraModal({
           status: "success",
@@ -415,24 +430,45 @@ export default function FaceCheckInPage() {
                 {cameraModal !== null && (
                   <div className="kiosk-camera-modal">
                     <div className={`kiosk-modal-icon ${cameraModal.status}`}>
-                      {cameraModal.status === "success" ? "✓" : "✕"}
+                      {cameraModal.status === "success" ? (
+                        "✓"
+                      ) : cameraModal.status === "warning" ? (
+                        <AlertTriangle size={32} />
+                      ) : (
+                        "✕"
+                      )}
                     </div>
 
-                    <h3 className="kiosk-modal-title">{cameraModal.title}</h3>
+                    <h3
+                      className="kiosk-modal-title"
+                      style={
+                        cameraModal.status === "warning"
+                          ? { color: "#b45309" }
+                          : cameraModal.status === "error"
+                          ? { color: "#dc2626" }
+                          : {}
+                      }
+                    >
+                      {cameraModal.title}
+                    </h3>
 
-                    {cameraModal.status === "success" && cameraModal.agent && (
+                    {cameraModal.agent && (
                       <>
-                        {cameraModal.type && (
-                          <span
-                            className={`kiosk-modal-type-tag ${
-                              cameraModal.type === "ARRIVAL" ? "arrival" : "departure"
-                            }`}
-                          >
-                            {cameraModal.type === "ARRIVAL"
-                              ? "Pointage : ARRIVÉE"
-                              : "Pointage : DÉPART"}
-                          </span>
-                        )}
+                        <span
+                          className={`kiosk-modal-type-tag ${
+                            cameraModal.status === "warning"
+                              ? "warning"
+                              : cameraModal.type === "ARRIVAL"
+                              ? "arrival"
+                              : "departure"
+                          }`}
+                        >
+                          {cameraModal.status === "warning"
+                            ? "Pointage non autorisé"
+                            : cameraModal.type === "ARRIVAL"
+                            ? "Pointage : ARRIVÉE"
+                            : "Pointage : DÉPART"}
+                        </span>
 
                         <p className="kiosk-modal-name">
                           {cameraModal.agent.prenom} {cameraModal.agent.nom}
@@ -447,7 +483,16 @@ export default function FaceCheckInPage() {
                       </>
                     )}
 
-                    <p className="kiosk-modal-desc">{cameraModal.message}</p>
+                    <p
+                      className="kiosk-modal-desc"
+                      style={
+                        cameraModal.status === "warning"
+                          ? { color: "#92400e", fontWeight: 500 }
+                          : {}
+                      }
+                    >
+                      {cameraModal.message}
+                    </p>
 
                     {resultCooldown !== null && (
                       <div className="kiosk-cooldown-timer">
@@ -459,9 +504,16 @@ export default function FaceCheckInPage() {
                       type="button"
                       onClick={dismissModal}
                       className="button primary"
+                      style={
+                        cameraModal.status === "warning"
+                          ? { background: "#d97706", borderColor: "#b45309" }
+                          : {}
+                      }
                     >
                       {cameraModal.status === "success"
                         ? "Agent suivant"
+                        : cameraModal.status === "warning"
+                        ? "Compris"
                         : "Réessayer"}
                     </button>
                   </div>
@@ -537,6 +589,8 @@ export default function FaceCheckInPage() {
             <div className="avatar-icon">
               {cameraModal?.status === "success" ? (
                 <CheckCircle2 size={20} />
+              ) : cameraModal?.status === "warning" ? (
+                <AlertTriangle size={20} />
               ) : cameraModal?.status === "error" ? (
                 <AlertTriangle size={20} />
               ) : (
@@ -544,7 +598,14 @@ export default function FaceCheckInPage() {
               )}
             </div>
             <div className="face-feedback-text">
-              {cameraModal?.status === "success" && cameraModal.agent ? (
+              {cameraModal?.status === "warning" && cameraModal.agent ? (
+                <>
+                  <h3 style={{ color: "#b45309" }}>
+                    {cameraModal.agent.prenom} {cameraModal.agent.nom}
+                  </h3>
+                  <p>{cameraModal.message}</p>
+                </>
+              ) : cameraModal?.status === "success" && cameraModal.agent ? (
                 <>
                   <h3>
                     {cameraModal.agent.prenom} {cameraModal.agent.nom}

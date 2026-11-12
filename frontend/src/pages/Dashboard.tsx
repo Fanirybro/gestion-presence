@@ -52,11 +52,31 @@ export default function Dashboard() {
   );
 
   const total = activeAgentIds.size;
-  const present = records.filter(
-    (p) => p.status === "PRESENT" || p.status === "LATE",
-  ).length;
-  const late = records.filter((p) => p.status === "LATE").length;
-  const absent = records.filter((p) => p.status === "ABSENT").length;
+
+  // Décompte par agent distinct (évite de doubler les pointages matin et après-midi)
+  const presentAgentIds = useMemo(
+    () =>
+      new Set(
+        records
+          .filter((p) => p.status === "PRESENT" || p.status === "LATE")
+          .map((p) => p.agentId),
+      ),
+    [records],
+  );
+
+  const lateAgentIds = useMemo(
+    () =>
+      new Set(
+        records
+          .filter((p) => p.status === "LATE")
+          .map((p) => p.agentId),
+      ),
+    [records],
+  );
+
+  const present = presentAgentIds.size;
+  const late = lateAgentIds.size;
+  const absent = Math.max(0, total - present);
 
   const week = useMemo(() => {
     return Array.from({ length: 5 }, (_, i) => {
@@ -231,11 +251,7 @@ export default function Dashboard() {
             const agents = db.agents.filter(
               (a) => a.departmentId === d.id && a.isActive,
             );
-            const count = records.filter(
-              (p) =>
-                agents.some((a) => a.id === p.agentId) &&
-                ["PRESENT", "LATE"].includes(p.status),
-            ).length;
+            const count = agents.filter((a) => presentAgentIds.has(a.id)).length;
             return (
               <div className="department-row" key={d.id}>
                 <div>

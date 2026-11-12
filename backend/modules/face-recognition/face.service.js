@@ -334,7 +334,9 @@ export class FaceService {
                 poste: agent?.poste || "",
                 departement_nom: agent?.departement_nom || "",
               },
-              message: `Pointage refusé : l’heure limite (${schedule.cutoff}) pour le créneau ${periodeName} est dépassée.`,
+              cutoff: schedule.cutoff,
+              slot: periodeName,
+              message: `Heure limite de retard dépassée (${schedule.cutoff}). Pointage non validé.`,
             };
           }
         }

@@ -174,7 +174,7 @@ export const scanBadge = controller(async (req, client) => {
       const arrivalMin = minutes(clock.time) + (previous ? 1440 : 0);
       const cutoffMin = minutes(schedule.cutoff) + (schedule.fin_jour_suivant && schedule.cutoff < schedule.start ? 1440 : 0);
       if (arrivalMin > cutoffMin) {
-        fail(403, `Pointage refusé : l’heure limite d’arrivée (${schedule.cutoff}) pour le créneau ${currentSlot.toLowerCase()} est dépassée. Vous êtes comptabilisé absent. Contactez votre coordinateur pour régularisation.`);
+        fail(403, `Heure limite de retard dépassée (${schedule.cutoff}). Pointage non validé.`);
       }
     }
 
