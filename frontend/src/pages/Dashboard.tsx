@@ -6,14 +6,12 @@ import {
   UserX,
   Clock3,
   ArrowRight,
+  Award,
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading } from "../components/ui";
 import { dateLabel, today } from "../utils";
-import {
-  AnimatedMeter,
-  RollingNumber,
-} from "../components/MotionEffects";
+import { RollingNumber } from "../components/MotionEffects";
 import { motion } from "motion/react";
 import { useMotionPreference as useReducedMotion } from "../components/useMotionPreference";
 import { useQuery } from "@tanstack/react-query";
@@ -77,32 +75,44 @@ export default function Dashboard() {
   const present = presentAgentIds.size;
   const late = lateAgentIds.size;
   const absent = Math.max(0, total - present);
+  const presentOnTimeTotal = Math.max(0, present - late);
+  const globalRate = total > 0 ? Math.round((present / total) * 100) : 0;
 
-  const week = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
-      const date = new Date(`${day}T12:00:00+03:00`);
-      date.setDate(date.getDate() - 4 + i);
-      const key = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Indian/Antananarivo",
-      }).format(date);
-      const list = attendanceSource.filter(
-        (p) => p.date === key && activeAgentIds.has(p.agentId),
+  // Statistiques de présence par division (comptage par agent distinct)
+  const departmentStats = useMemo(() => {
+    return db.departments.map((d) => {
+      const deptAgents = db.agents.filter(
+        (a) => a.departmentId === d.id && a.isActive,
       );
+      const deptTotal = deptAgents.length;
+      const deptPresentOnTime = deptAgents.filter(
+        (a) => presentAgentIds.has(a.id) && !lateAgentIds.has(a.id),
+      ).length;
+      const deptLate = deptAgents.filter((a) => lateAgentIds.has(a.id)).length;
+      const deptPresent = deptPresentOnTime + deptLate;
+      const deptAbsent = Math.max(0, deptTotal - deptPresent);
+      const rate = deptTotal > 0 ? Math.round((deptPresent / deptTotal) * 100) : 0;
+
       return {
-        key,
-        label: date.toLocaleDateString("fr-FR", { weekday: "short" }),
-        present: list.filter((p) => p.status === "PRESENT").length,
-        late: list.filter((p) => p.status === "LATE").length,
-        absent: list.filter((p) => p.status === "ABSENT").length,
+        id: d.id,
+        name: d.name,
+        total: deptTotal,
+        presentOnTime: deptPresentOnTime,
+        late: deptLate,
+        present: deptPresent,
+        absent: deptAbsent,
+        rate,
       };
     });
-  }, [day, attendanceSource, activeAgentIds]);
+  }, [db.departments, db.agents, presentAgentIds, lateAgentIds]);
 
-  const chartMax = Math.max(
-    total,
-    ...week.map((w) => w.present + w.late + w.absent),
-    1,
-  );
+  // Division la plus assidue
+  const topDivision = useMemo(() => {
+    const populated = departmentStats.filter((d) => d.total > 0);
+    if (!populated.length) return null;
+    return [...populated].sort((a, b) => b.rate - a.rate || b.total - a.total)[0];
+  }, [departmentStats]);
+
   return (
     <>
       <Heading
@@ -167,16 +177,17 @@ export default function Dashboard() {
         ))}
       </div>
       <div className="dashboard-middle">
+        {/* Section Gauche : Diagramme en barres horizontales par division */}
         <section className="chart-section">
           <div className="section-heading">
             <div>
-              <h2>Rythme de présence</h2>
-              <p>Les cinq derniers jours</p>
+              <h2>Présence par division</h2>
+              <p>Répartition des effectifs aujourd'hui</p>
             </div>
             <div className="legend">
               <span>
                 <UserCheck size={14} aria-hidden="true" className="green-text" />
-                Présents
+                Présents à l'heure
               </span>
               <span>
                 <Clock3 size={14} aria-hidden="true" color="#91600e" />
@@ -188,89 +199,165 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
-          <div
-            className="bar-chart"
-            role="img"
-            aria-label={week
-              .map(
-                (w) =>
-                  `${w.label} : ${w.present} présents, ${w.late} retards, ${w.absent} absents`,
-              )
-              .join(". ")}
-          >
-            <div className="chart-y">
-              <span>{chartMax}</span>
-              <span>{chartMax > 1 ? Math.round(chartMax / 2) : ""}</span>
-              <span>0</span>
-            </div>
-            {week.map((w, dayIndex) => (
-              <div
-                className={`chart-column ${w.key === day ? "current" : ""}`}
-                key={w.key}
-              >
-                <motion.div
-                  className="bar-stack"
-                  style={{ transformOrigin: "bottom" }}
-                  initial={{ scaleY: reduced ? 1 : 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{
-                    duration: reduced ? 0.12 : 0.8,
-                    delay: reduced ? 0 : dayIndex * 0.075,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                >
-                  {[
-                    ["green", w.present],
-                    ["amber", w.late],
-                    ["rose", w.absent],
-                  ].map(([color, count]) => (
-                    <div
-                      key={color}
-                      className={`chart-bar ${color}`}
-                      style={{
-                        height: `${(Number(count) / chartMax) * 100}%`,
-                      }}
-                      title={`${count}`}
-                    />
-                  ))}
-                </motion.div>
-                <span>{w.label}</span>
+
+          <div className="dept-chart-list">
+            {departmentStats.map((d, i) => (
+              <div className="dept-chart-row" key={d.id}>
+                <div className="dept-chart-info">
+                  <span className="dept-chart-name" title={d.name}>
+                    {d.name}
+                  </span>
+                  <span className="dept-chart-ratio">
+                    <strong>{d.present}</strong>
+                    <small> / {d.total}</small>
+                  </span>
+                </div>
+                <div className="dept-chart-bar-wrap">
+                  <div className="dept-chart-bar-track">
+                    {d.total > 0 ? (
+                      <>
+                        {d.presentOnTime > 0 && (
+                          <motion.div
+                            className="dept-bar-seg present"
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${(d.presentOnTime / d.total) * 100}%`,
+                            }}
+                            transition={{
+                              duration: reduced ? 0.1 : 0.6,
+                              delay: reduced ? 0 : i * 0.05,
+                            }}
+                            title={`Présents à l'heure : ${d.presentOnTime}`}
+                          />
+                        )}
+                        {d.late > 0 && (
+                          <motion.div
+                            className="dept-bar-seg late"
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${(d.late / d.total) * 100}%`,
+                            }}
+                            transition={{
+                              duration: reduced ? 0.1 : 0.6,
+                              delay: reduced ? 0 : i * 0.05 + 0.1,
+                            }}
+                            title={`En retard : ${d.late}`}
+                          />
+                        )}
+                        {d.absent > 0 && (
+                          <motion.div
+                            className="dept-bar-seg absent"
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${(d.absent / d.total) * 100}%`,
+                            }}
+                            transition={{
+                              duration: reduced ? 0.1 : 0.6,
+                              delay: reduced ? 0 : i * 0.05 + 0.2,
+                            }}
+                            title={`Absents : ${d.absent}`}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <span className="dept-bar-empty">Aucun agent affecté</span>
+                    )}
+                  </div>
+                  <span
+                    className={`dept-chart-badge ${
+                      d.total === 0
+                        ? ""
+                        : d.rate >= 90
+                        ? "success"
+                        : d.rate >= 60
+                        ? "warning"
+                        : "danger"
+                    }`}
+                  >
+                    {d.total > 0 ? `${d.rate}%` : "—"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </section>
+
+        {/* Section Droite : Donut & Synthèse globale du jour */}
         <section className="department-section">
           <div className="section-heading">
             <div>
-              <h2>Par service</h2>
-              <p>Présents / effectif</p>
+              <h2>Synthèse du jour</h2>
+              <p>Performance d'assiduité globale</p>
             </div>
-            <Users size={19} />
+            <Award size={19} color="#1e6b52" />
           </div>
-          {db.departments.map((d, i) => {
-            const agents = db.agents.filter(
-              (a) => a.departmentId === d.id && a.isActive,
-            );
-            const count = agents.filter((a) => presentAgentIds.has(a.id)).length;
-            return (
-              <div className="department-row" key={d.id}>
-                <div>
-                  <span>{d.name}</span>
-                  <strong>
-                    {count}
-                    <small> / {agents.length}</small>
-                  </strong>
-                </div>
-                <AnimatedMeter
-                  value={count}
-                  max={agents.length}
-                  label={d.name}
-                  delay={i * 0.075}
+
+          <div className="donut-summary-container">
+            {/* SVG Ring Donut */}
+            <div className="donut-ring-wrap">
+              <svg viewBox="0 0 100 100" className="donut-ring-svg">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="38"
+                  fill="transparent"
+                  stroke="#eef2f0"
+                  strokeWidth="10"
                 />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="38"
+                  fill="transparent"
+                  stroke="#22c55e"
+                  strokeWidth="10"
+                  strokeDasharray={`${(globalRate / 100) * 238.76} 238.76`}
+                  strokeDashoffset="0"
+                  strokeLinecap="round"
+                  style={{
+                    transition: reduced ? "none" : "stroke-dasharray 0.8s ease",
+                  }}
+                />
+              </svg>
+              <div className="donut-ring-center">
+                <strong className="donut-ring-val">{globalRate}%</strong>
+                <span className="donut-ring-lbl">Présence</span>
               </div>
-            );
-          })}
-          <Link to="/presences" className="text-link">
+            </div>
+
+            {/* Statistiques détaillées */}
+            <div className="donut-breakdown-list">
+              <div className="donut-stat-row">
+                <span className="donut-dot present" />
+                <span className="donut-stat-lbl">Présents à l'heure</span>
+                <strong className="donut-stat-val">{presentOnTimeTotal}</strong>
+              </div>
+              <div className="donut-stat-row">
+                <span className="donut-dot late" />
+                <span className="donut-stat-lbl">En retard</span>
+                <strong className="donut-stat-val">{late}</strong>
+              </div>
+              <div className="donut-stat-row">
+                <span className="donut-dot absent" />
+                <span className="donut-stat-lbl">Absents</span>
+                <strong className="donut-stat-val">{absent}</strong>
+              </div>
+            </div>
+
+            {/* Division leader */}
+            {topDivision && (
+              <div className="donut-top-dept">
+                <div className="top-dept-icon">🏆</div>
+                <div className="top-dept-meta">
+                  <span className="top-dept-tag">Division la plus assidue</span>
+                  <strong className="top-dept-name">{topDivision.name}</strong>
+                  <small className="top-dept-rate">{topDivision.rate}% de présence ({topDivision.present}/{topDivision.total})</small>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Link to="/presences" className="text-link" style={{ marginTop: "12px", display: "inline-flex" }}>
             Consulter les présences <ArrowRight size={15} />
           </Link>
         </section>
