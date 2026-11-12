@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { attachUserIfSession } from "../../middlewares/authMiddlewares.js";
 import {
   enrollFace,
   checkInFace,
@@ -9,6 +10,9 @@ import {
 } from "./face.controller.js";
 
 const router = Router();
+
+// Résolution de l'utilisateur connecté via la session HTTP
+router.use(attachUserIfSession);
 
 // Routes principales spécifiées dans le cahier des charges
 router.post("/enroll", enrollFace);

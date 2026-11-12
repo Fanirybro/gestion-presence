@@ -2,6 +2,7 @@ import { apiClient } from "./api";
 import type { Organisation } from "./auth";
 import type { Settings, SchedulePeriod } from "../types";
 import { weekDays, periods, periodDefaults } from "./schedules";
+
 export interface Horaire {
   jour_semaine: number;
   periode: SchedulePeriod;
@@ -12,14 +13,30 @@ export interface Horaire {
   heure_limite_absence: string | null;
   tolerance_retard_minutes: number;
 }
+
 export interface Parametres {
   organisation: Organisation;
   horaires: Horaire[];
 }
+
 export function mapSettings(data: Parametres): Settings {
+  let customFields = data.organisation.custom_fields_schema as any;
+  if (typeof customFields === "string") {
+    try {
+      customFields = JSON.parse(customFields);
+    } catch {
+      customFields = [];
+    }
+  }
+  if (!Array.isArray(customFields)) {
+    customFields = [];
+  }
+
   return {
     organization: data.organisation.nom,
     address: data.organisation.adresse ?? "",
+    logo_url: data.organisation.logo_url ?? null,
+    custom_fields_schema: customFields,
     pointage_qr: data.organisation.pointage_qr ?? true,
     pointage_facial: data.organisation.pointage_facial ?? true,
     schedules: weekDays.flatMap((day, index) =>
@@ -41,12 +58,15 @@ export function mapSettings(data: Parametres): Settings {
     ),
   };
 }
+
 export const settingsApi = {
   get: () => apiClient.get<Parametres>("/parametres"),
   save: (settings: Settings) =>
     apiClient.patch<Parametres>("/parametres", {
       nom: settings.organization,
       adresse: settings.address.trim() || null,
+      logo_url: settings.logo_url ?? null,
+      custom_fields_schema: settings.custom_fields_schema ?? [],
       pointage_qr: settings.pointage_qr ?? true,
       pointage_facial: settings.pointage_facial ?? true,
       horaires: settings.schedules.map((s) => ({

@@ -78,7 +78,6 @@ test("leave and permission lifecycle, filters, modes and isolated storage", asyn
   ).toBeVisible();
   await page.reload();
   await expect(page.locator("tbody tr")).toHaveCount(2);
-  await page.getByRole("button", { name: "Expert", exact: true }).click();
   await expect(
     page
       .locator(".sidebar")

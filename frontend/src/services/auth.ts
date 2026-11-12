@@ -1,4 +1,5 @@
-import type { User, UserPermissions } from "../types";
+import type { User, UserPermissions, CustomFieldDefinition } from "../types";
+
 export interface Account {
   id: string;
   nom: string;
@@ -8,7 +9,9 @@ export interface Account {
   actif: boolean;
   organisation_id: string | null;
   permissions?: UserPermissions;
+  managed_division_ids?: string[];
 }
+
 export interface Organisation {
   id: string;
   nom: string;
@@ -18,13 +21,17 @@ export interface Organisation {
   organisation_code: number;
   pointage_qr?: boolean;
   pointage_facial?: boolean;
+  logo_url?: string | null;
+  custom_fields_schema?: CustomFieldDefinition[];
 }
+
 export interface Signup {
   nom: string;
   prenom: string;
   email: string;
   password: string;
 }
+
 export const toUser = (account: Account): User => ({
   id: String(account.id),
   name: `${account.prenom} ${account.nom}`,
@@ -34,4 +41,5 @@ export const toUser = (account: Account): User => ({
   organisationId:
     account.organisation_id == null ? null : String(account.organisation_id),
   permissions: account.permissions || {},
+  managed_division_ids: account.managed_division_ids || [],
 });

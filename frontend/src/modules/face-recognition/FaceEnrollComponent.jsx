@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useApp } from "../../app/context";
 import faceApi from "./faceApi";
 import {
   loadFaceDetectionModels,
@@ -20,6 +21,7 @@ import {
   UserCheck,
   Users,
   Clock,
+  X,
 } from "lucide-react";
 import "./face-recognition.css";
 
@@ -43,13 +45,29 @@ const playBeep = (freq = 600, duration = 0.1) => {
   }
 };
 
-export default function FaceEnrollComponent() {
+export default function FaceEnrollComponent({
+  targetPersonnelId = null,
+  isModal = false,
+  onSuccess = null,
+  onClose = null,
+} = {}) {
+  const { user, organisation } = useApp();
+  const currentOrgId = organisation?.id || user?.organisationId || null;
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
   const [personnelList, setPersonnelList] = useState([]);
-  const [selectedPersonnelId, setSelectedPersonnelId] = useState("");
+  const [selectedPersonnelId, setSelectedPersonnelId] = useState(
+    targetPersonnelId ? String(targetPersonnelId) : ""
+  );
+
+  useEffect(() => {
+    if (targetPersonnelId) {
+      setSelectedPersonnelId(String(targetPersonnelId));
+    }
+  }, [targetPersonnelId]);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
@@ -59,7 +77,6 @@ export default function FaceEnrollComponent() {
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'unenrolled' | 'enrolled'
 
   // Détection faciale & Compte à rebours automatique
-  const [autoCapture, setAutoCapture] = useState(true);
   const [countdown, setCountdown] = useState(null); // 3, 2, 1 ou null
   const [isFlashing, setIsFlashing] = useState(false);
   const [faceAlignment, setFaceAlignment] = useState({
@@ -77,7 +94,7 @@ export default function FaceEnrollComponent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alert, setAlert] = useState(null); // { type: 'success' | 'error', message: string }
 
-  // 1. Initialiser la caméra
+  // init caméra
   const startCamera = async () => {
     setCameraError(null);
     try {
@@ -114,16 +131,20 @@ export default function FaceEnrollComponent() {
     setCameraActive(false);
   };
 
-  // 2. Charger les modèles face-api & liste du personnel
+  // chargement modèles et liste agents
   const loadPersonnel = useCallback(async () => {
     setIsLoading(true);
     try {
-      const list = await faceApi.getPersonnel();
+      const list = await faceApi.getPersonnel(currentOrgId);
       setPersonnelList(list);
-      if (list.length > 0 && !selectedPersonnelId) {
-        // Sélectionner par défaut le premier non enrôlé, ou le premier de la liste
-        const firstUnenrolled = list.find((p) => !p.is_enrolled);
-        setSelectedPersonnelId(String(firstUnenrolled ? firstUnenrolled.id : list[0].id));
+      if (list.length > 0) {
+        if (targetPersonnelId) {
+          setSelectedPersonnelId(String(targetPersonnelId));
+        } else if (!selectedPersonnelId) {
+          // Sélectionner par défaut le premier non enrôlé, ou le premier de la liste
+          const firstUnenrolled = list.find((p) => !p.is_enrolled);
+          setSelectedPersonnelId(String(firstUnenrolled ? firstUnenrolled.id : list[0].id));
+        }
       }
     } catch (err) {
       setAlert({
@@ -133,7 +154,7 @@ export default function FaceEnrollComponent() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPersonnelId]);
+  }, [selectedPersonnelId, currentOrgId, targetPersonnelId]);
 
   useEffect(() => {
     void startCamera();
@@ -151,7 +172,7 @@ export default function FaceEnrollComponent() {
     };
   }, [loadPersonnel]);
 
-  // 3. Capture instantanée (manuelle ou appelée par le compte à rebours)
+  // capture instantanée
   const handleCapture = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -232,7 +253,7 @@ export default function FaceEnrollComponent() {
     }
   }, [capturedPhoto]);
 
-  // 4. Détection continue du visage
+  // détection continue
   useEffect(() => {
     if (!cameraActive || capturedPhoto || postEnrollCooldown !== null) return;
 
@@ -260,7 +281,7 @@ export default function FaceEnrollComponent() {
 
           if (!alignment.isCentered) {
             setCountdown(null);
-          } else if (autoCapture && !capturedPhoto && postEnrollCooldown === null) {
+          } else if (!capturedPhoto && postEnrollCooldown === null) {
             setCountdown((prev) => (prev === null ? 3 : prev));
           }
         }
@@ -275,9 +296,9 @@ export default function FaceEnrollComponent() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [cameraActive, capturedPhoto, autoCapture, postEnrollCooldown]);
+  }, [cameraActive, capturedPhoto, postEnrollCooldown]);
 
-  // 5. Compte à rebours 3s -> 2s -> 1s -> Capture automatique
+  // compte à rebours pour capture auto
   useEffect(() => {
     if (countdown === null || capturedPhoto || postEnrollCooldown !== null) return;
 
@@ -298,7 +319,7 @@ export default function FaceEnrollComponent() {
     }
   }, [countdown, capturedPhoto, postEnrollCooldown, handleCapture]);
 
-  // 6. Temporisation post-enrôlement 10s
+  // pause après enrôlement
   useEffect(() => {
     if (postEnrollCooldown === null) return;
 
@@ -314,7 +335,7 @@ export default function FaceEnrollComponent() {
     }
   }, [postEnrollCooldown, handleProceedNext]);
 
-  // 7. Envoi de l'enrôlement
+  // validation enrôlement
   const handleEnrollSubmit = async () => {
     if (!selectedPersonnelId) {
       setAlert({
@@ -337,7 +358,7 @@ export default function FaceEnrollComponent() {
     const targetAgent = personnelList.find((p) => String(p.id) === String(selectedPersonnelId));
 
     try {
-      const response = await faceApi.enrollFace(selectedPersonnelId, capturedPhoto);
+      const response = await faceApi.enrollFace(selectedPersonnelId, capturedPhoto, currentOrgId);
       setEnrolledAgentInfo({
         name: targetAgent ? `${targetAgent.prenom} ${targetAgent.nom}` : "Agent",
         photo: capturedPhoto,
@@ -347,7 +368,11 @@ export default function FaceEnrollComponent() {
         message: response.message || "Profil facial enregistré avec succès pour cet agent !",
       });
 
-      setPostEnrollCooldown(10);
+      if (onSuccess) {
+        onSuccess(targetAgent);
+      } else {
+        setPostEnrollCooldown(10);
+      }
       await loadPersonnel();
     } catch (err) {
       const msg =
@@ -364,13 +389,13 @@ export default function FaceEnrollComponent() {
     }
   };
 
-  // 8. Suppression d'un profil existant
+  // suppression profil
   const handleDeleteProfile = async (personnelId) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer le profil facial de cet agent ?")) {
       return;
     }
     try {
-      await faceApi.deleteFaceProfile(personnelId);
+      await faceApi.deleteFaceProfile(personnelId, currentOrgId);
       setAlert({
         type: "success",
         message: "Profil facial supprimé.",
@@ -427,31 +452,57 @@ export default function FaceEnrollComponent() {
 
   return (
     <>
-      <Heading
-        eyebrow="BIOMÉTRIE & SÉCURITÉ"
-        title="Enrôlement facial"
-        subtitle="Enregistrez et configurez le profil biométrique du personnel pour la borne de pointage"
-      >
-        <button
-          type="button"
-          onClick={() => setAutoCapture(!autoCapture)}
-          className="button"
-          title="Activer ou désactiver la capture automatique après stabilisation du visage"
+      {isModal ? (
+        <div className="face-modal-header-bar">
+          <div className="face-modal-header-info">
+            <div className="active-agent-avatar" style={{ width: 38, height: 38, fontSize: 13 }}>
+              {selectedInitials || "A"}
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--ink, #203b33)" }}>
+                {selectedAgent ? `${selectedAgent.prenom} ${selectedAgent.nom}` : "Enrôlement facial"}
+              </h3>
+              <p style={{ margin: 0, fontSize: "12px", color: "var(--muted, #536b61)" }}>
+                {selectedAgent?.poste || "Personnel"} {selectedAgent?.departement_nom ? `• ${selectedAgent.departement_nom}` : ""} ·{" "}
+                {selectedAgent?.is_enrolled ? "Mise à jour / Ré-enrôlement" : "Nouveau profil biométrique"}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span className={`tag-badge ${selectedAgent?.is_enrolled ? "success" : "neutral"}`}>
+              {selectedAgent?.is_enrolled ? "✓ Enrôlé" : "Non enrôlé"}
+            </span>
+            {onClose && (
+              <button
+                type="button"
+                className="icon-button"
+                onClick={onClose}
+                aria-label="Fermer"
+                title="Fermer"
+                style={{ padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Heading
+          eyebrow="BIOMÉTRIE & SÉCURITÉ"
+          title="Enrôlement facial"
+          subtitle="Enregistrez et configurez le profil biométrique du personnel pour la borne de pointage"
         >
-          <Sparkles size={16} />
-          <span>{autoCapture ? "Auto-capture : Activée" : "Capture : Manuelle"}</span>
-        </button>
-
-        <Link to="/kiosk" className="button">
-          <Camera size={16} />
-          <span>Accéder à la borne</span>
-        </Link>
-      </Heading>
+          <Link to="/kiosk" className="button">
+            <Camera size={16} />
+            <span>Accéder à la borne</span>
+          </Link>
+        </Heading>
+      )}
 
       {alert && (
         <div
           className={`face-feedback-card ${alert.type}`}
-          style={{ margin: "0 0 20px 0" }}
+          style={{ margin: isModal ? "12px 16px 0 16px" : "0 0 20px 0" }}
         >
           <div className="avatar-icon">
             {alert.type === "success" ? <Check size={20} /> : <AlertTriangle size={20} />}
@@ -463,9 +514,9 @@ export default function FaceEnrollComponent() {
         </div>
       )}
 
-      <div className="face-page-layout">
+      <div className={`face-page-layout ${isModal ? "face-modal-layout" : ""}`}>
         {/* Colonne Gauche : Caméra et Agent Actif */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
           <div className="face-card">
             {/* Bannière de l'agent actif sélectionné (Remplace le menu déroulant redondant) */}
             <div className="active-agent-banner">
@@ -658,16 +709,33 @@ export default function FaceEnrollComponent() {
                   Passer immédiatement à l'agent suivant
                 </button>
               ) : !capturedPhoto ? (
-                <button
-                  type="button"
-                  className="button primary"
-                  onClick={handleCapture}
-                  disabled={!cameraActive}
-                  style={{ width: "100%" }}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: countdown !== null ? "#e8f5ed" : "#f8faf9",
+                    borderRadius: "10px",
+                    border: `1px solid ${countdown !== null ? "#96dfb2" : "#e0e7e4"}`,
+                    color: countdown !== null ? "#163d32" : "#536b61",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    textAlign: "center",
+                  }}
                 >
-                  <Camera size={16} />
-                  <span>Prendre la photo manuellement</span>
-                </button>
+                  <Sparkles
+                    size={16}
+                    color={countdown !== null ? "#1e6b52" : "#7d8b84"}
+                  />
+                  <span>
+                    {countdown !== null
+                      ? `Visage cadré ! Capture automatique dans ${countdown}s...`
+                      : "Placez votre visage dans le repère pour lancer la capture automatique"}
+                  </span>
+                </div>
               ) : (
                 <div style={{ display: "flex", gap: "10px", width: "100%" }}>
                   <button
@@ -701,126 +769,128 @@ export default function FaceEnrollComponent() {
         </div>
 
         {/* Colonne Droite : Annuaire unique du Personnel */}
-        <div className="face-side-panel">
-          <div className="face-card">
-            <div className="section-heading">
-              <h2>
-                <Users size={16} />
-                <span>Personnel & Agents</span>
-              </h2>
-              <span className="count">
-                {enrolledCount} / {personnelList.length} enrôlés
-              </span>
-            </div>
-
-            {/* Barre de recherche et filtres rapides */}
-            <div className="panel-filter-bar">
-              <label className="search-input" style={{ width: "100%" }}>
-                <Search size={15} />
-                <input
-                  type="search"
-                  placeholder="Rechercher un agent..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </label>
-
-              <div className="filter-pills">
-                <button
-                  type="button"
-                  className={`filter-pill ${filterMode === "all" ? "active" : ""}`}
-                  onClick={() => setFilterMode("all")}
-                >
-                  Tous ({personnelList.length})
-                </button>
-                <button
-                  type="button"
-                  className={`filter-pill ${filterMode === "unenrolled" ? "active" : ""}`}
-                  onClick={() => setFilterMode("unenrolled")}
-                >
-                  À enrôler ({unenrolledCount})
-                </button>
-                <button
-                  type="button"
-                  className={`filter-pill ${filterMode === "enrolled" ? "active" : ""}`}
-                  onClick={() => setFilterMode("enrolled")}
-                >
-                  Enrôlés ({enrolledCount})
-                </button>
+        {!isModal && (
+          <div className="face-side-panel">
+            <div className="face-card">
+              <div className="section-heading">
+                <h2>
+                  <Users size={16} />
+                  <span>Personnel & Agents</span>
+                </h2>
+                <span className="count">
+                  {enrolledCount} / {personnelList.length} enrôlés
+                </span>
               </div>
-            </div>
 
-            {/* Liste unique des agents */}
-            {isLoading ? (
-              <div
-                style={{
-                  padding: "40px 20px",
-                  textAlign: "center",
-                  color: "var(--muted, #536b61)",
-                  fontSize: "13px",
-                }}
-              >
-                Chargement de la liste du personnel...
+              {/* Barre de recherche et filtres rapides */}
+              <div className="panel-filter-bar">
+                <label className="search-input" style={{ width: "100%" }}>
+                  <Search size={15} />
+                  <input
+                    type="search"
+                    placeholder="Rechercher un agent..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </label>
+
+                <div className="filter-pills">
+                  <button
+                    type="button"
+                    className={`filter-pill ${filterMode === "all" ? "active" : ""}`}
+                    onClick={() => setFilterMode("all")}
+                  >
+                    Tous ({personnelList.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-pill ${filterMode === "unenrolled" ? "active" : ""}`}
+                    onClick={() => setFilterMode("unenrolled")}
+                  >
+                    À enrôler ({unenrolledCount})
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-pill ${filterMode === "enrolled" ? "active" : ""}`}
+                    onClick={() => setFilterMode("enrolled")}
+                  >
+                    Enrôlés ({enrolledCount})
+                  </button>
+                </div>
               </div>
-            ) : filteredPersonnel.length === 0 ? (
-              <div
-                style={{
-                  padding: "40px 20px",
-                  textAlign: "center",
-                  color: "var(--muted, #536b61)",
-                  fontSize: "13px",
-                }}
-              >
-                Aucun agent ne correspond à votre recherche.
-              </div>
-            ) : (
-              <div className="face-item-list">
-                {filteredPersonnel.map((p) => {
-                  const isSelected = String(p.id) === String(selectedPersonnelId);
-                  const initials = `${p.prenom?.[0] || ""}${p.nom?.[0] || ""}`.toUpperCase();
 
-                  return (
-                    <div
-                      key={p.id}
-                      className={`face-list-item ${isSelected ? "selected" : ""}`}
-                      onClick={() => handleSelectAgent(String(p.id))}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          handleSelectAgent(String(p.id));
-                        }
-                      }}
-                    >
-                      <div className="face-list-item-left">
-                        <div className="face-item-avatar">
-                          {initials || "A"}
-                        </div>
-                        <div className="face-item-info">
-                          <div className="face-item-name">
-                            {p.prenom} {p.nom}
-                          </div>
-                          <div className="face-item-meta">
-                            {p.poste || "Agent"}{" "}
-                            {p.departement_nom ? `• ${p.departement_nom}` : ""}
-                          </div>
-                        </div>
-                      </div>
+              {/* Liste unique des agents */}
+              {isLoading ? (
+                <div
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    color: "var(--muted, #536b61)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Chargement de la liste du personnel...
+                </div>
+              ) : filteredPersonnel.length === 0 ? (
+                <div
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    color: "var(--muted, #536b61)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Aucun agent ne correspond à votre recherche.
+                </div>
+              ) : (
+                <div className="face-item-list">
+                  {filteredPersonnel.map((p) => {
+                    const isSelected = String(p.id) === String(selectedPersonnelId);
+                    const initials = `${p.prenom?.[0] || ""}${p.nom?.[0] || ""}`.toUpperCase();
 
-                      <span
-                        className={`tag-badge ${
-                          p.is_enrolled ? "success" : "neutral"
-                        }`}
+                    return (
+                      <div
+                        key={p.id}
+                        className={`face-list-item ${isSelected ? "selected" : ""}`}
+                        onClick={() => handleSelectAgent(String(p.id))}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            handleSelectAgent(String(p.id));
+                          }
+                        }}
                       >
-                        {p.is_enrolled ? "Enrôlé" : "Non enrôlé"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="face-list-item-left">
+                          <div className="face-item-avatar">
+                            {initials || "A"}
+                          </div>
+                          <div className="face-item-info">
+                            <div className="face-item-name">
+                              {p.prenom} {p.nom}
+                            </div>
+                            <div className="face-item-meta">
+                              {p.poste || "Agent"}{" "}
+                              {p.departement_nom ? `• ${p.departement_nom}` : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`tag-badge ${
+                            p.is_enrolled ? "success" : "neutral"
+                          }`}
+                        >
+                          {p.is_enrolled ? "Enrôlé" : "Non enrôlé"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

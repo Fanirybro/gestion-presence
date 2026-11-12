@@ -2,7 +2,13 @@
 export async function loadAccount(db, { id = null, email = null, organisationId = null } = {}) {
   const { rows } = await db.query(
     `SELECT u.id, u.nom, u.prenom, u.email, u.actif, u.password_hash,
-            m.organisation_id, m.role, m.status AS membership_status, m.permissions
+            m.organisation_id, m.role, m.status AS membership_status, m.permissions,
+            COALESCE((
+              SELECT json_agg(dr.division_id::text)
+              FROM division_responsables dr
+              JOIN divisions d ON d.id = dr.division_id
+              WHERE dr.user_id = u.id AND d.organisation_id = m.organisation_id
+            ), '[]'::json) AS managed_division_ids
      FROM users u
      LEFT JOIN LATERAL (
        SELECT om.organisation_id, om.role, om.status,

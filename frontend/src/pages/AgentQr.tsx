@@ -12,6 +12,7 @@ import { Back, Confirm, Empty, Heading } from "../components/ui";
 import { useApp } from "../app/context";
 import { badgesApi } from "../services/badges";
 import { fullName } from "../utils";
+import { generateQrCodeUrl } from "../utils/qrcode";
 
 export default function AgentQr() {
   const { id = "" } = useParams();
@@ -31,14 +32,12 @@ export default function AgentQr() {
   const image = useQuery({
     queryKey: ["badge-image", token],
     enabled: Boolean(token),
-    queryFn: async () => {
-      const { default: QRCode } = await import("qrcode");
-      return QRCode.toDataURL(token!, {
+    queryFn: () =>
+      generateQrCodeUrl(token!, {
         width: 480,
         margin: 2,
         errorCorrectionLevel: "M",
-      });
-    },
+      }),
   });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");

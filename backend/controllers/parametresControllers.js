@@ -1,7 +1,7 @@
 import pool from "../config/database.js";
 import { loadAccount } from "../utils/account.js";
 
-const organisationColumns = "id, nom, slug, adresse, fuseau_horaire, organisation_code, pointage_qr, pointage_facial";
+const organisationColumns = "id, nom, slug, adresse, fuseau_horaire, organisation_code, pointage_qr, pointage_facial, logo_url, custom_fields_schema";
 const periods = ["MATIN", "APRES_MIDI", "SOIR"];
 function invalid(message) { throw Object.assign(new Error(message), { status: 400 }); }
 function object(value, keys) {
@@ -12,9 +12,16 @@ function minutes(value) {
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
 }
 export function validateParametres(body) {
-  object(body, ["nom", "adresse", "horaires", "pointage_qr", "pointage_facial"]);
+  object(body, ["nom", "adresse", "horaires", "pointage_qr", "pointage_facial", "logo_url", "custom_fields_schema"]);
   if (typeof body.nom !== "string" || !body.nom.trim() || body.nom.trim().length > 100) invalid("Le nom de l’organisation doit contenir entre 1 et 100 caractères.");
-  if (body.adresse !== null && (typeof body.adresse !== "string" || body.adresse.trim().length > 500)) invalid("Adresse invalide (500 caractères maximum).");
+  if (body.adresse !== null && body.adresse !== undefined && (typeof body.adresse !== "string" || body.adresse.trim().length > 500)) invalid("Adresse invalide (500 caractères maximum).");
+  if (body.logo_url !== null && body.logo_url !== undefined) {
+    if (typeof body.logo_url !== "string") invalid("URL de logo invalide.");
+    const isDataUrl = body.logo_url.startsWith("data:image/");
+    if (!isDataUrl && body.logo_url.trim().length > 2048) invalid("URL de logo invalide.");
+    if (isDataUrl && body.logo_url.length > 7 * 1024 * 1024) invalid("L'image du logo ne doit pas dépasser 5 Mo.");
+  }
+  if (body.custom_fields_schema !== undefined && !Array.isArray(body.custom_fields_schema)) invalid("custom_fields_schema doit être un tableau.");
   if (body.pointage_qr !== undefined && typeof body.pointage_qr !== "boolean") invalid("Le mode pointage QR doit être un booléen.");
   if (body.pointage_facial !== undefined && typeof body.pointage_facial !== "boolean") invalid("Le mode pointage facial doit être un booléen.");
   if (body.pointage_qr === false && body.pointage_facial === false) invalid("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.");
@@ -46,6 +53,8 @@ export function validateParametres(body) {
   return {
     nom: body.nom.trim(),
     adresse: body.adresse?.trim() || null,
+    logo_url: body.logo_url !== undefined ? (body.logo_url?.trim() || null) : undefined,
+    custom_fields_schema: body.custom_fields_schema,
     horaires,
     pointage_qr: body.pointage_qr !== undefined ? body.pointage_qr : null,
     pointage_facial: body.pointage_facial !== undefined ? body.pointage_facial : null,
@@ -54,10 +63,21 @@ export function validateParametres(body) {
 async function read(client, organisationId) {
   const org = await client.query(`SELECT ${organisationColumns} FROM organisations WHERE id = $1 AND actif = true`, [organisationId]);
   if (!org.rows[0]) throw Object.assign(new Error("Organisation introuvable."), { status: 404 });
+  const row = org.rows[0];
+  if (row && typeof row.custom_fields_schema === "string") {
+    try {
+      row.custom_fields_schema = JSON.parse(row.custom_fields_schema);
+    } catch {
+      row.custom_fields_schema = [];
+    }
+  }
+  if (row && !Array.isArray(row.custom_fields_schema)) {
+    row.custom_fields_schema = [];
+  }
   const horaires = await client.query(`SELECT jour_semaine, periode, fin_jour_suivant, jour_travaille, to_char(heure_debut, 'HH24:MI') AS heure_debut,
     to_char(heure_fin, 'HH24:MI') AS heure_fin, to_char(heure_limite_absence, 'HH24:MI') AS heure_limite_absence,
     tolerance_retard_minutes FROM horaires_travail WHERE organisation_id = $1 ORDER BY jour_semaine, CASE periode WHEN 'MATIN' THEN 0 WHEN 'APRES_MIDI' THEN 1 ELSE 2 END`, [organisationId]);
-  return { organisation: org.rows[0], horaires: horaires.rows };
+  return { organisation: row, horaires: horaires.rows };
 }
 export async function getParametres(req, res, next) {
   let client;
@@ -84,10 +104,22 @@ export async function updateParametres(req, res, next) {
     const actor = await loadAccount(client, { id: String(req.session.userId), organisationId });
     if (!actor?.actif || !actor.organisation_id || actor.role !== "COORDINATOR") throw Object.assign(new Error("Accès réservé au coordinateur actif."), { status: 403 });
     const before = await read(client, organisationId);
+
     await client.query(
-      "UPDATE organisations SET nom = $2, adresse = $3, pointage_qr = COALESCE($4, pointage_qr), pointage_facial = COALESCE($5, pointage_facial), updated_at = now() WHERE id = $1",
-      [organisationId, data.nom, data.adresse, data.pointage_qr, data.pointage_facial]
+      `UPDATE organisations SET nom = $2, adresse = $3, pointage_qr = COALESCE($4, pointage_qr), pointage_facial = COALESCE($5, pointage_facial), logo_url = CASE WHEN $6::boolean THEN $7::text ELSE logo_url END, custom_fields_schema = CASE WHEN $8::boolean THEN $9::jsonb ELSE custom_fields_schema END, updated_at = now() WHERE id = $1`,
+      [
+        organisationId,
+        data.nom,
+        data.adresse,
+        data.pointage_qr,
+        data.pointage_facial,
+        data.logo_url !== undefined,
+        data.logo_url ?? null,
+        data.custom_fields_schema !== undefined,
+        data.custom_fields_schema ? JSON.stringify(data.custom_fields_schema) : null,
+      ]
     );
+
     for (const row of data.horaires) {
       await client.query(`INSERT INTO horaires_travail (organisation_id, jour_semaine, jour_travaille, heure_debut, heure_fin, heure_limite_absence, tolerance_retard_minutes, periode, fin_jour_suivant)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

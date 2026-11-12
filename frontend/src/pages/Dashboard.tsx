@@ -1,5 +1,3 @@
-import { useSecretaryMode, SecretaryModeSelector } from "../app/secretaryMode";
-import SecretaryHome from "./SecretaryHome";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
@@ -24,7 +22,6 @@ import { useMemo } from "react";
 
 export default function Dashboard() {
   const reduced = useReducedMotion();
-  const { simple } = useSecretaryMode();
   const { db, user } = useApp();
   const day = today();
 
@@ -86,7 +83,6 @@ export default function Dashboard() {
     ...week.map((w) => w.present + w.late + w.absent),
     1,
   );
-  if (simple) return <SecretaryHome />;
   return (
     <>
       <Heading
@@ -98,7 +94,6 @@ export default function Dashboard() {
           <CalendarDays size={15} />
           {dateLabel(day)}
         </span>
-        <SecretaryModeSelector />
       </Heading>
       {/* KPI Metrics Strip (Model from Reports) */}
       <div className="rp-metrics-row">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useApp } from "../../app/context";
 import faceApi from "./faceApi";
 import {
   loadFaceDetectionModels,
@@ -43,6 +44,9 @@ const playBeep = (freq = 600, duration = 0.1) => {
 };
 
 export default function FaceCheckInPage() {
+  const { user, organisation } = useApp();
+  const currentOrgId = organisation?.id || user?.organisationId || null;
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -50,7 +54,6 @@ export default function FaceCheckInPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [autoScan, setAutoScan] = useState(true);
   const [healthStatus, setHealthStatus] = useState(null);
 
   // Détection faciale & Compte à rebours 3s
@@ -69,7 +72,7 @@ export default function FaceCheckInPage() {
   const [attendances, setAttendances] = useState([]);
   const lastRequestTimeRef = useRef(0);
 
-  // 1. Initialisation de la caméra
+  // initialisation caméra
   const startCamera = async () => {
     setCameraError(null);
     try {
@@ -106,7 +109,7 @@ export default function FaceCheckInPage() {
     setCameraActive(false);
   };
 
-  // 2. Vérification de la santé du service & historique
+  // statut service et historique récent
   const fetchHealthAndHistory = async () => {
     try {
       const health = await faceApi.checkHealth();
@@ -119,7 +122,7 @@ export default function FaceCheckInPage() {
     }
 
     try {
-      const history = await faceApi.getRecentAttendances();
+      const history = await faceApi.getRecentAttendances(20, currentOrgId);
       setAttendances(history || []);
     } catch (err) {
       console.warn("Échec récupération historique pointages:", err);
@@ -170,7 +173,7 @@ export default function FaceCheckInPage() {
     });
   };
 
-  // 3. Traitement du pointage (automatique ou manuel)
+  // traitement du pointage
   const performCheckIn = useCallback(async () => {
     const now = Date.now();
     if (now - lastRequestTimeRef.current < 2500) return;
@@ -196,7 +199,10 @@ export default function FaceCheckInPage() {
     const b64Image = canvas.toDataURL("image/jpeg", 0.9);
 
     try {
-      const res = await faceApi.recognizeAndCheckIn(b64Image);
+      const res = await faceApi.recognizeAndCheckIn(b64Image, {
+        threshold: 0.55,
+        organisation_id: currentOrgId,
+      });
 
       const isSuccess = res.match === true || res.status === "MATCH_FOUND";
       const agent = res.personnel || res.agent;
@@ -244,9 +250,9 @@ export default function FaceCheckInPage() {
     }
   }, [isProcessing, cameraModal]);
 
-  // 4. Détection continue du visage
+  // détection continue du visage
   useEffect(() => {
-    if (!cameraActive || !autoScan || cameraModal !== null || isProcessing) return;
+    if (!cameraActive || cameraModal !== null || isProcessing) return;
 
     let isMounted = true;
     let isDetecting = false;
@@ -290,9 +296,9 @@ export default function FaceCheckInPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [cameraActive, autoScan, cameraModal, isProcessing]);
+  }, [cameraActive, cameraModal, isProcessing]);
 
-  // 5. Gestionnaire du compte à rebours 3s
+  // compte à rebours avant capture
   useEffect(() => {
     if (countdown === null || cameraModal !== null || isProcessing) return;
 
@@ -497,32 +503,32 @@ export default function FaceCheckInPage() {
               </div>
             </div>
 
-            {/* Barre de contrôles sous la caméra */}
+            {/* Barre de statut sous la caméra */}
             <div className="face-camera-controls">
-              <button
-                type="button"
-                onClick={() => setAutoScan(!autoScan)}
-                className="button"
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  width: "100%",
+                  padding: "10px 16px",
+                  background: isProcessing ? "#e8f5ed" : "#f8faf9",
+                  borderRadius: "10px",
+                  border: `1px solid ${isProcessing ? "#96dfb2" : "#e0e7e4"}`,
+                  color: isProcessing ? "#163d32" : "#536b61",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
               >
-                <Sparkles size={16} />
-                <span>
-                  {autoScan ? "Auto-pointage : Activé" : "Pointage : Manuel"}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="button primary"
-                onClick={performCheckIn}
-                disabled={isProcessing || !cameraActive || cameraModal !== null}
-              >
-                <Camera size={16} />
+                <Sparkles size={16} color={isProcessing ? "#1e6b52" : "#7d8b84"} />
                 <span>
                   {isProcessing
-                    ? "Vérification en cours..."
-                    : "Pointer manuellement"}
+                    ? "Identification faciale en cours..."
+                    : "Positionnez votre visage pour pointer automatiquement"}
                 </span>
-              </button>
+              </div>
             </div>
           </div>
 

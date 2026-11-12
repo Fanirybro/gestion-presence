@@ -1,169 +1,130 @@
-import OrganisationCode from "../components/OrganisationCode";
-import { useEffect, useState } from "react";
-import { AnimatePresence } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
-import { Plus, Save, KeyRound, SlidersHorizontal, Users, ShieldCheck, Trash2, Power, Pencil } from "lucide-react";
-import { z } from "zod";
+import { useState } from "react";
+import { Building2, Camera, Clock, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import SchedulesPage from "./SchedulesPage";
 import { useApp } from "../app/context";
-import { Back, Confirm, Field, Heading, Modal, Table } from "../components/ui";
-import type { Role, RoleDefinition, User, UserPermissions } from "../types";
-import { usersService } from "../services/users";
-import { rolesService } from "../services/roles";
-import UserPermissionsModal from "../components/UserPermissionsModal";
-import RolePermissionsModal from "../components/RolePermissionsModal";
-import { RowActionsMenu } from "../components/RowActionsMenu";
+import { Heading } from "../components/ui";
+import { OngletGeneral } from "./settings/OngletGeneral";
+import { OngletChampsPersonnalises } from "./settings/OngletChampsPersonnalises";
+import { OngletModesPointage } from "./settings/OngletModesPointage";
+import { GestionUtilisateurs, CreerUtilisateur } from "./settings/GestionUtilisateurs";
 
-export function UsersPage() {
-  const { db, user, update, notify, audit } = useApp();
-  const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
-  const [target, setTarget] = useState("");
-  const [reset, setReset] = useState("");
-  const [error, setError] = useState("");
-  const [editingPermsUser, setEditingPermsUser] = useState<User | null>(null);
-
-  // Roles state
-  const [roles, setRoles] = useState<RoleDefinition[]>([]);
-  const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
-  const [newRoleModalOpen, setNewRoleModalOpen] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
-  const [newRoleDesc, setNewRoleDesc] = useState("");
-  const [roleDeleting, setRoleDeleting] = useState<RoleDefinition | null>(null);
-
-  const loadRoles = async () => {
+function extraireChampsPersonnalises(source: unknown): any[] {
+  if (Array.isArray(source)) return source;
+  if (typeof source === "string") {
     try {
-      const res = await rolesService.list();
-      if (res.roles) setRoles(res.roles);
-    } catch (err) {
-      console.warn("Échec chargement des rôles :", err);
+      const parsed = JSON.parse(source);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
     }
-  };
+  }
+  return [];
+}
 
-  useEffect(() => {
-    let mounted = true;
-    void loadRoles();
-    void usersService
-      .list()
-      .then((res) => {
-        if (!mounted || !res.users) return;
-        update((d) => {
-          for (const su of res.users) {
-            const existing = d.users.find((x) => x.id === String(su.id));
-            if (existing) {
-              existing.role = su.role;
-              existing.isActive = su.actif;
-              existing.permissions = su.permissions || {};
-            } else {
-              d.users.push({
-                id: String(su.id),
-                name: `${su.prenom} ${su.nom}`,
-                email: su.email,
-                role: su.role,
-                isActive: su.actif,
-                permissions: su.permissions || {},
-              });
-            }
+export function SettingsPage() {
+  const { db, organisation, saveSettings, notify } = useApp();
+  const [activeTab, setActiveTab] = useState<"general" | "schedules" | "users" | "fields" | "modes">("general");
+  const [settings, setSettings] = useState(() => structuredClone(db.settings));
+  const [erreur, setErreur] = useState("");
+  const [enSauvegarde, setEnSauvegarde] = useState(false);
+
+  const [logoPreview, setLogoPreview] = useState<string | null>(organisation?.logo_url || settings.logo_url || null);
+
+  const [champsPersonnalises, setChampsPersonnalises] = useState<any[]>(() =>
+    extraireChampsPersonnalises(settings.custom_fields_schema || organisation?.custom_fields_schema)
+  );
+
+  const televerserLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      notify("Le logo ne doit pas dépasser 5 Mo.", true);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 400;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
           }
-        });
-      })
-      .catch(() => {
-        // Fallback local if offline
-      });
-    return () => {
-      mounted = false;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        const optimized = ctx
+          ? (ctx.drawImage(img, 0, 0, width, height), canvas.toDataURL("image/webp", 0.85))
+          : (reader.result as string);
+        setLogoPreview(optimized);
+        setSettings((prev) => ({ ...prev, logo_url: optimized }));
+      };
+      img.src = reader.result as string;
     };
-  }, []);
-
-  const handleSaveUserPermissions = async (userId: string, newPerms: UserPermissions) => {
-    try {
-      await usersService.updatePermissions(userId, newPerms);
-    } catch (err) {
-      console.warn("Échec sauvegarde permissions serveur :", err);
-    }
-    update((d) => {
-      const u = d.users.find((x) => x.id === userId);
-      if (u) {
-        u.permissions = newPerms;
-        audit(d, userId, "Modification des privilèges", "Permissions granulaires mises à jour");
-      }
-    });
-    notify("Autorisations d'accès enregistrées avec succès.");
+    reader.readAsDataURL(file);
   };
 
-  const handleSaveRolePermissions = async (
-    roleId: string,
-    data: { nom?: string; description?: string; permissions?: UserPermissions },
-  ) => {
-    try {
-      await rolesService.update(roleId, data);
-      await loadRoles();
-      notify("Privilèges du rôle enregistrés avec succès.");
-    } catch (err) {
-      notify((err as Error).message || "Erreur lors de la mise à jour du rôle.", true);
-      throw err;
-    }
+  const mettreAJourChampsPersonnalises = (misAJour: any[]) => {
+    setChampsPersonnalises(misAJour);
+    setSettings((prev) => ({ ...prev, custom_fields_schema: misAJour }));
   };
 
-  const handleCreateRole = async (e: React.FormEvent) => {
+  const enregistrerParametresGeneraux = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRoleName.trim()) return;
+    if (enSauvegarde) return;
+    setErreur("");
+    setEnSauvegarde(true);
     try {
-      const res = await rolesService.create({
-        nom: newRoleName.trim(),
-        description: newRoleDesc.trim(),
+      await saveSettings({
+        ...settings,
+        logo_url: logoPreview,
+        custom_fields_schema: champsPersonnalises,
       });
-      setNewRoleModalOpen(false);
-      setNewRoleName("");
-      setNewRoleDesc("");
-      await loadRoles();
-      notify(`Rôle "${res.role.nom}" créé. Vous pouvez maintenant configurer ses privilèges.`);
-      setEditingRole(res.role);
+      notify("Paramètres enregistrés avec succès.");
     } catch (err) {
-      notify((err as Error).message || "Erreur lors de la création du rôle.", true);
-    }
-  };
-
-  const handleDeleteRole = async () => {
-    if (!roleDeleting) return;
-    try {
-      await rolesService.delete(roleDeleting.id);
-      notify(`Rôle "${roleDeleting.nom}" supprimé.`);
-      setRoleDeleting(null);
-      await loadRoles();
-    } catch (err) {
-      notify((err as Error).message || "Impossible de supprimer ce rôle.", true);
+      setErreur((err as Error).message);
+      notify((err as Error).message, true);
+    } finally {
+      setEnSauvegarde(false);
     }
   };
 
   return (
     <>
       <Heading
-        eyebrow="ADMINISTRATION SYSTÈME"
-        title="Utilisateurs & Rôles"
-        subtitle="Gestion des comptes, création des rôles et configuration des privilèges"
-      >
-        {activeTab === "users" ? (
-          <Link className="button primary" to="/users/new">
-            <Plus size={16} />
-            <span>Nouvel utilisateur</span>
-          </Link>
-        ) : (
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => {
-              setNewRoleName("");
-              setNewRoleDesc("");
-              setNewRoleModalOpen(true);
-            }}
-          >
-            <Plus size={16} />
-            <span>Nouveau rôle</span>
-          </button>
-        )}
-      </Heading>
+        eyebrow="CONFIGURATION SYSTÈME"
+        title="Paramètres"
+        subtitle="Centre unifié de configuration de votre organisation"
+      />
 
-      {/* Tabs Switcher: Users vs Roles */}
       <div className="profile-clean-tabs" role="tablist" style={{ marginBottom: "1.5rem" }}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "general"}
+          className={`profile-tab-item ${activeTab === "general" ? "active" : ""}`}
+          onClick={() => setActiveTab("general")}
+        >
+          <Building2 size={15} />
+          <span>Organisation & Logo</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "schedules"}
+          className={`profile-tab-item ${activeTab === "schedules" ? "active" : ""}`}
+          onClick={() => setActiveTab("schedules")}
+        >
+          <Clock size={15} />
+          <span>Horaires de travail</span>
+        </button>
         <button
           type="button"
           role="tab"
@@ -171,550 +132,73 @@ export function UsersPage() {
           className={`profile-tab-item ${activeTab === "users" ? "active" : ""}`}
           onClick={() => setActiveTab("users")}
         >
-          <Users size={14} />
-          <span>Comptes Utilisateurs</span>
+          <ShieldCheck size={15} />
+          <span>Utilisateurs & Rôles</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "fields"}
+          className={`profile-tab-item ${activeTab === "fields" ? "active" : ""}`}
+          onClick={() => setActiveTab("fields")}
+        >
+          <SlidersHorizontal size={15} />
+          <span>Fiches personnalisées</span>
           <span className="badge" style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px" }}>
-            {db.users.length}
+            {champsPersonnalises.length}
           </span>
         </button>
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === "roles"}
-          className={`profile-tab-item ${activeTab === "roles" ? "active" : ""}`}
-          onClick={() => setActiveTab("roles")}
+          aria-selected={activeTab === "modes"}
+          className={`profile-tab-item ${activeTab === "modes" ? "active" : ""}`}
+          onClick={() => setActiveTab("modes")}
         >
-          <ShieldCheck size={14} />
-          <span>Rôles & Privilèges</span>
-          <span className="badge" style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px" }}>
-            {roles.length || 2}
-          </span>
+          <Camera size={15} />
+          <span>Modes de pointage</span>
         </button>
       </div>
 
-      {activeTab === "users" ? (
-        <section className="data-section">
-          <Table
-            headers={["UTILISATEUR", "EMAIL", "RÔLE ATTRIBUÉ", "STATUT", "ACTIONS"]}
-            rows={db.users.map((u) => [
-              <strong key="name">{u.name}</strong>,
-              u.email,
-              <select
-                key="role"
-                aria-label={`Rôle de ${u.name}`}
-                value={u.role}
-                disabled={u.id === user?.id}
-                onChange={async (e) => {
-                  const nextRole = e.target.value as Role;
-                  try {
-                    await usersService.updateRole(u.id, nextRole);
-                  } catch (err) {
-                    console.warn("Échec mise à jour rôle serveur :", err);
-                  }
-                  update((d) => {
-                    d.users.find((x) => x.id === u.id)!.role = nextRole;
-                    audit(d, u.id, "Modification du rôle", nextRole);
-                  });
-                  notify("Rôle mis à jour.");
-                  void loadRoles();
-                }}
-              >
-                {roles.length > 0 ? (
-                  roles.map((r) => (
-                    <option key={r.code} value={r.code}>
-                      {r.nom}
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="COORDINATOR">Coordinateur</option>
-                    <option value="SECRETARY">Secrétaire</option>
-                  </>
-                )}
-              </select>,
-              <span
-                key="status"
-                className={`badge ${u.isActive ? "present" : "absent"}`}
-              >
-                {u.isActive ? "Actif" : "Inactif"}
-              </span>,
-              <RowActionsMenu
-                key="actions"
-                ariaLabel={`Actions pour ${u.name}`}
-                items={[
-                  {
-                    label: "Privilèges d'accès",
-                    icon: <SlidersHorizontal size={14} />,
-                    onClick: () => setEditingPermsUser(u),
-                  },
-                  {
-                    label: "Réinitialiser mot de passe",
-                    icon: <KeyRound size={14} />,
-                    onClick: () => {
-                      setReset(u.id);
-                      setError("");
-                    },
-                  },
-                  {
-                    label: u.isActive ? "Désactiver le compte" : "Activer le compte",
-                    icon: <Power size={14} />,
-                    variant: u.isActive ? "danger" : "default",
-                    disabled: u.id === user?.id,
-                    onClick: () => setTarget(u.id),
-                  },
-                ]}
-              />,
-            ])}
-          />
-        </section>
-      ) : (
-        <section className="data-section">
-          <Table
-            headers={["RÔLE", "DESCRIPTION", "UTILISATEURS ACTIFS", "STATUT", "ACTIONS"]}
-            rows={roles.map((r) => {
-              const isCoordinator = r.code === "COORDINATOR";
-              return [
-                <div key="role-info">
-                  <strong>{r.nom}</strong>
-                  <small style={{ display: "block", color: "#6d7e76", fontSize: "11px" }}>
-                    Code : <code>{r.code}</code>
-                  </small>
-                </div>,
-                <span key="desc" style={{ color: "#55665f", fontSize: "13px" }}>
-                  {r.description || "—"}
-                </span>,
-                <span key="count" style={{ fontWeight: 600 }}>
-                  {r.members_count ?? 0} utilisateur{Number(r.members_count ?? 0) > 1 ? "s" : ""}
-                </span>,
-                <span
-                  key="type"
-                  className={`badge ${isCoordinator ? "role-coord" : "role-sec"}`}
-                >
-                  {isCoordinator ? "Système (Racine)" : "Rôle Modifiable"}
-                </span>,
-                <RowActionsMenu
-                  key="actions"
-                  ariaLabel={`Actions pour le rôle ${r.nom}`}
-                  items={
-                    isCoordinator
-                      ? [
-                          {
-                            label: "Consulter les privilèges",
-                            icon: <SlidersHorizontal size={14} />,
-                            onClick: () => setEditingRole(r),
-                          },
-                        ]
-                      : [
-                          {
-                            label: "Modifier le rôle & privilèges",
-                            icon: <Pencil size={14} />,
-                            onClick: () => setEditingRole(r),
-                          },
-                          {
-                            label: "Supprimer le rôle",
-                            icon: <Trash2 size={14} />,
-                            variant: "danger",
-                            onClick: () => setRoleDeleting(r),
-                          },
-                        ]
-                  }
-                />,
-              ];
-            })}
-          />
-        </section>
+      {activeTab === "general" && (
+        <OngletGeneral
+          settings={settings}
+          setSettings={setSettings}
+          logoPreview={logoPreview}
+          setLogoPreview={setLogoPreview}
+          enSauvegarde={enSauvegarde}
+          erreur={erreur}
+          organisation={organisation}
+          surEnregistrement={enregistrerParametresGeneraux}
+          surTeleversementLogo={televerserLogo}
+        />
       )}
 
-      <AnimatePresence>
-        {/* User permissions override modal */}
-        {editingPermsUser && (
-          <UserPermissionsModal
-            key="permissions-modal"
-            targetUser={editingPermsUser}
-            close={() => setEditingPermsUser(null)}
-            onSave={handleSaveUserPermissions}
-          />
-        )}
+      {activeTab === "schedules" && <SchedulesPage />}
 
-        {/* Role privileges and details modal */}
-        {editingRole && (
-          <RolePermissionsModal
-            key="role-permissions-modal"
-            role={editingRole}
-            close={() => setEditingRole(null)}
-            onSave={handleSaveRolePermissions}
-          />
-        )}
+      {activeTab === "users" && <GestionUtilisateurs />}
 
-        {/* Create new role modal */}
-        {newRoleModalOpen && (
-          <Modal title="Créer un nouveau rôle" close={() => setNewRoleModalOpen(false)}>
-            <form onSubmit={handleCreateRole} className="role-modal">
-              <Field label="Nom du rôle" hint="ex: Responsable RH, Superviseur, Contrôleur">
-                <input
-                  required
-                  maxLength={100}
-                  placeholder="ex: Responsable RH"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  autoFocus
-                />
-              </Field>
-              <Field label="Description">
-                <input
-                  maxLength={200}
-                  placeholder="Brève description des responsabilités…"
-                  value={newRoleDesc}
-                  onChange={(e) => setNewRoleDesc(e.target.value)}
-                />
-              </Field>
-              <footer style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" className="button" onClick={() => setNewRoleModalOpen(false)}>
-                  Annuler
-                </button>
-                <button type="submit" className="button primary">
-                  <Plus size={16} />
-                  <span>Créer le rôle</span>
-                </button>
-              </footer>
-            </form>
-          </Modal>
-        )}
+      {activeTab === "fields" && (
+        <OngletChampsPersonnalises
+          champsPersonnalises={champsPersonnalises}
+          setChampsPersonnalises={mettreAJourChampsPersonnalises}
+          enSauvegarde={enSauvegarde}
+          surEnregistrement={enregistrerParametresGeneraux}
+        />
+      )}
 
-        {/* Delete role confirmation */}
-        {roleDeleting && (
-          <Confirm
-            key="delete-role"
-            title={`Supprimer le rôle "${roleDeleting.nom}" ?`}
-            text="Cette action est irréversible. Les utilisateurs doivent avoir un autre rôle avant de pouvoir le supprimer."
-            close={() => setRoleDeleting(null)}
-            confirm={handleDeleteRole}
-          />
-        )}
-
-        {target && (
-          <Confirm
-            key="access"
-            title="Modifier l’accès au compte ?"
-            text="Le changement sera appliqué à cet utilisateur."
-            close={() => setTarget("")}
-            confirm={async () => {
-              const targetObj = db.users.find((u) => u.id === target);
-              const nextActive = !targetObj?.isActive;
-              try {
-                await usersService.updateStatus(target, nextActive);
-              } catch (err) {
-                console.warn("Échec mise à jour statut serveur :", err);
-              }
-              update((d) => {
-                const u = d.users.find((u) => u.id === target)!;
-                u.isActive = nextActive;
-                audit(
-                  d,
-                  target,
-                  "Modification de l’accès",
-                  u.isActive ? "Activation" : "Désactivation",
-                );
-              });
-              notify("Accès mis à jour.");
-            }}
-          />
-        )}
-
-        {reset && (
-          <Modal
-            key="password-reset"
-            title="Réinitialiser le mot de passe"
-            close={() => setReset("")}
-          >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const p = String(new FormData(e.currentTarget).get("password"));
-                if (p.length < 10) {
-                  setError(
-                    "Le mot de passe doit contenir au moins 10 caractères.",
-                  );
-                  return;
-                }
-                update((d) => {
-                  d.credentials[reset] = p;
-                  audit(d, reset, "Réinitialisation du mot de passe", "");
-                });
-                setReset("");
-                notify("Mot de passe réinitialisé.");
-              }}
-            >
-              <Field label="Nouveau mot de passe">
-                <input
-                  name="password"
-                  type="password"
-                  minLength={10}
-                  required
-                  autoComplete="new-password"
-                />
-              </Field>
-              {error && <p className="form-error">{error}</p>}
-              <footer>
-                <button className="button primary">Enregistrer</button>
-              </footer>
-            </form>
-          </Modal>
-        )}
-      </AnimatePresence>
+      {activeTab === "modes" && (
+        <OngletModesPointage
+          settings={settings}
+          setSettings={setSettings}
+          enSauvegarde={enSauvegarde}
+          erreur={erreur}
+          surEnregistrement={enregistrerParametresGeneraux}
+        />
+      )}
     </>
   );
 }
-export function UserCreate() {
-  const { db, update, notify, audit } = useApp();
-  const navigate = useNavigate();
-  const [error, setError] = useState("");
-  const [roles, setRoles] = useState<RoleDefinition[]>([]);
 
-  useEffect(() => {
-    let mounted = true;
-    rolesService
-      .list()
-      .then((res) => {
-        if (mounted && res.roles && res.roles.length > 0) {
-          setRoles(res.roles);
-        }
-      })
-      .catch((err) => console.warn("Échec chargement rôles :", err));
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  return (
-    <>
-      <Back to="/users" />
-      <Heading title="Nouvel utilisateur" />
-      <form
-        className="form-surface"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const form = Object.fromEntries(new FormData(e.currentTarget));
-          const parsed = z
-            .object({
-              name: z.string().trim().min(2),
-              email: z.string().email(),
-              password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères."),
-              role: z.string().min(1),
-            })
-            .safeParse(form);
-          if (!parsed.success) {
-            setError(
-              parsed.error.issues[0]?.message ||
-                "Vérifiez les champs : nom, email et mot de passe de 12 caractères minimum.",
-            );
-            return;
-          }
-          if (
-            db.users.some(
-              (u) => u.email.toLowerCase() === parsed.data.email.toLowerCase(),
-            )
-          ) {
-            setError("Cet email est déjà utilisé.");
-            return;
-          }
-          let id: string = crypto.randomUUID();
-          const nameParts = parsed.data.name.trim().split(" ");
-          const prenom = nameParts[0];
-          const nom = nameParts.slice(1).join(" ") || prenom;
-          try {
-            const res = await usersService.create({
-              nom,
-              prenom,
-              email: parsed.data.email,
-              password: parsed.data.password,
-              role: parsed.data.role,
-            });
-            if (res.user?.id) id = String(res.user.id);
-          } catch (err) {
-            console.warn("Échec création utilisateur backend :", err);
-          }
-          update((d) => {
-            d.users.push({
-              id,
-              name: parsed.data.name,
-              email: parsed.data.email,
-              role: parsed.data.role,
-              isActive: true,
-            });
-            d.credentials[id] = parsed.data.password;
-            audit(d, id, "Création d’un utilisateur", parsed.data.role);
-          });
-          notify("Utilisateur créé.");
-          navigate("/users");
-        }}
-      >
-        <div className="form-grid">
-          <Field label="Nom complet">
-            <input name="name" required />
-          </Field>
-          <Field label="Email">
-            <input name="email" type="email" required />
-          </Field>
-          <Field label="Rôle">
-            <select name="role" defaultValue="SECRETARY">
-              {roles.length > 0 ? (
-                roles.map((r) => (
-                  <option key={r.code} value={r.code}>
-                    {r.nom} ({r.code})
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="SECRETARY">Secrétaire</option>
-                  <option value="COORDINATOR">Coordinateur</option>
-                </>
-              )}
-            </select>
-          </Field>
-          <Field label="Mot de passe" hint="12 caractères minimum">
-            <input
-              name="password"
-              type="password"
-              minLength={12}
-              required
-              autoComplete="new-password"
-            />
-          </Field>
-        </div>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="form-actions">
-          <Link className="button" to="/users">
-            Annuler
-          </Link>
-          <button className="button primary">Créer l’utilisateur</button>
-        </div>
-      </form>
-    </>
-  );
-}
-export function SettingsPage() {
-  const { db, organisation, saveSettings, notify } = useApp();
-  const [settings, setSettings] = useState(() => structuredClone(db.settings));
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  return (
-    <>
-      <Heading
-        eyebrow="CONFIGURATION SYSTÈME"
-        title="Paramètres"
-        subtitle="Informations générales et identifiants de l'organisation"
-      />
-      <OrganisationCode />
-      <form
-        className="settings-form"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (saving) return;
-          setError("");
-          setSaving(true);
-          try {
-            await saveSettings(settings);
-            notify("Paramètres enregistrés.");
-          } catch (error) {
-            setError((error as Error).message);
-            notify((error as Error).message, true);
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        <fieldset
-          disabled={saving}
-          style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
-        >
-          <section className="settings-section">
-            <h2>Organisation</h2>
-            <div className="form-grid">
-              <Field label="Nom de l’organisation">
-                <input
-                  required
-                  maxLength={100}
-                  value={settings.organization}
-                  onChange={(e) =>
-                    setSettings({ ...settings, organization: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Adresse">
-                <input
-                  maxLength={500}
-                  value={settings.address}
-                  onChange={(e) =>
-                    setSettings({ ...settings, address: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Fuseau horaire">
-                <input readOnly value={organisation?.fuseau_horaire ?? ""} />
-              </Field>
-            </div>
-          </section>
-
-          <section className="settings-section" style={{ marginTop: "1.5rem" }}>
-            <h2>Modes de pointage autorisés</h2>
-            <p className="text-secondary" style={{ fontSize: "0.875rem", marginBottom: "1rem" }}>
-              Activez ou désactivez les méthodes de pointage selon les besoins opérationnels de votre entreprise. Au moins une méthode doit rester active.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontWeight: 500 }}>
-                <input
-                  type="checkbox"
-                  checked={settings.pointage_qr ?? true}
-                  onChange={(e) => {
-                    const next = e.target.checked;
-                    if (!next && !(settings.pointage_facial ?? true)) {
-                      notify("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.", true);
-                      return;
-                    }
-                    setSettings({ ...settings, pointage_qr: next });
-                  }}
-                />
-                <span>Pointage par QR Code (Scanners mobiles & bornes badges)</span>
-              </label>
-
-              <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontWeight: 500 }}>
-                <input
-                  type="checkbox"
-                  checked={settings.pointage_facial ?? true}
-                  onChange={(e) => {
-                    const next = e.target.checked;
-                    if (!next && !(settings.pointage_qr ?? true)) {
-                      notify("Au moins un mode de pointage (QR code ou reconnaissance faciale) doit être activé.", true);
-                      return;
-                    }
-                    setSettings({ ...settings, pointage_facial: next });
-                  }}
-                />
-                <span>Pointage par Reconnaissance Faciale (Borne Kiosk biométrique)</span>
-              </label>
-            </div>
-          </section>
-
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-
-          <div className="form-actions">
-            <button className="button primary" disabled={saving}>
-              <Save size={16} />
-              {saving ? "Enregistrement…" : "Enregistrer les modifications"}
-            </button>
-          </div>
-        </fieldset>
-      </form>
-    </>
-  );
-}
+export { GestionUtilisateurs as UsersPage, CreerUtilisateur as UserCreate };
 export { default as Profile } from "./ProfilePage";

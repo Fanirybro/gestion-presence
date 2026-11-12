@@ -26,7 +26,7 @@ test("face-recognition: health, validation and endpoints", async (t) => {
         ],
       };
     }
-    if (sql.includes("FROM attendances")) {
+    if (sql.includes("FROM attendances") || sql.includes("FROM pointages")) {
       return {
         rows: [
           {

@@ -12,21 +12,56 @@ export interface RoleDefinition {
   created_at: string;
   updated_at: string;
 }
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  label: string;
+  type: "text" | "number" | "date" | "select";
+  required?: boolean;
+  options?: string[];
+  defaultValue?: string;
+}
+
 export type Status = "PRESENT" | "LATE" | "ABSENT" | "JUSTIFIED";
+
+export interface AdministrativeMetadata {
+  im?: string;
+  matricule?: string;
+  structure?: string;
+  cin?: string;
+  telephone?: string;
+  email?: string;
+  localite?: string;
+  adresse_professionnelle?: string;
+  sexe?: "H" | "F" | string;
+  categorie?: string;
+  statut_administratif?: "FONCTIONNAIRE" | "EFA" | "ELD" | string;
+  date_entree_administration?: string;
+  date_prise_service?: string;
+  [key: string]: any;
+}
+
 export interface Agent {
   id: string;
   firstName: string;
   lastName: string;
   departmentId: string;
+  divisionId?: string;
+  divisionName?: string;
   position: string;
   isActive: boolean;
+  isEnrolled?: boolean;
+  enrolledAt?: string | null;
   token: string;
   createdAt: string;
   birthDate?: string;
   hireDate?: string;
   userId?: string | null;
   deletedAt?: string;
+  metadata?: AdministrativeMetadata;
 }
+
 export interface UserPermissions {
   dashboard?: boolean;
   scan?: boolean;
@@ -69,11 +104,16 @@ export const DEFAULT_SECRETARY_PERMISSIONS: UserPermissions = {
 };
 
 export function hasPermission(
-  user: { role?: Role | string; permissions?: UserPermissions } | null | undefined,
+  user: { role?: Role | string; permissions?: UserPermissions; managed_division_ids?: string[] } | null | undefined,
   key: keyof UserPermissions | string,
 ): boolean {
   if (!user) return false;
   if (user.role === "COORDINATOR") return true;
+  if (Array.isArray(user.managed_division_ids) && user.managed_division_ids.length > 0) {
+    if (key === "departments" || key === "agents" || key === "leaves" || key === "presences" || key === "face_enroll") {
+      return true;
+    }
+  }
   if (user.permissions && Object.prototype.hasOwnProperty.call(user.permissions, key)) {
     return Boolean(user.permissions[key]);
   }
@@ -88,7 +128,9 @@ export interface User {
   role: Role;
   isActive: boolean;
   permissions?: UserPermissions;
+  managed_division_ids?: string[];
 }
+
 export interface Attendance {
   id: string;
   agentId: string;
@@ -102,6 +144,7 @@ export interface Attendance {
   source: string;
   note: string;
 }
+
 export interface Audit {
   id: string;
   entityId: string;
@@ -110,13 +153,16 @@ export interface Audit {
   reason: string;
   at: string;
 }
+
 export interface Scan {
   id: string;
   agentId: string;
   type: "ARRIVAL" | "DEPARTURE";
   at: string;
 }
+
 export type SchedulePeriod = "MATIN" | "APRES_MIDI" | "SOIR";
+
 export interface Schedule {
   day: string;
   period: SchedulePeriod;
@@ -127,18 +173,30 @@ export interface Schedule {
   tolerance: number;
   cutoff: string;
 }
+
 export interface Settings {
   organization: string;
   address: string;
+  logo_url?: string | null;
+  custom_fields_schema?: CustomFieldDefinition[];
   schedules: Schedule[];
   pointage_qr?: boolean;
   pointage_facial?: boolean;
 }
+
+export interface DivisionManagerInfo {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
 export interface Database {
   agents: Agent[];
   users: User[];
   credentials: Record<string, string>;
-  departments: { id: string; name: string; isActive?: boolean }[];
+  departments: { id: string; name: string; isActive?: boolean; responsables?: DivisionManagerInfo[] }[];
+  divisions?: { id: string; name: string; isActive?: boolean; responsables?: DivisionManagerInfo[] }[];
   attendance: Attendance[];
   scans: Scan[];
   audit: Audit[];

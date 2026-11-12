@@ -6,7 +6,7 @@ import pool from "../config/database.js";
 import personnels from "../routes/personnelsRoutes.js";
 import departements from "../routes/departementsRoutes.js";
 
-const fields = ["nom", "prenom", "date_naissance", "departement_id", "utilisateur_id", "poste", "date_embauche", "actif"];
+const fields = ["nom", "prenom", "date_naissance", "division_id", "utilisateur_id", "poste", "date_embauche", "actif", "metadata"];
 const input = { nom: "Rakoto", prenom: "Alice", date_naissance: "1995-04-12", departement_id: "4", utilisateur_id: null, poste: null, date_embauche: null, actif: true };
 
 test("personnel et départements : HTTP, droits, validation et transactions", async t => {
@@ -41,7 +41,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
         assert.match(sql, /p.organisation_id = \$1/);
         return { rows: structuredClone(people.filter(p => p.organisation_id === values[0] && (values[1] === undefined || p.id === values[1]))) };
       }
-      if (sql.startsWith("SELECT") && sql.includes("FROM departements")) {
+      if (sql.startsWith("SELECT") && (sql.includes("FROM departements") || sql.includes("FROM divisions"))) {
         assert.match(sql, /organisation_id = \$1/);
         return { rows: structuredClone(departments.filter(d => d.organisation_id === values[0] && (values[1] === undefined || d.id === values[1]))) };
       }
@@ -77,15 +77,15 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
         assert.match(sql, /organisation_id = \$1 AND personnel_id = \$2 AND revoked_at IS NULL/);
         assert.deepEqual(values, ["7", "2", "1"]); return { rows: [] };
       }
-      if (sql.startsWith("INSERT INTO departements")) {
+      if (sql.startsWith("INSERT INTO departements") || sql.startsWith("INSERT INTO divisions")) {
         const department = { id: "5", organisation_id: values[0], nom: values[1], actif: true };
         departments.push(department); return { rows: [department] };
       }
       if (sql.startsWith("SELECT id FROM personnel")) {
-        assert.match(sql, /organisation_id = \$1 AND departement_id = \$2 AND actif = true/);
-        return { rows: people.filter(p => p.organisation_id === values[0] && p.departement_id === values[1] && p.actif) };
+        assert.match(sql, /organisation_id = \$1 AND (departement_id|division_id) = \$2 AND actif = true/);
+        return { rows: people.filter(p => p.organisation_id === values[0] && (p.departement_id === values[1] || p.division_id === values[1]) && p.actif) };
       }
-      if (sql.startsWith("UPDATE departements")) {
+      if (sql.startsWith("UPDATE departements") || sql.startsWith("UPDATE divisions")) {
         assert.match(sql, /WHERE organisation_id = \$1 AND id = \$2/);
         Object.assign(departments.find(d => d.organisation_id === values[0] && d.id === values[1]), { nom: values[2], actif: values[3] });
         return { rows: [] };

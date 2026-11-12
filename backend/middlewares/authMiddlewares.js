@@ -21,6 +21,21 @@ export async function requireAuth(req, res, next) {
   } catch (error) { next(error); }
 }
 
+export async function attachUserIfSession(req, res, next) {
+  const id = String(req.session?.userId ?? "");
+  if (/^[1-9]\d{0,18}$/.test(id) && BigInt(id) <= 9223372036854775807n) {
+    try {
+      const account = await loadAccount(pool, { id, organisationId: req.session.organisationId ?? null });
+      if (account?.actif) {
+        req.user = publicAccount(account);
+      }
+    } catch {
+      // non bloquant
+    }
+  }
+  next();
+}
+
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: "Connexion requise." });
@@ -46,10 +61,7 @@ export function requireTrustedOrigin(origins) {
     const origin = req.get("origin");
     const host = req.get("host");
 
-    // Vérifier si l'origine est digne de confiance :
-    // 1. Liste explicite 'origins' (FRONTEND_URL, localhost, etc.)
-    // 2. Requête same-origin (l'Origin correspond au Host de la requête)
-    // 3. Déploiement Vercel (*.vercel.app)
+    // vérif origine autorisée (domaine explicite, same-origin ou vercel)
     let isAllowed = false;
     if (!origin) {
       isAllowed = true;

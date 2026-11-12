@@ -1,25 +1,13 @@
-/**
- * Planificateur de réconciliation automatique des absences.
- *
- * Exécute `reconcileAbsences` pour chaque organisation active toutes les
- * minutes.  Seules les lignes dont le `cutoff` (heure_limite_absence) est
- * dépassé seront matérialisées en base — la requête SQL embarque déjà cette
- * condition (`WHERE cutoff <= CURRENT_TIMESTAMP`).
- *
- * Aucune dépendance externe : utilise `setInterval` natif de Node.js.
- */
+// réconciliation automatique des absences
 import pool from "../config/database.js";
 import { reconcileAbsences } from "../utils/presence.js";
 
-/** Intervalle par défaut (ms) — toutes les 60 secondes. */
+// intervalle de 60s
 const INTERVAL_MS = 60_000;
 
 let timer = null;
 
-/**
- * Un cycle de réconciliation : pour chaque organisation active, matérialise
- * les absences du jour si l'heure limite est dépassée.
- */
+// vérif des absences du jour
 async function tick() {
   let client;
   try {
@@ -54,7 +42,7 @@ async function tick() {
   }
 }
 
-/** Démarre le planificateur. Sans effet si déjà actif. */
+// lance le scheduler
 export function startAbsenceScheduler() {
   if (timer) return;
   console.log("[absence-scheduler] Démarré — vérification toutes les 60 s.");
@@ -65,7 +53,7 @@ export function startAbsenceScheduler() {
   timer.unref();
 }
 
-/** Arrête le planificateur (utile pour les tests). */
+// stop scheduler
 export function stopAbsenceScheduler() {
   if (timer) {
     clearInterval(timer);

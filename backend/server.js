@@ -10,6 +10,7 @@ import rolesRoutes from "./routes/rolesRoutes.js";
 import organisationsRoutes from "./routes/organisationsRoutes.js";
 import personnelsRoutes from "./routes/personnelsRoutes.js";
 import departementsRoutes from "./routes/departementsRoutes.js";
+import divisionsRoutes from "./routes/divisionsRoutes.js";
 import parametresRoutes from "./routes/parametresRoutes.js";
 import absenceRoutes from "./routes/absenceRoutes.js";
 import presenceRoutes from "./routes/presenceRoutes.js";
@@ -71,8 +72,8 @@ export function createApp({ sessionStore } = {}) {
     credentials: true,
   }));
   app.use(requireTrustedOrigin(origins));
-  app.use("/api/v1/face-recognition", express.json({ limit: "10mb" }));
-  app.use(express.json({ limit: "16kb" }));
+  // Limite étendue pour supporter les logos d'organisation et le module biométrique
+  app.use(express.json({ limit: "10mb" }));
   app.use(createSessionMiddleware(sessionStore));
   app.use("/api", (req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
   app.use("/api/auth", authRoutes);
@@ -81,6 +82,7 @@ export function createApp({ sessionStore } = {}) {
   app.use("/api/organisations", organisationsRoutes);
   app.use("/api/personnels", personnelsRoutes);
   app.use("/api/departements", departementsRoutes);
+  app.use("/api/divisions", divisionsRoutes);
   app.use("/api/parametres", parametresRoutes);
   app.use("/api/badges", qrCodeRoutes);
   app.use("/api/presences", presenceRoutes);

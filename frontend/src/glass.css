@@ -42,6 +42,26 @@
   .sidebar .brand {
     color: var(--green);
   }
+  .sidebar .brand-name {
+    color: inherit;
+    text-decoration: none;
+    font-family: Manrope, sans-serif;
+    font-weight: 800;
+    line-height: 1.22;
+    word-break: normal;
+    overflow-wrap: break-word;
+    min-width: 0;
+    flex: 1;
+  }
+  .sidebar .brand-name small {
+    display: block;
+    font-family: "DM Sans", sans-serif;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+    color: var(--muted);
+  }
   .sidebar
     :is(
       .brand small,

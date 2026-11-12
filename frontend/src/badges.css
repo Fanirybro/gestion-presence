@@ -223,3 +223,163 @@
   .qr-badge { box-shadow: none; border-radius: 0; }
   .badge-print-grid .qr-badge .qr-badge-header { background: #163d32; font-size: 11px; padding: 2mm 4mm; }
 }
+
+/* ========================================================
+   A6 Portrait Badge (105mm × 148mm) - Full paper coverage
+   ======================================================== */
+.qr-badge-a6 {
+  box-sizing: border-box;
+  width: 105mm;
+  height: 148mm;
+  min-width: 105mm;
+  max-width: 105mm;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4mm;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  color: #163d32;
+  box-shadow: 0 14px 35px rgba(22, 61, 50, 0.15);
+  text-align: center;
+}
+
+.qr-badge-a6 .qr-badge-header-a6 {
+  box-sizing: border-box;
+  width: 100%;
+  height: 26mm;
+  flex-shrink: 0;
+  padding: 4mm 6mm;
+  background: #163d32;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5mm;
+  text-align: center;
+}
+
+.qr-badge-a6 .qr-badge-header-a6 .brand-title {
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.qr-badge-a6 .qr-badge-header-a6 small {
+  margin: 0;
+  max-width: 92mm;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.92;
+  line-height: 1.25;
+  color: #e2ede7;
+  overflow-wrap: anywhere;
+}
+
+.qr-badge-a6 .badge-content-a6 {
+  box-sizing: border-box;
+  flex: 1;
+  width: 100%;
+  padding: 8mm 6mm 10mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, #f4f8f5 0%, #ffffff 42%, #f8faf9 100%);
+}
+
+.qr-badge-a6 .badge-qr-wrapper-a6 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62mm;
+  height: 62mm;
+  background: #ffffff;
+  border: 1px solid #d4dfd9;
+  border-radius: 4mm;
+  padding: 3mm;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.qr-badge-a6 .badge-qr-wrapper-a6 img,
+.qr-badge-a6 .badge-qr-wrapper-a6 canvas {
+  width: 56mm !important;
+  height: 56mm !important;
+  max-width: none;
+  margin: 0;
+  object-fit: contain;
+}
+
+.qr-badge-a6 .badge-info-a6 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2mm;
+  width: 100%;
+}
+
+.qr-badge-a6 .badge-info-a6 h2 {
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: #163d32;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.qr-badge-a6 .badge-info-a6 p {
+  font-size: 13px;
+  font-weight: 600;
+  color: #456052;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.qr-badge-a6 .badge-info-a6 .dept-tag-a6 {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #277357;
+  background: #eaf4ee;
+  border: 1px solid #cce2d6;
+  padding: 2mm 6mm;
+  border-radius: 6px;
+  margin-top: 1mm;
+}
+
+.qr-badge-a6 .badge-inactive-a6 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c0392b;
+  margin-top: 2mm;
+}
+
+@media print {
+  [data-badge-format="a6"] .qr-badge-a6,
+  body:has([data-badge-format="a6"]) .qr-badge-a6 {
+    page: badge-a6;
+    margin: 0;
+    width: 105mm;
+    min-width: 105mm;
+    max-width: 105mm;
+    height: 148mm;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    break-inside: avoid;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

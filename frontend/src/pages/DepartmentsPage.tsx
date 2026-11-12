@@ -1,47 +1,83 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Building2,
+  Layers,
   Plus,
   Search,
   Users,
+  UserPlus,
   CheckCircle2,
   XCircle,
   Pencil,
   ArrowUpRight,
   Power,
   X,
+  UserCheck,
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading, Empty, Modal, Confirm } from "../components/ui";
-import { personnelApi } from "../services/personnel";
+import { TableSkeleton } from "../components/Skeleton";
+import { personnelApi, type DivisionResponsable } from "../services/personnel";
 import { RowActionsMenu } from "../components/RowActionsMenu";
+import { ModalAjouterPersonnelsDivision } from "./departments/ModalAjouterPersonnelsDivision";
 
-type DepartmentItem = { id: string; name: string; isActive?: boolean };
+type DepartmentItem = {
+  id: string;
+  name: string;
+  isActive?: boolean;
+  responsables?: DivisionResponsable[];
+};
 
 export default function DepartmentsPage() {
-  const { db, refreshPersonnel, notify } = useApp();
+  const navigate = useNavigate();
+  const { db, user, refreshPersonnel, notify, personnelLoading } = useApp();
+
+  const isCoordinator = user?.role === "COORDINATOR";
+  const managedDivisions = Array.isArray(user?.managed_division_ids)
+    ? user.managed_division_ids.map(String)
+    : [];
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [modalMode, setModalMode] = useState<"CREATE" | "RENAME" | null>(null);
   const [targetDept, setTargetDept] = useState<DepartmentItem | null>(null);
   const [nameInput, setNameInput] = useState("");
+  const [selectedResponsableIds, setSelectedResponsableIds] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [confirmToggle, setConfirmToggle] = useState<DepartmentItem | null>(null);
+  const [addingPersonnelToDept, setAddingPersonnelToDept] = useState<DepartmentItem | null>(null);
+
+  const { data: membersData } = useQuery({
+    queryKey: ["personnel-members", user?.organisationId, user?.id],
+    queryFn: personnelApi.members,
+  });
+  const membres = membersData?.membres || [];
+
+  // Accessible departments based on user scope
+  const allDepartments: DepartmentItem[] = isCoordinator
+    ? db.departments
+    : db.departments.filter((d) => managedDivisions.includes(String(d.id)));
 
   // Statistics
-  const totalCount = db.departments.length;
-  const activeCount = db.departments.filter((d) => d.isActive !== false).length;
+  const totalCount = allDepartments.length;
+  const activeCount = allDepartments.filter((d) => d.isActive !== false).length;
   const inactiveCount = totalCount - activeCount;
-  const totalAgentsCount = db.agents.length;
+  const totalAgentsCount = isCoordinator
+    ? db.agents.length
+    : db.agents.filter((a) => managedDivisions.includes(String(a.departmentId))).length;
 
   // Filtered departments list
-  const filteredDepartments = db.departments
+  const filteredDepartments = allDepartments
     .filter((d) => {
-      const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch =
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        (d.responsables &&
+          d.responsables.some((r) =>
+            `${r.prenom} ${r.nom}`.toLowerCase().includes(search.toLowerCase()),
+          ));
       const isActive = d.isActive !== false;
       const matchesStatus =
         filterStatus === "ALL"
@@ -62,6 +98,7 @@ export default function DepartmentsPage() {
 
   const handleOpenCreate = () => {
     setNameInput("");
+    setSelectedResponsableIds([]);
     setError("");
     setModalMode("CREATE");
     setTargetDept(null);
@@ -69,6 +106,7 @@ export default function DepartmentsPage() {
 
   const handleOpenRename = (dept: DepartmentItem) => {
     setNameInput(dept.name);
+    setSelectedResponsableIds(dept.responsables?.map((r) => r.id) || []);
     setError("");
     setTargetDept(dept);
     setModalMode("RENAME");
@@ -78,7 +116,7 @@ export default function DepartmentsPage() {
     e.preventDefault();
     const trimmed = nameInput.trim();
     if (!trimmed) {
-      setError("Le nom du département ne peut pas être vide.");
+      setError("Le nom du niveau ne peut pas être vide.");
       return;
     }
 
@@ -89,7 +127,7 @@ export default function DepartmentsPage() {
         (!targetDept || d.id !== targetDept.id),
     );
     if (duplicate) {
-      setError("Un département portant ce nom existe déjà.");
+      setError("Un niveau / division portant ce nom existe déjà.");
       return;
     }
 
@@ -97,15 +135,22 @@ export default function DepartmentsPage() {
     setError("");
     try {
       if (modalMode === "CREATE") {
-        await personnelApi.createDepartment(trimmed);
-        notify("Département créé avec succès.");
+        await personnelApi.createDepartment({
+          nom: trimmed,
+          responsable_ids: selectedResponsableIds,
+        });
+        notify("Niveau créé avec succès.");
       } else if (modalMode === "RENAME" && targetDept) {
-        await personnelApi.updateDepartment(targetDept.id, { nom: trimmed });
-        notify("Département renommé avec succès.");
+        await personnelApi.updateDepartment(targetDept.id, {
+          nom: trimmed,
+          responsable_ids: selectedResponsableIds,
+        });
+        notify("Niveau mis à jour avec succès.");
       }
       await refreshPersonnel();
       setModalMode(null);
       setNameInput("");
+      setSelectedResponsableIds([]);
       setTargetDept(null);
     } catch (err) {
       setError((err as Error).message);
@@ -122,7 +167,7 @@ export default function DepartmentsPage() {
     // Business rule: cannot deactivate if active agents exist
     if (isCurrentlyActive && active > 0) {
       notify(
-        `Impossible de désactiver : ce département contient ${active} agent(s) actif(s). Réaffectez-les d'abord.`,
+        `Impossible de désactiver : ce niveau contient ${active} agent(s) actif(s). Réaffectez-les d'abord.`,
         true,
       );
       setConfirmToggle(null);
@@ -137,8 +182,8 @@ export default function DepartmentsPage() {
       await refreshPersonnel();
       notify(
         isCurrentlyActive
-          ? "Département désactivé."
-          : "Département réactivé avec succès.",
+          ? "Niveau désactivé."
+          : "Niveau réactivé avec succès.",
       );
     } catch (err) {
       notify((err as Error).message, true);
@@ -152,20 +197,22 @@ export default function DepartmentsPage() {
     <>
       <Heading
         eyebrow="STRUCTURE ORGANISATIONNELLE"
-        title="Départements"
-        subtitle="Gestion des pôles, services et rattachement des agents de l'organisation"
+        title="Divisions & Niveaux"
+        subtitle="Gestion des niveaux, affectation des responsables et partitionnement des données"
       >
-        <button className="button primary" onClick={handleOpenCreate}>
-          <Plus size={16} />
-          Nouveau département
-        </button>
+        {isCoordinator && (
+          <button className="button primary" onClick={handleOpenCreate}>
+            <Plus size={16} />
+            Nouveau niveau
+          </button>
+        )}
       </Heading>
 
-      {/* KPI Metrics Strip (Model from Reports) */}
+      {/* KPI Metrics Strip */}
       <div className="rp-metrics-row">
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <CheckCircle2 size={14} style={{ color: "#1e6b52" }} /> Départements actifs
+            <CheckCircle2 size={14} style={{ color: "#1e6b52" }} /> Niveaux actifs
           </span>
           <strong className="rp-metric-value green">{activeCount}</strong>
           <small className="rp-metric-sub">Sur un total de {totalCount}</small>
@@ -173,7 +220,7 @@ export default function DepartmentsPage() {
 
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <XCircle size={14} /> Départements inactifs
+            <XCircle size={14} /> Niveaux inactifs
           </span>
           <strong className="rp-metric-value">{inactiveCount}</strong>
           <small className="rp-metric-sub">Archivés ou suspendus</small>
@@ -181,20 +228,20 @@ export default function DepartmentsPage() {
 
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <Users size={14} /> Effectif global
+            <Users size={14} /> Effectif rattaché
           </span>
           <strong className="rp-metric-value">{totalAgentsCount}</strong>
-          <small className="rp-metric-sub">Agents enregistrés</small>
+          <small className="rp-metric-sub">Agents dans votre périmètre</small>
         </div>
 
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <Building2 size={14} /> Moyenne par service
+            <Layers size={14} /> Moyenne par niveau
           </span>
           <strong className="rp-metric-value">
             {activeCount > 0 ? (totalAgentsCount / activeCount).toFixed(1) : "0"}
           </strong>
-          <small className="rp-metric-sub">Agents par département actif</small>
+          <small className="rp-metric-sub">Agents par niveau actif</small>
         </div>
       </div>
 
@@ -208,7 +255,7 @@ export default function DepartmentsPage() {
             className={`profile-tab-item ${filterStatus === "ALL" ? "active" : ""}`}
             onClick={() => setFilterStatus("ALL")}
           >
-            <span>Tous les services ({totalCount})</span>
+            <span>Tous les niveaux ({totalCount})</span>
           </button>
 
           <button
@@ -248,8 +295,8 @@ export default function DepartmentsPage() {
             <Search size={15} className="segment-icon" aria-hidden="true" />
             <div className="segment-input-group">
               <input
-                aria-label="Rechercher un département"
-                placeholder="Rechercher par nom de service…"
+                aria-label="Rechercher un niveau ou responsable"
+                placeholder="Rechercher niveau ou responsable…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="unified-search-input"
@@ -270,14 +317,18 @@ export default function DepartmentsPage() {
         </div>
       </div>
 
-      {/* Departments Table / Cards */}
+      {/* Departments Table */}
       <section className="data-section">
-        {!filteredDepartments.length ? (
+        {personnelLoading ? (
+          <div role="status" aria-label="Chargement des divisions" aria-busy="true">
+            <TableSkeleton columns={6} rows={6} />
+          </div>
+        ) : !filteredDepartments.length ? (
           <Empty
             text={
               totalCount === 0
-                ? "Aucun département enregistré pour le moment. Cliquez sur « Nouveau département » pour créer le premier."
-                : "Aucun département ne correspond aux filtres de recherche."
+                ? "Aucun niveau enregistré pour le moment."
+                : "Aucun niveau ne correspond aux filtres de recherche."
             }
           />
         ) : (
@@ -285,7 +336,8 @@ export default function DepartmentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>DÉPARTEMENT</th>
+                  <th>NIVEAU / DIVISION</th>
+                  <th>RESPONSABLE(S)</th>
                   <th>STATUT</th>
                   <th>EFFECTIF RATTACHÉ</th>
                   <th>AGENTS ACTIFS</th>
@@ -296,6 +348,7 @@ export default function DepartmentsPage() {
                 {filteredDepartments.map((dept) => {
                   const isActive = dept.isActive !== false;
                   const stats = getDepartmentStats(dept.id);
+                  const respList = dept.responsables || [];
 
                   return (
                     <tr key={dept.id}>
@@ -314,7 +367,7 @@ export default function DepartmentsPage() {
                               flexShrink: 0,
                             }}
                           >
-                            <Building2 size={16} />
+                            <Layers size={16} />
                           </span>
                           <div>
                             <strong style={{ fontSize: 13, color: isActive ? "#1a2720" : "#7d8b84" }}>
@@ -335,6 +388,33 @@ export default function DepartmentsPage() {
                       </td>
 
                       <td>
+                        {respList.length === 0 ? (
+                          <span style={{ color: "#8a968f", fontSize: 12 }}>Aucun responsable</span>
+                        ) : (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {respList.map((r) => (
+                              <span
+                                key={r.id}
+                                className="badge"
+                                style={{
+                                  background: "#edf4f0",
+                                  color: "#1e6b52",
+                                  fontSize: 11,
+                                  padding: "3px 8px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                <UserCheck size={12} />
+                                {r.prenom} {r.nom}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+
+                      <td>
                         <span className={`badge ${isActive ? "present" : "absent"}`}>
                           <i />
                           {isActive ? "Actif" : "Inactif"}
@@ -345,7 +425,7 @@ export default function DepartmentsPage() {
                         <Link
                           to={`/agents?department=${dept.id}`}
                           className="text-link"
-                          title="Voir les agents de ce département"
+                          title="Voir les agents de ce niveau"
                           style={{ gap: 4 }}
                         >
                           <strong>{stats.total}</strong> agent{stats.total > 1 ? "s" : ""}
@@ -367,25 +447,40 @@ export default function DepartmentsPage() {
 
                       <td style={{ textAlign: "right" }}>
                         <RowActionsMenu
-                          ariaLabel={`Actions pour le département ${dept.name}`}
+                          ariaLabel={`Actions pour le niveau ${dept.name}`}
                           items={[
                             {
-                              label: "Renommer",
+                              label: "Voir les agents",
+                              icon: <Users size={14} />,
+                              onClick: () => navigate(`/agents?department=${dept.id}`),
+                            },
+                            {
+                              label: "Ajouter des personnels",
+                              icon: <UserPlus size={14} />,
+                              disabled: !isActive || pending,
+                              onClick: () => setAddingPersonnelToDept(dept),
+                            },
+                            {
+                              label: "Modifier / Responsables",
                               icon: <Pencil size={14} />,
                               disabled: pending,
                               onClick: () => handleOpenRename(dept),
                             },
-                            {
-                              label: isActive ? "Désactiver le département" : "Réactiver le département",
-                              icon: <Power size={14} />,
-                              variant: isActive ? "danger" : "default",
-                              disabled: pending || (isActive && stats.active > 0),
-                              title:
-                                isActive && stats.active > 0
-                                  ? "Ce département contient des agents actifs et ne peut pas être désactivé"
-                                  : undefined,
-                              onClick: () => setConfirmToggle(dept),
-                            },
+                            ...(isCoordinator
+                              ? [
+                                  {
+                                    label: isActive ? "Désactiver le niveau" : "Réactiver le niveau",
+                                    icon: <Power size={14} />,
+                                    variant: (isActive ? "danger" : "default") as "danger" | "default",
+                                    disabled: pending || (isActive && stats.active > 0),
+                                    title:
+                                      isActive && stats.active > 0
+                                        ? "Ce niveau contient des agents actifs et ne peut pas être désactivé"
+                                        : undefined,
+                                    onClick: () => setConfirmToggle(dept),
+                                  },
+                                ]
+                              : []),
                           ]}
                         />
                       </td>
@@ -398,12 +493,12 @@ export default function DepartmentsPage() {
         )}
       </section>
 
-      {/* Modal Add / Rename */}
+      {/* Modal Add / Edit */}
       <AnimatePresence>
         {modalMode && (
           <Modal
             key="dept-modal"
-            title={modalMode === "CREATE" ? "Nouveau département" : "Renommer le département"}
+            title={modalMode === "CREATE" ? "Nouveau niveau / division" : "Modifier le niveau / division"}
             close={() => {
               if (!pending) setModalMode(null);
             }}
@@ -411,7 +506,7 @@ export default function DepartmentsPage() {
             <form onSubmit={handleSaveModal}>
               <div className="field">
                 <label htmlFor="dept-name-input">
-                  Nom du département <span style={{ color: "#a4384c" }}>*</span>
+                  Nom du niveau / division <span style={{ color: "#a4384c" }}>*</span>
                 </label>
                 <input
                   id="dept-name-input"
@@ -419,12 +514,77 @@ export default function DepartmentsPage() {
                   required
                   maxLength={100}
                   autoFocus
-                  placeholder="Ex : Informatique, Ressources Humaines, Logistique…"
+                  placeholder="Ex : L1 Informatique, M1 Gestion, Direction Technique…"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   disabled={pending}
                 />
-                <small>Nom court et explicite pour identifier le service ou pôle RH.</small>
+                <small>Nom clair et explicite pour identifier ce niveau ou division.</small>
+              </div>
+
+              <div className="field">
+                <label>Responsable(s) assigné(s)</label>
+                <div
+                  style={{
+                    maxHeight: 180,
+                    overflowY: "auto",
+                    border: "1px solid #d0ded6",
+                    borderRadius: 8,
+                    padding: "6px 8px",
+                    background: "#fcfdfc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  {membres.length === 0 ? (
+                    <small style={{ color: "#8a968f", padding: 6 }}>
+                      Aucun membre disponible dans cette organisation.
+                    </small>
+                  ) : (
+                    membres.map((m) => {
+                      const checked = selectedResponsableIds.includes(String(m.id));
+                      return (
+                        <label
+                          key={m.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "4px 6px",
+                            cursor: "pointer",
+                            fontSize: 13,
+                            borderRadius: 4,
+                            background: checked ? "#edf4f0" : "transparent",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={pending}
+                            onChange={(e) => {
+                              const sid = String(m.id);
+                              if (e.target.checked) {
+                                setSelectedResponsableIds([...selectedResponsableIds, sid]);
+                              } else {
+                                setSelectedResponsableIds(selectedResponsableIds.filter((id) => id !== sid));
+                              }
+                            }}
+                          />
+                          <span>
+                            <strong>
+                              {m.prenom} {m.nom}
+                            </strong>{" "}
+                            {!m.actif && <small style={{ color: "#a4384c" }}>(inactif)</small>}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                <small>
+                  Les responsables auront accès uniquement aux personnels, pointages et congés de ce niveau.
+                </small>
               </div>
 
               {error && (
@@ -446,12 +606,23 @@ export default function DepartmentsPage() {
                   {pending
                     ? "Enregistrement…"
                     : modalMode === "CREATE"
-                      ? "Créer le département"
+                      ? "Créer le niveau"
                       : "Enregistrer"}
                 </button>
               </footer>
             </form>
           </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Modal d'ajout / affectation de personnels à la division */}
+      <AnimatePresence>
+        {addingPersonnelToDept && (
+          <ModalAjouterPersonnelsDivision
+            division={{ id: addingPersonnelToDept.id, name: addingPersonnelToDept.name }}
+            onClose={() => setAddingPersonnelToDept(null)}
+            onSuccess={() => setAddingPersonnelToDept(null)}
+          />
         )}
       </AnimatePresence>
 
@@ -462,13 +633,13 @@ export default function DepartmentsPage() {
             key="confirm-dept-toggle"
             title={
               confirmToggle.isActive !== false
-                ? `Désactiver le département « ${confirmToggle.name} » ?`
-                : `Réactiver le département « ${confirmToggle.name} » ?`
+                ? `Désactiver le niveau « ${confirmToggle.name} » ?`
+                : `Réactiver le niveau « ${confirmToggle.name} » ?`
             }
             text={
               confirmToggle.isActive !== false
-                ? "Le département sera marqué comme inactif. Il ne pourra plus être sélectionné pour de nouveaux agents."
-                : "Le département redeviendra actif et pourra à nouveau recevoir de nouveaux agents."
+                ? "Ce niveau sera marqué comme inactif. Il ne pourra plus être sélectionné pour de nouveaux agents."
+                : "Ce niveau redeviendra actif et pourra à nouveau recevoir de nouveaux agents."
             }
             close={() => setConfirmToggle(null)}
             confirm={() => void handleToggleStatus(confirmToggle)}

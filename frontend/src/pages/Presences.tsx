@@ -22,7 +22,6 @@ import {
   Back,
   Badge,
   Empty,
-  ExportButton,
   Field,
   Heading,
   Modal,
@@ -31,9 +30,7 @@ import {
 } from "../components/ui";
 import {
   dateLabel,
-  exportCsv,
   fullName,
-  statusLabels,
   periodLabels,
   today,
 } from "../utils";
@@ -158,47 +155,13 @@ export function Presences({
     retards: "Pointages enregistrés avec retard et cumul des minutes.",
     history: "Retrouvez les pointages sur la période de votre choix.",
   }[mode];
-  const download = () =>
-    exportCsv(
-      [
-        [
-          "Date",
-          "Créneau",
-          "Agent",
-          "Service",
-          "Arrivée",
-          "Départ",
-          "Statut",
-          "Retard (min)",
-          "Motif",
-        ],
-        ...rows.map((p) => {
-          const a = db.agents.find((a) => a.id === p.agentId);
-          const slot = p.periode || p.period || "MATIN";
-          return [
-            p.date,
-            periodLabels[slot] || slot,
-            fullName(a),
-            db.departments.find((d) => d.id === a?.departmentId)?.name || "",
-            p.arrivalAt,
-            p.departureAt,
-            statusLabels[p.status],
-            String(p.lateMinutes),
-            p.note,
-          ];
-        }),
-      ],
-      `${mode}-${date}.csv`,
-    );
   return (
     <>
       <Heading
         eyebrow="SUIVI DU PERSONNEL"
         title={title}
         subtitle={subtitle}
-      >
-        <ExportButton onClick={download} />
-      </Heading>
+      />
 
       {/* Clean Tabs Navigation between tracking subviews */}
       <div className="profile-clean-tabs" role="tablist" aria-label="Modules de suivi">
@@ -406,18 +369,25 @@ export function Presences({
                 : "Choisir une date"}
           </span>
         </div>
-        {records.isError ? <p className="form-error" role="alert">{records.error.message}</p> : <Table
-          headers={[
-            "AGENT",
-            "CRÉNEAU",
-            ...(!simple ? ["DATE", "SERVICE"] : []),
-            "ARRIVÉE",
-            "DÉPART",
-            "STATUT",
-            ...(!simple ? ["RETARD"] : []),
-            "ACTIONS",
-          ]}
-          rowKeys={rows.map((p) => p.id)}
+        {records.isError ? (
+          <p className="form-error" role="alert">
+            {records.error.message}
+          </p>
+        ) : (
+          <Table
+            loading={records.isPending}
+            empty="Aucun relevé de présence pour les critères sélectionnés."
+            headers={[
+              "AGENT",
+              "CRÉNEAU",
+              ...(!simple ? ["DATE", "SERVICE"] : []),
+              "ARRIVÉE",
+              "DÉPART",
+              "STATUT",
+              ...(!simple ? ["RETARD"] : []),
+              "ACTIONS",
+            ]}
+            rowKeys={rows.map((p) => p.id)}
           rows={rows.map((p) => {
             const a = db.agents.find((a) => a.id === p.agentId);
             const slot = p.periode || p.period || "MATIN";
@@ -473,7 +443,8 @@ export function Presences({
               ),
             ];
           })}
-        />}
+        />
+        )}
       </section>
 
       <AnimatePresence>
@@ -667,16 +638,18 @@ export function PresenceDetails() {
           <h2>Journal des modifications</h2>
         </div>
         <Table
+          loading={detail.isPending}
           headers={["DATE", "AUTEUR", "ACTION", "MOTIF"]}
-          rows={detail.data.audit
-            .map((log) => [
+          rows={
+            detail.data?.audit?.map((log) => [
               new Date(log.at).toLocaleString("fr-FR", {
                 timeZone: "Indian/Antananarivo",
               }),
               log.actor,
               log.action,
               log.reason,
-            ])}
+            ]) || []
+          }
           empty="Aucune modification enregistrée"
         />
       </section>

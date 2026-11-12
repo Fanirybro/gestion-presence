@@ -1,0 +1,801 @@
+/* Parcours d'Onboarding Épuré & Minimaliste */
+
+.onboarding-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #fafbfc;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════
+   1. Barre supérieure épurée
+   ═══════════════════════════════════════════════════════ */
+.onboarding-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  background: transparent;
+}
+
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brand-icon {
+  color: #064e3b;
+}
+
+.brand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #064e3b;
+}
+
+/* Stepper minimaliste (pastilles) */
+.onboarding-steps-track {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.step-dot {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-dot.active {
+  width: 36px;
+  background: #064e3b;
+}
+
+.step-dot.done {
+  background: #10b981;
+}
+
+/* Utilisateur & déconnexion */
+.onboarding-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-email-label {
+  font-size: 0.825rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.logout-ghost-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.logout-ghost-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+/* ═══════════════════════════════════════════════════════
+   2. Modale / Carte Centrale Épurée
+   ═══════════════════════════════════════════════════════ */
+.onboarding-canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1.25rem 3.5rem 1.25rem;
+}
+
+.onboarding-card-clean {
+  width: 100%;
+  max-width: 620px;
+  background: #ffffff;
+  border: 1px solid #e8edf2;
+  border-radius: 20px;
+  padding: 2.75rem 2.5rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.onboarding-step-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.onboarding-step-header {
+  margin-bottom: 1.75rem;
+}
+
+.step-hero-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  line-height: 1.25;
+  margin: 0 0 0.4rem 0;
+}
+
+.step-hero-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   3. Étape 1 : Saisie & Avatar
+   ═══════════════════════════════════════════════════════ */
+.onboarding-field-clean {
+  margin-bottom: 1.5rem;
+}
+
+.clean-text-input {
+  width: 100%;
+  height: 52px;
+  padding: 0.75rem 1.15rem;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clean-text-input:focus {
+  outline: none;
+  border-color: #064e3b;
+  box-shadow: 0 0 0 3px rgba(6, 78, 59, 0.1);
+}
+
+.clean-text-input.center-code {
+  text-align: center;
+  font-size: 1.4rem;
+  letter-spacing: 0.12em;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.clean-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.clean-avatar-bubble {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+
+.clean-avatar-bubble:hover {
+  border-color: #064e3b;
+}
+
+.clean-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.clean-avatar-letter {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #064e3b;
+}
+
+.clean-avatar-icon {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #064e3b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+}
+
+.clean-avatar-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clean-link-action {
+  background: none;
+  border: none;
+  color: #064e3b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.clean-danger-action {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════
+   4. Étape 2 : Horaires de travail journaliers
+   ═══════════════════════════════════════════════════════ */
+.schedule-section-block {
+  margin-bottom: 1.5rem;
+}
+
+.section-field-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 0.6rem;
+}
+
+.week-pills-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.week-day-selector {
+  flex: 1;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.6rem 0.2rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  transition: all 0.15s ease;
+}
+
+.week-day-selector:hover {
+  border-color: #94a3b8;
+}
+
+.week-day-selector.selected {
+  background: #064e3b;
+  border-color: #064e3b;
+  color: #ffffff;
+}
+
+.day-name-short {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.day-check-icon {
+  color: #ffffff;
+}
+
+/* Stack des créneaux */
+.periods-config-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.period-setting-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.9rem 1.15rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.period-setting-card.active {
+  border-color: #a7f3d0;
+  background: #f8fbf9;
+}
+
+.period-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.period-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.period-icon-wrap.morning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.period-icon-wrap.afternoon {
+  background: #fed7aa;
+  color: #ea580c;
+}
+
+.period-icon-wrap.evening {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.period-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.period-meta strong {
+  font-size: 0.925rem;
+  color: #0f172a;
+}
+
+.period-meta span {
+  font-size: 0.775rem;
+  color: #64748b;
+}
+
+.period-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.time-input-group span {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.time-input-styled {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.time-input-styled:focus {
+  outline: none;
+  border-color: #064e3b;
+}
+
+.time-separator {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════
+   5. Étape 3 : Ponctualité & Heure limite d'absence
+   ═══════════════════════════════════════════════════════ */
+.ponctualite-block {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.15rem 1.25rem;
+  background: #ffffff;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ponctualite-block-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.ponctualite-icon {
+  color: #059669;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.ponctualite-icon.danger {
+  color: #dc2626;
+}
+
+.ponctualite-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ponctualite-meta strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.ponctualite-meta span {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.tolerance-selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tolerance-pill {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tolerance-pill:hover {
+  border-color: #94a3b8;
+}
+
+.tolerance-pill.active {
+  background: #064e3b;
+  border-color: #064e3b;
+  color: #ffffff;
+}
+
+.tolerance-custom-input {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.25rem;
+}
+
+.tolerance-custom-input input {
+  width: 50px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tolerance-custom-input span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* Cutoff absence rows */
+.cutoff-inputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cutoff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+}
+
+.cutoff-period-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cutoff-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cutoff-label-prefix {
+  font-size: 0.775rem;
+  color: #64748b;
+}
+
+/* ═══════════════════════════════════════════════════════
+   6. Étape 4 : Toggles Pointage
+   ═══════════════════════════════════════════════════════ */
+.clean-toggle-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.clean-toggle-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clean-toggle-item:hover {
+  background: #f8fafc;
+}
+
+.clean-toggle-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #064e3b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.clean-toggle-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.clean-toggle-info strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.clean-toggle-info span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.clean-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.clean-switch.active {
+  background: #064e3b;
+}
+
+.clean-switch-dot {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(0);
+}
+
+.clean-switch.active .clean-switch-dot {
+  transform: translateX(20px);
+}
+
+/* ═══════════════════════════════════════════════════════
+   7. Boutons & Pieds d'étape
+   ═══════════════════════════════════════════════════════ */
+.onboarding-step-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.onboarding-step-footer.spaced {
+  justify-content: space-between;
+}
+
+.clean-btn-primary {
+  background: #064e3b;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem 1.65rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease;
+}
+
+.clean-btn-primary:hover:not(:disabled) {
+  background: #047857;
+}
+
+.clean-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clean-btn-primary.full-width {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.clean-btn-ghost {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.925rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+}
+
+.clean-btn-ghost:hover {
+  color: #0f172a;
+}
+
+.onboarding-error-inline {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin: 0 0 1rem 0;
+}
+
+.onboarding-alt-switch {
+  text-align: center;
+  margin-top: 1.75rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.inline-link-btn {
+  background: none;
+  border: none;
+  color: #064e3b;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Formulaire Rejoindre & Complétion */
+.join-clean-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.clean-completion-view {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.clean-check-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.clean-code-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.75rem 0 2rem 0;
+}
+
+.clean-code-title {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.clean-code-number {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: #064e3b;
+  letter-spacing: 0.08em;
+}
+
+.clean-copy-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.clean-copy-btn:hover {
+  background: #f1f5f9;
+}
+
+.clean-completion-action {
+  width: 100%;
+}

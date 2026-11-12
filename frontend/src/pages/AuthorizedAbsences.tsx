@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { useSecretaryMode } from "../app/secretaryMode";
 import { Field, Heading, Modal, Person, Table } from "../components/ui";
 import { AgentAutocomplete } from "../components/AgentAutocomplete";
 import {
@@ -34,7 +33,6 @@ const period = (r: AuthorizedAbsence) =>
 export default function AuthorizedAbsences() {
   const { db, notify, user } = useApp();
   const canManage = user?.role === "COORDINATOR";
-  const { simple } = useSecretaryMode();
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["authorized-absences", user?.organisationId, user?.id],
@@ -85,7 +83,7 @@ export default function AuthorizedAbsences() {
     filters.start || filters.end || filters.agent || filters.department,
   );
   return (
-    <div className={`authorized-absences ${simple ? "authorized-simple" : ""}`}>
+    <div className="authorized-absences">
       <Heading
         eyebrow="RH & PLANNING"
         title="Congés et permissions"
@@ -284,7 +282,7 @@ export default function AuthorizedAbsences() {
               "EMPLOYÉ",
               "TYPE",
               "PÉRIODE",
-              ...(!simple ? ["SERVICE"] : []),
+              "SERVICE",
               "REMARQUE",
               "ACTIONS",
             ]}
@@ -320,12 +318,8 @@ export default function AuthorizedAbsences() {
                   )}
                 </div>,
                 period(r),
-                ...(!simple
-                  ? [
-                      db.departments.find((d) => d.id === agent?.departmentId)
-                        ?.name || "—",
-                    ]
-                  : []),
+                db.departments.find((d) => d.id === agent?.departmentId)
+                  ?.name || "—",
                 <span key="remark" className="absence-remark">
                   {r.remark || "—"}
                 </span>,

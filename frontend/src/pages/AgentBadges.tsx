@@ -10,6 +10,7 @@ import { Printer } from "lucide-react";
 import { useApp } from "../app/context";
 import { Back, Empty, Heading } from "../components/ui";
 import { fullName } from "../utils";
+import { generateQrCodeUrl } from "../utils/qrcode";
 
 export default function AgentBadges() {
   const { db, notify } = useApp();
@@ -48,10 +49,9 @@ export default function AgentBadges() {
     queryKey: ["badge-sheet", badges],
     enabled: Boolean(badges) && agents.length > 0,
     queryFn: async () => {
-      const { default: QRCode } = await import("qrcode");
       return Promise.all(
         agents.map((agent) =>
-          QRCode.toDataURL(
+          generateQrCodeUrl(
             badges!.find((b) => b.personnel_id === agent.id)!.token!,
             {
               width: 320,

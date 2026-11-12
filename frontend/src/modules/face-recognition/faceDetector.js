@@ -1,15 +1,10 @@
-/**
- * Service de détection faciale côté client avec face-api.js
- * Détecte les visages dans le flux vidéo et vérifie le positionnement dans le réticule.
- */
+// 
 import * as faceapi from "@vladmandic/face-api";
 
 let modelsLoaded = false;
 let modelLoadingPromise = null;
 
-/**
- * Charge les modèles TinyFaceDetector depuis /models/face-api
- */
+// 
 export async function loadFaceDetectionModels() {
   if (modelsLoaded) return true;
   if (modelLoadingPromise) return modelLoadingPromise;
@@ -38,11 +33,7 @@ export async function loadFaceDetectionModels() {
   return modelLoadingPromise;
 }
 
-/**
- * Détecte un visage unique dans l'élément vidéo
- * @param {HTMLVideoElement} video
- * @returns {Promise<faceapi.FaceDetection | null>}
- */
+// 
 export async function detectSingleFace(video) {
   if (!video || video.readyState < 2) return null;
 
@@ -60,12 +51,7 @@ export async function detectSingleFace(video) {
   }
 }
 
-/**
- * Vérifie si le visage détecté est bien positionné dans le cercle (réticule)
- * @param {faceapi.FaceDetection} detection
- * @param {HTMLVideoElement} video
- * @returns {{ isCentered: boolean, reason: string, box: any }}
- */
+// 
 export function checkFaceAlignment(detection, video) {
   if (!detection || !video) {
     return { isCentered: false, reason: "no_face", box: null };

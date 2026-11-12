@@ -2255,9 +2255,7 @@ td {
 }
 
 
-/* ═══════════════════════════════════════════════════
-   Reports module — Clean Minimal Layout (UI/UX Pro Max)
-   ═══════════════════════════════════════════════════ */
+/* Reports module — Clean Minimal Layout (UIUX ) */
 
 .rp-header-actions {
   display: flex;
@@ -2584,9 +2582,7 @@ td {
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Module Personnel — Pro Max Interactive Cards & Modal
-   ═══════════════════════════════════════════════════ */
+/* Module Personnel —  Interactive Cards & Modal */
 
 /* ── Search & Filter Toolbar ── */
 .agent-filters-bar {
@@ -2777,9 +2773,7 @@ td {
   border-color: #c9d8ce;
 }
 
-/* ═══════════════════════════════════════════════════
-   Detailed Agent & Badge Modal
-   ═══════════════════════════════════════════════════ */
+/* Detailed Agent & Badge Modal */
 .agent-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2798,7 +2792,7 @@ td {
   border-radius: 16px;
   border: 1px solid #dce5df;
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
-  width: 820px;
+  width: 960px;
   max-width: calc(100vw - 32px);
   max-height: 94vh;
   display: flex;
@@ -2894,7 +2888,7 @@ td {
 /* Modal Body Grid */
 .agent-modal-body {
   display: grid;
-  grid-template-columns: 1fr 310px;
+  grid-template-columns: 1fr 430px;
   overflow: hidden;
   flex: 1;
 }
@@ -3016,9 +3010,48 @@ td {
 .agent-badge-card-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   width: 100%;
-  gap: 8px;
+  max-width: 105mm;
+  padding: 0 2px 4px;
+}
+
+.agent-badge-format-pills {
+  display: flex;
+  background: #eaf0ec;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 3px;
+}
+
+.format-pill-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #556b60;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.format-pill-btn:hover {
+  color: #163d32;
+}
+
+.format-pill-btn.active {
+  background: #ffffff;
+  color: #163d32;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.agent-badge-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #456052;
 }
 
 .agent-badge-top-tools {
@@ -3102,13 +3135,15 @@ td {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.12);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #3b5045;
+  background: #ffffff;
+  border: 1px solid #d5dfd9;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s ease;
 }
 
 .agent-badge-dots-menu summary::-webkit-details-marker {
@@ -3292,6 +3327,69 @@ td {
   background: #faedef;
 }
 
+/* Print rules for Agent Badge Modal */
+@media print {
+  .agent-badge-dots-menu,
+  .agent-badge-dropdown,
+  .agent-badge-card-header,
+  [data-html2canvas-ignore] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body:has(.agent-modal-dialog) {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(.agent-modal-dialog) :is(.sidebar, .topbar, .app-footer, .toast, .agent-modal-header, .agent-modal-col-info, .agent-modal-close) {
+    display: none !important;
+  }
+
+  body:has(.agent-modal-dialog) .agent-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  body:has(.agent-modal-dialog) .agent-modal-dialog {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(.agent-modal-dialog) .agent-modal-body {
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  body:has(.agent-modal-dialog) .agent-modal-col-badge {
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  body:has(.agent-modal-dialog) .agent-badge-preview-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  body:has(.agent-modal-dialog) :is(.qr-badge, .qr-badge-a6) {
+    box-shadow: none !important;
+    break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
 /* Responsive Modal */
 @media (max-width: 860px) {
   .agent-modal-body {
@@ -3303,9 +3401,7 @@ td {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Clean & Seamless Profile Page
-   ═══════════════════════════════════════════════════════════════ */
+/* Clean & Seamless Profile Page */
 .profile-page-clean {
   max-width: 1100px;
 }
@@ -3402,9 +3498,7 @@ td {
   color: #1a2721;
 }
 
-/* ═══════════════════════════════════════════════════
-   Shared Clean UI Elements (UI/UX Pro Max)
-   ═══════════════════════════════════════════════════ */
+/* Shared Clean UI Elements (UIUX ) */
 
 /* Ensure Link elements styled as profile-tab-item behave identically */
 a.profile-tab-item {
@@ -3806,4 +3900,218 @@ a.profile-tab-item {
 }
 
 
-
+
+
+/* ==========================================================================
+   Modèle Administratif Officiel - Fiche Personnel (Section 6)
+   ========================================================================== */
+.admin-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-form-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-form-section:focus-within {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-section-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  flex-shrink: 0;
+}
+
+.admin-section-title-group h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.admin-section-title-group p {
+  margin: 3px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.role-indicators-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.role-checkbox-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.role-checkbox-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.role-checkbox-card.active {
+  border-color: #227057;
+  background: #f0fdf4;
+}
+
+.role-checkbox-card input[type="checkbox"] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: #227057;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.role-checkbox-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.role-checkbox-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.role-checkbox-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+/* Modal Details and Badges */
+.official-im-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+
+.authority-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.evaluator-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.account-tag-inactive {
+  display: inline-flex;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.agent-info-link {
+  color: #227057;
+  text-decoration: none;
+  font-weight: 500;
+  transition: text-decoration 0.2s;
+}
+
+.agent-info-link:hover {
+  text-decoration: underline;
+}
+
+.agent-im-badge {
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.agent-card-roles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.role-mini-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.role-mini-pill.authority {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.role-mini-pill.evaluator {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}

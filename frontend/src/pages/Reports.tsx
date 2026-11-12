@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
 import { presencesApi } from "../services/presences";
 import {
   FileText,
+  FileSpreadsheet,
   Users,
   Percent,
   Clock3,
@@ -16,13 +18,11 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { Heading } from "../components/ui";
+import { Heading, Table } from "../components/ui";
 import { fullName } from "../utils";
 import { hasPermission } from "../types";
+import { ModalExportFichePresence } from "../components/ModalExportFichePresence";
 
-/* ═══════════════════════════════════════════════════════════════
-   Helpers
-   ═══════════════════════════════════════════════════════════════ */
 function currentYM() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -45,349 +45,17 @@ function fmtDuration(minutes: number) {
   return h ? `${h}h${m.toString().padStart(2, "0")}` : `${m} min`;
 }
 
-// Palette for department comparison lines
-const DEPT_COLORS = [
-  "#227057", // Emerald Primary
-  "#2563eb", // Blue
-  "#d97706", // Amber
-  "#9333ea", // Purple
-  "#e11d48", // Rose
-  "#0891b2", // Cyan
-  "#4f46e5", // Indigo
-];
-
-/* ═══════════════════════════════════════════════════════════════
-   Interactive SVG Line Chart Component
-   ═══════════════════════════════════════════════════════════════ */
-interface TrendSeries {
-  id: string;
-  name: string;
-  color: string;
-  points: number[]; // rates per day (0-100)
-}
-
-function AttendanceTrendChart({
-  days,
-  seriesList,
-  selectedDayIndex,
-  onSelectDay,
-}: {
-  days: string[];
-  seriesList: TrendSeries[];
-  selectedDayIndex: number | null;
-  onSelectDay: (index: number | null) => void;
-}) {
-  const width = 800;
-  const height = 240;
-  const padding = { top: 20, right: 30, bottom: 35, left: 45 };
-
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const numDays = days.length;
-  const getX = (i: number) => padding.left + (numDays > 1 ? (i / (numDays - 1)) * chartW : chartW / 2);
-  const getY = (val: number) => padding.top + chartH - (val / 100) * chartH;
-
-  const yTicks = [0, 25, 50, 75, 100];
-
-  return (
-    <div className="rp-chart-container">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="rp-chart-svg"
-        preserveAspectRatio="none"
-        onMouseLeave={() => onSelectDay(null)}
-      >
-        <defs>
-          {seriesList.map((s) => (
-            <linearGradient key={`grad-${s.id}`} id={`grad-${s.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={s.color} stopOpacity="0.0" />
-            </linearGradient>
-          ))}
-        </defs>
-
-        {/* Y-axis gridlines & labels */}
-        {yTicks.map((tick) => {
-          const y = getY(tick);
-          return (
-            <g key={tick} className="rp-chart-grid">
-              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#e4e9e5" strokeDasharray="3 3" />
-              <text x={padding.left - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#8f9991">
-                {tick}%
-              </text>
-            </g>
-          );
-        })}
-
-        {/* X-axis labels (every 5 days + last day) */}
-        {days.map((dayStr, i) => {
-          const dayNum = i + 1;
-          const showLabel = dayNum === 1 || dayNum % 5 === 0 || dayNum === numDays;
-          if (!showLabel) return null;
-          const x = getX(i);
-          return (
-            <text key={dayStr} x={x} y={height - 12} textAnchor="middle" fontSize="10" fill="#8f9991">
-              {dayNum}
-            </text>
-          );
-        })}
-
-        {/* Series area & line */}
-        {seriesList.map((s) => {
-          const pointsStr = s.points.map((pt, i) => `${getX(i)},${getY(pt)}`).join(" ");
-          const areaStr = `${pointsStr} ${getX(numDays - 1)},${getY(0)} ${getX(0)},${getY(0)}`;
-
-          return (
-            <g key={s.id}>
-              {/* Shaded area (only if single main series or active) */}
-              {seriesList.length === 1 && (
-                <polygon points={areaStr} fill={`url(#grad-${s.id})`} />
-              )}
-              {/* Trend line */}
-              <polyline
-                fill="none"
-                stroke={s.color}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={pointsStr}
-              />
-              {/* Small point markers */}
-              {s.points.map((pt, i) => (
-                <circle
-                  key={i}
-                  cx={getX(i)}
-                  cy={getY(pt)}
-                  r={selectedDayIndex === i ? 5 : 2.5}
-                  fill={selectedDayIndex === i ? "#fff" : s.color}
-                  stroke={s.color}
-                  strokeWidth="2"
-                />
-              ))}
-            </g>
-          );
-        })}
-
-        {/* Active hover crosshair vertical line */}
-        {selectedDayIndex !== null && (
-          <line
-            x1={getX(selectedDayIndex)}
-            y1={padding.top}
-            x2={getX(selectedDayIndex)}
-            y2={height - padding.bottom}
-            stroke="#227057"
-            strokeWidth="1.5"
-            strokeDasharray="2 2"
-          />
-        )}
-
-        {/* Transparent hover capture rects for each day */}
-        {days.map((_, i) => {
-          const x = getX(i);
-          const colW = chartW / numDays;
-          return (
-            <rect
-              key={i}
-              x={x - colW / 2}
-              y={padding.top}
-              width={colW}
-              height={chartH}
-              fill="transparent"
-              style={{ cursor: "crosshair" }}
-              onMouseEnter={() => onSelectDay(i)}
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-/**
- * Offscreen Canvas renderer for generating crisp, high-resolution chart images for PDF reports
- */
-function generateTrendChartImage(
-  days: string[],
-  seriesList: TrendSeries[],
-  globalRate: number,
-): string {
-  try {
-    const canvas = document.createElement("canvas");
-    const dpr = 2;
-    const w = 900;
-    const h = 270;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return "";
-    ctx.scale(dpr, dpr);
-
-    // Background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
-
-    const padding = { top: 32, right: 35, bottom: 42, left: 52 };
-    const chartW = w - padding.left - padding.right;
-    const chartH = h - padding.top - padding.bottom;
-    const numDays = days.length;
-
-    const getX = (i: number) =>
-      padding.left + (numDays > 1 ? (i / (numDays - 1)) * chartW : chartW / 2);
-    const getY = (val: number) =>
-      padding.top + chartH - (Math.max(0, Math.min(100, val)) / 100) * chartH;
-
-    // Gridlines & Y-axis labels
-    const yTicks = [0, 25, 50, 75, 100];
-    ctx.strokeStyle = "#e8edea";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.fillStyle = "#7c8981";
-    ctx.font = "11px system-ui, -apple-system, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    for (const tick of yTicks) {
-      const y = getY(tick);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(w - padding.right, y);
-      ctx.stroke();
-
-      ctx.fillText(`${tick}%`, padding.left - 10, y);
-    }
-    ctx.setLineDash([]);
-
-    // Reference average line if single series and rate > 0
-    if (seriesList.length === 1 && globalRate > 0) {
-      const avgY = getY(globalRate);
-      ctx.setLineDash([6, 6]);
-      ctx.strokeStyle = "#10b981";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, avgY);
-      ctx.lineTo(w - padding.right, avgY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = "#047857";
-      ctx.font = "bold 10px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText(`Moyenne : ${globalRate}%`, padding.left + 8, avgY - 8);
-    }
-
-    // X-axis labels (days)
-    ctx.fillStyle = "#7c8981";
-    ctx.font = "11px system-ui, -apple-system, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    days.forEach((_, i) => {
-      const dayNum = i + 1;
-      const showLabel = dayNum === 1 || dayNum % 5 === 0 || dayNum === numDays;
-      if (showLabel) {
-        ctx.fillText(String(dayNum), getX(i), h - padding.bottom + 10);
-      }
-    });
-
-    // Draw series
-    for (const s of seriesList) {
-      if (!s.points.length) continue;
-
-      // Shaded area under curve (if single series)
-      if (seriesList.length === 1) {
-        const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-        grad.addColorStop(0, "rgba(34, 112, 87, 0.20)");
-        grad.addColorStop(1, "rgba(34, 112, 87, 0.01)");
-
-        ctx.beginPath();
-        ctx.moveTo(getX(0), getY(s.points[0]));
-        for (let i = 1; i < numDays; i++) {
-          ctx.lineTo(getX(i), getY(s.points[i]));
-        }
-        ctx.lineTo(getX(numDays - 1), getY(0));
-        ctx.lineTo(getX(0), getY(0));
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-      }
-
-      // Trend stroke
-      ctx.beginPath();
-      ctx.moveTo(getX(0), getY(s.points[0]));
-      for (let i = 1; i < numDays; i++) {
-        ctx.lineTo(getX(i), getY(s.points[i]));
-      }
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
-
-      // Data point nodes
-      for (let i = 0; i < numDays; i++) {
-        const cx = getX(i);
-        const cy = getY(s.points[i]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    }
-
-    // Legend
-    if (seriesList.length > 1) {
-      let legendX = w - padding.right;
-      ctx.font = "11px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      for (let idx = seriesList.length - 1; idx >= 0; idx--) {
-        const s = seriesList[idx];
-        const textWidth = ctx.measureText(s.name).width;
-        ctx.fillStyle = "#2d3832";
-        ctx.fillText(s.name, legendX, 16);
-
-        ctx.fillStyle = s.color;
-        ctx.beginPath();
-        ctx.arc(legendX - textWidth - 10, 16, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        legendX -= textWidth + 28;
-      }
-    } else if (seriesList.length === 1) {
-      const s = seriesList[0];
-      ctx.font = "11px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      const legendText = `${s.name} (${globalRate}%)`;
-      const textWidth = ctx.measureText(legendText).width;
-      const lx = w - padding.right;
-
-      ctx.fillStyle = "#2d3832";
-      ctx.fillText(legendText, lx, 16);
-
-      ctx.fillStyle = s.color;
-      ctx.beginPath();
-      ctx.arc(lx - textWidth - 10, 16, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    return canvas.toDataURL("image/png");
-  } catch (err) {
-    console.warn("Failed to generate chart image for PDF:", err);
-    return "";
-  }
-}
+import {
+  GraphiqueTendancePresence,
+  COULEURS_DEPARTEMENTS,
+  type SerieTendance,
+} from "./reports/GraphiqueTendancePresence";
+import { exporterRapportPdf } from "./reports/exportPdfRapport";
 
 type ReportTab = "summary" | "payroll";
 
-/* ═══════════════════════════════════════════════════════════════
-   Main Reports Page Component
-   ═══════════════════════════════════════════════════════════════ */
 export default function Reports() {
-  const { db, user, notify } = useApp();
+  const { db, user, notify, personnelLoading } = useApp();
 
   const [activeTab, setActiveTab] = useState<ReportTab>("summary");
   const [month, setMonth] = useState(currentYM());
@@ -395,6 +63,7 @@ export default function Reports() {
   const [showDeptComparison, setShowDeptComparison] = useState(false);
   const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [showFicheModal, setShowFicheModal] = useState(false);
 
   // Month information
   const daysInMonth = useMemo(() => getDaysInMonth(month), [month]);
@@ -420,7 +89,7 @@ export default function Reports() {
     [targetAgents],
   );
 
-  const { data: serverPresences } = useQuery({
+  const { data: serverPresences, isPending: presencesPending } = useQuery({
     queryKey: ["presences", monthStart, monthEnd],
     queryFn: () => presencesApi.list(monthStart, monthEnd),
     enabled: Boolean(monthStart && monthEnd),
@@ -441,7 +110,7 @@ export default function Reports() {
     return db.departments.filter((d) => idsWithAgents.has(d.id));
   }, [db.agents, db.departments]);
 
-  // 1. Table Data per Agent
+  // données par agent
   const tableRows = useMemo(() => {
     return targetAgents.map((a) => {
       const records = monthAttendance.filter((p) => p.agentId === a.id);
@@ -454,7 +123,7 @@ export default function Reports() {
     });
   }, [targetAgents, monthAttendance, db.departments]);
 
-  // 2. Global KPIs
+  // indicateurs globaux
   const totalEffectif = targetAgents.length;
   const totalRetardsMin = useMemo(() => {
     return monthAttendance.reduce((sum, p) => sum + (p.lateMinutes || 0), 0);
@@ -471,8 +140,8 @@ export default function Reports() {
     return Math.round((presentRecords / totalExpected) * 100);
   }, [monthAttendance]);
 
-  // 3. Trend Series Calculation
-  const trendSeries = useMemo<TrendSeries[]>(() => {
+  // calcul des tendances
+  const trendSeries = useMemo<SerieTendance[]>(() => {
     if (!showDeptComparison) {
       // Single overall rate
       const points = daysInMonth.map((dayStr) => {
@@ -510,7 +179,7 @@ export default function Reports() {
         return {
           id: dept.id,
           name: dept.name,
-          color: DEPT_COLORS[idx % DEPT_COLORS.length],
+          color: COULEURS_DEPARTEMENTS[idx % COULEURS_DEPARTEMENTS.length],
           points,
         };
       });
@@ -522,113 +191,27 @@ export default function Reports() {
     if (pdfBusy) return;
     setPdfBusy(true);
     try {
-      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-        import("jspdf"),
-        import("jspdf-autotable"),
-      ]);
-
-      const doc = new jsPDF();
       const orgName = db.settings.organization || "Présence RH";
       const orgAddress = db.settings.address || "";
       const deptFilterLabel = department
         ? (db.departments.find((d) => d.id === department)?.name ?? "")
         : "Tous les services";
 
-      // Header
-      doc.setFontSize(16);
-      doc.setTextColor(34, 112, 87);
-      doc.text(orgName, 14, 18);
-
-      doc.setFontSize(9);
-      doc.setTextColor(120, 130, 125);
-      if (orgAddress) doc.text(orgAddress, 14, 24);
-
-      doc.setFontSize(14);
-      doc.setTextColor(30, 40, 35);
-      doc.text(`Rapport de Paie & Synthèse RH — ${monthLabel}`, 14, 36);
-
-      doc.setFontSize(10);
-      doc.setTextColor(90, 100, 95);
-      doc.text(`Filtre : ${deptFilterLabel} | Date d'émission : ${new Date().toLocaleDateString("fr-FR")}`, 14, 43);
-
-      // Draw KPI Box
-      doc.setDrawColor(220, 230, 225);
-      doc.setFillColor(245, 248, 246);
-      doc.roundedRect(14, 48, 182, 22, 2, 2, "FD");
-
-      doc.setFontSize(9);
-      doc.setTextColor(90, 100, 95);
-      doc.text("EFFECTIF TOTAL", 20, 56);
-      doc.text("TAUX DE PRÉSENCE", 65, 56);
-      doc.text("CUMUL RETARDS", 115, 56);
-      doc.text("ABSENCES TOTALES", 160, 56);
-
-      doc.setFontSize(12);
-      doc.setTextColor(30, 40, 35);
-      doc.text(String(totalEffectif), 20, 64);
-      doc.text(`${globalPresenceRate}%`, 65, 64);
-      doc.text(fmtDuration(totalRetardsMin), 115, 64);
-      doc.text(String(totalAbsences), 160, 64);
-
-      // Section: Graphique Évaluation de l'assiduité
-      let tableStartY = 78;
-      const chartImg = generateTrendChartImage(daysInMonth, trendSeries, globalPresenceRate);
-      if (chartImg) {
-        doc.setFontSize(11);
-        doc.setTextColor(34, 112, 87);
-        doc.text("Évaluation de l'assiduité — Taux de présence journalier", 14, 78);
-
-        doc.setFontSize(8.5);
-        doc.setTextColor(120, 130, 125);
-        doc.text("Évolution quotidienne du taux de présence sur l'ensemble du mois", 14, 82.5);
-
-        // Chart container frame
-        doc.setDrawColor(225, 232, 228);
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(14, 85, 182, 54, 2, 2, "FD");
-
-        doc.addImage(chartImg, "PNG", 14.5, 85.5, 181, 53);
-
-        // Section: Tableau Récapitulatif
-        doc.setFontSize(11);
-        doc.setTextColor(34, 112, 87);
-        doc.text("Bilan Détaillé par Agent", 14, 147);
-
-        tableStartY = 151;
-      } else {
-        doc.setFontSize(11);
-        doc.setTextColor(34, 112, 87);
-        doc.text("Bilan Détaillé par Agent", 14, 78);
-        tableStartY = 82;
-      }
-
-      autoTable(doc, {
-        startY: tableStartY,
-        head: [["Agent", "Service", "Jours trav.", "Cumul retards", "Abs. injust.", "Abs. just."]],
-        body: tableRows.map((r) => [
-          fullName(r.agent),
-          r.dept,
-          r.worked,
-          fmtDuration(r.lateMin),
-          r.absences,
-          r.justified,
-        ]),
-        styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [34, 112, 87], textColor: 255 },
-        alternateRowStyles: { fillColor: [248, 250, 249] },
-        margin: { bottom: 25 },
-        didDrawPage: () => {
-          doc.setFontSize(8);
-          doc.setTextColor(140, 145, 140);
-          doc.text(
-            `Document officiel RH — ${orgName} · Page ${doc.getNumberOfPages()}`,
-            14,
-            285,
-          );
-        },
+      await exporterRapportPdf({
+        nomOrganisation: orgName,
+        adresseOrganisation: orgAddress,
+        mois: month,
+        libelleMois: monthLabel,
+        libelleFiltreDepartement: deptFilterLabel,
+        effectifTotal: totalEffectif,
+        tauxPresenceGlobal: globalPresenceRate,
+        cumulRetardsMin: totalRetardsMin,
+        totalAbsences,
+        joursDuMois: daysInMonth,
+        seriesTendance: trendSeries,
+        lignesTableau: tableRows,
+        formaterDuree: fmtDuration,
       });
-
-      doc.save(`rapport-presence-${month}.pdf`);
       notify("Rapport PDF généré avec succès.");
     } catch {
       notify("Échec de génération du PDF.", true);
@@ -646,6 +229,14 @@ export default function Reports() {
       >
         {hasPermission(user, "reports_print") && (
           <div className="rp-header-actions">
+            <button
+              className="button"
+              onClick={() => setShowFicheModal(true)}
+              title="Générer une fiche de présence officielle (Portrait ou Paysage)"
+            >
+              <FileSpreadsheet size={15} />
+              <span>Imprimer une fiche de présence</span>
+            </button>
             <button
               className="button primary"
               onClick={handleExportPdf}
@@ -842,11 +433,11 @@ export default function Reports() {
               </div>
 
               {/* SVG Line Chart */}
-              <AttendanceTrendChart
-                days={daysInMonth}
-                seriesList={trendSeries}
-                selectedDayIndex={hoveredDayIdx}
-                onSelectDay={setHoveredDayIdx}
+              <GraphiqueTendancePresence
+                jours={daysInMonth}
+                listeSeries={trendSeries}
+                indexJourSelectionne={hoveredDayIdx}
+                surSelectionJour={setHoveredDayIdx}
               />
             </section>
           )}
@@ -868,46 +459,65 @@ export default function Reports() {
                 </div>
               </div>
 
-              {tableRows.length > 0 ? (
-                <div className="rp-table-container">
-                  <table className="rp-data-table">
-                    <thead>
-                      <tr>
-                        <th>Agent</th>
-                        <th>Service</th>
-                        <th className="num">Jours travaillés</th>
-                        <th className="num">Cumul retards</th>
-                        <th className="num">Abs. injustifiées</th>
-                        <th className="num">Abs. justifiées</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableRows.map((r) => (
-                        <tr key={r.agent.id}>
-                          <td className="agent-col">
-                            <strong>{fullName(r.agent)}</strong>
-                            <small>{r.agent.position || "Employé"}</small>
-                          </td>
-                          <td>{r.dept}</td>
-                          <td className="num">{r.worked} j</td>
-                          <td className={`num${r.lateMin > 0 ? " warn" : ""}`}>
-                            {fmtDuration(r.lateMin)}
-                          </td>
-                          <td className={`num${r.absences > 0 ? " danger" : ""}`}>
-                            {r.absences} j
-                          </td>
-                          <td className="num">{r.justified} j</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="rp-empty">Aucun agent ou donnée de présence trouvé pour cette sélection.</p>
-              )}
+              <Table
+                loading={presencesPending || personnelLoading}
+                pageSize={8}
+                headers={[
+                  "AGENT",
+                  "SERVICE",
+                  "JOURS TRAVAILLÉS",
+                  "CUMUL RETARDS",
+                  "ABS. INJUSTIFIÉES",
+                  "ABS. JUSTIFIÉES",
+                ]}
+                empty="Aucun agent ou donnée de présence trouvé pour cette sélection."
+                rowKeys={tableRows.map((r) => r.agent.id)}
+                rows={tableRows.map((r) => [
+                  <div key="agent" className="agent-col">
+                    <strong>{fullName(r.agent)}</strong>
+                    <small style={{ display: "block", color: "#64748b", fontSize: "11px" }}>
+                      {r.agent.position || "Employé"}
+                    </small>
+                  </div>,
+                  <span key="dept" style={{ fontWeight: 500, color: "#2d3748" }}>{r.dept}</span>,
+                  <span key="worked" style={{ fontWeight: 600 }}>
+                    {r.worked} j
+                  </span>,
+                  <span
+                    key="late"
+                    style={{
+                      color: r.lateMin > 0 ? "#b45309" : undefined,
+                      fontWeight: r.lateMin > 0 ? 600 : undefined,
+                    }}
+                  >
+                    {fmtDuration(r.lateMin)}
+                  </span>,
+                  <span
+                    key="absences"
+                    style={{
+                      color: r.absences > 0 ? "#dc2626" : undefined,
+                      fontWeight: r.absences > 0 ? 600 : undefined,
+                    }}
+                  >
+                    {r.absences} j
+                  </span>,
+                  <span key="justified" style={{ fontWeight: 500 }}>
+                    {r.justified} j
+                  </span>,
+                ])}
+              />
             </section>
           )}
         </div>
+
+      <AnimatePresence>
+        {showFicheModal && (
+          <ModalExportFichePresence
+            defaultDivisionId={department}
+            onClose={() => setShowFicheModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

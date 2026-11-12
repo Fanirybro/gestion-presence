@@ -12,14 +12,10 @@ import {
   XCircle,
   LoaderCircle,
   ScanLine,
-  CircleHelp,
-  QrCode,
-  Video,
 } from "lucide-react";
-import { useSecretaryMode } from "../app/secretaryMode";
 import { useApp } from "../app/context";
 import { Heading, Person, Empty } from "../components/ui";
-import { dateLabel, nowTime, today } from "../utils";
+import { today } from "../utils";
 export default function ScanPage() {
   const { db, user, update } = useApp();
   const events = useQuery({
@@ -50,8 +46,6 @@ export default function ScanPage() {
   }, [events.data]);
   const scans = events.data?.scans ?? [];
   const retry = useRef<{ token: string; key: string } | null>(null);
-  const { simple } = useSecretaryMode();
-  const [help, setHelp] = useState(false);
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -154,52 +148,35 @@ export default function ScanPage() {
     }
   };
   return (
-    <div className={simple ? "simple-scan" : undefined}>
-      {simple ? (
-        <SimpleScanHeading />
-      ) : (
-        <Heading
-          title="Pointage QR"
-          subtitle="Arrivées et départs · Heure de Madagascar"
-        >
-          <span className="date-chip">
-            <span className="online-dot" />
-            {today()}
-          </span>
-        </Heading>
-      )}
+    <div>
+      <Heading
+        title="Pointage QR"
+        subtitle="Arrivées et départs · Heure de Madagascar"
+      >
+        <span className="date-chip">
+          <span className="online-dot" />
+          {today()}
+        </span>
+      </Heading>
       <div className="scan-layout">
         <section className="scanner-section">
-          {!simple && (
-            <div className="section-heading">
-              <h2>
-                <ScanLine size={20} />
-                Scanner un badge
-              </h2>
-              <span className={`badge ${running ? "present" : ""}`}>
-                {running ? "Caméra active" : "Caméra arrêtée"}
-              </span>
-            </div>
-          )}
+          <div className="section-heading">
+            <h2>
+              <ScanLine size={20} />
+              Scanner un badge
+            </h2>
+            <span className={`badge ${running ? "present" : ""}`}>
+              {running ? "Caméra active" : "Caméra arrêtée"}
+            </span>
+          </div>
           <div className="camera-frame">
             <div id="qr-reader" />
             {!running && !starting && (
               <div className="camera-placeholder">
                 <div className="scan-target">
-                  {simple ? (
-                    <div
-                      className="simple-badge-illustration"
-                      aria-hidden="true"
-                    >
-                      <i />
-                      <QrCode strokeWidth={1.5} />
-                      <i />
-                    </div>
-                  ) : (
-                    <QrVisual />
-                  )}
+                  <QrVisual />
                 </div>
-                {!simple && <h3>Prêt pour le prochain pointage</h3>}
+                <h3>Prêt pour le prochain pointage</h3>
                 <button className="button primary" onClick={start}>
                   <Camera size={18} />
                   Activer la caméra
@@ -221,119 +198,61 @@ export default function ScanPage() {
               <ScanFeedback state={feedback.state} message={feedback.message} />
             )}
           </div>
-          {simple && (
-            <p className="simple-camera-state" role="status">
-              {running ? (
-                <Video aria-hidden="true" />
-              ) : (
-                <CameraOff aria-hidden="true" />
-              )}
-              {starting
-                ? "Ouverture de la caméra…"
-                : running
-                  ? "Caméra active · Prêt à scanner"
-                  : "Caméra arrêtée · Activez-la pour scanner"}
-            </p>
-          )}
           {error && (
             <div className="form-error" role="alert">
               {error}
             </div>
           )}
-          <details
-            className="scan-help"
-            open={!simple || help}
-            onToggle={(event) => {
-              if (simple) setHelp(event.currentTarget.open);
-            }}
-          >
-            <summary hidden={!simple}>
-              <CircleHelp aria-hidden="true" />
-              Besoin d’aide ?
-            </summary>
-            {simple && (
-              <div className="scan-help-instructions">
-                <h2>Comment scanner votre badge</h2>
-                <p>
-                  Activez la caméra et autorisez son accès dans le navigateur.
-                  Placez le QR code face à l’objectif, puis attendez la
-                  confirmation du pointage.
-                </p>
-                <p>
-                  Si le badge n’est pas reconnu, rapprochez-le et vérifiez
-                  l’éclairage.
-                </p>
-              </div>
-            )}
-            {running && (
+          {running && (
+            <div style={{ marginTop: "16px" }}>
               <button className="button scan-stop" onClick={stop}>
                 <CameraOff size={17} />
                 Arrêter la caméra
               </button>
-            )}
-          </details>
-        </section>
-        {!simple && (
-          <section className="recent-scans">
-            <div className="section-heading">
-              <h2>Derniers scans</h2>
-              <span className="count">
-                {scans.filter((s) => s.at.slice(0, 10) === today()).length}
-              </span>
             </div>
-            {events.isError ? (
-              <p role="alert">
-                Historique indisponible.{" "}
-                <button
-                  className="text-link"
-                  onClick={() => void events.refetch()}
-                >
-                  Réessayer
-                </button>
-              </p>
-            ) : scans.length ? (
-              scans.slice(0, 8).map((s) => (
-                <div className="scan-row" key={s.id}>
-                  <Person agent={db.agents.find((a) => a.id === s.agentId)} />
-                  <div>
-                    <span className={s.type === "ARRIVAL" ? "green-text" : ""}>
-                      {s.type === "ARRIVAL" ? "Arrivée" : "Départ"}
-                    </span>
-                    <small>
-                      {new Date(s.at).toLocaleTimeString("fr-FR", {
-                        timeZone: "Indian/Antananarivo",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </small>
-                  </div>
+          )}
+        </section>
+        <section className="recent-scans">
+          <div className="section-heading">
+            <h2>Derniers scans</h2>
+            <span className="count">
+              {scans.filter((s) => s.at.slice(0, 10) === today()).length}
+            </span>
+          </div>
+          {events.isError ? (
+            <p role="alert">
+              Historique indisponible.{" "}
+              <button
+                className="text-link"
+                onClick={() => void events.refetch()}
+              >
+                Réessayer
+              </button>
+            </p>
+          ) : scans.length ? (
+            scans.slice(0, 8).map((s) => (
+              <div className="scan-row" key={s.id}>
+                <Person agent={db.agents.find((a) => a.id === s.agentId)} />
+                <div>
+                  <span className={s.type === "ARRIVAL" ? "green-text" : ""}>
+                    {s.type === "ARRIVAL" ? "Arrivée" : "Départ"}
+                  </span>
+                  <small>
+                    {new Date(s.at).toLocaleTimeString("fr-FR", {
+                      timeZone: "Indian/Antananarivo",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </small>
                 </div>
-              ))
-            ) : (
-              <Empty text="Aucun pointage" />
-            )}
-          </section>
-        )}
+              </div>
+            ))
+          ) : (
+            <Empty text="Aucun pointage" />
+          )}
+        </section>
       </div>
     </div>
-  );
-}
-function SimpleScanHeading() {
-  const [clock, setClock] = useState(() => ({ day: today(), time: nowTime() }));
-  useEffect(() => {
-    const timer = setInterval(
-      () => setClock({ day: today(), time: nowTime() }),
-      10000,
-    );
-    return () => clearInterval(timer);
-  }, []);
-  return (
-    <header className="simple-scan-heading">
-      <time>{clock.time}</time>
-      <p className="simple-scan-date">{dateLabel(clock.day, true)}</p>
-      <h1>Présentez votre badge</h1>
-      <p>Placez le QR code devant la caméra</p>
-    </header>
   );
 }
 function QrVisual() {

@@ -22,7 +22,9 @@ export function presenceController(action, { coordinator = false } = {}) {
       await client.query("BEGIN");
       await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [req.user.organisation_id]);
       const actor = await loadAccount(client, { id: String(req.session.userId), organisationId: req.user.organisation_id });
-      if (!actor?.actif || String(actor.organisation_id) !== String(req.user.organisation_id) || (coordinator && actor.role !== "COORDINATOR")) fail(403, "Accès non autorisé.");
+      if (!actor?.actif || String(actor.organisation_id) !== String(req.user.organisation_id)) fail(403, "Accès non autorisé.");
+      if (coordinator && actor.role !== "COORDINATOR") fail(403, "Accès non autorisé.");
+      req.actor = actor;
       const result = await action(req, client);
       await client.query("COMMIT");
       res.json(result);
@@ -48,9 +50,10 @@ export const attendanceSelect = `SELECT p.id, p.personnel_id AS "agentId", to_ch
   p.updated_at::text AS version FROM presences_journalieres p JOIN organisations o ON o.id = p.organisation_id`;
 export async function attendanceById(client, org, id) {
   const row = (await client.query(attendanceSelect + " WHERE p.organisation_id = $1 AND p.id = $2", [org, id])).rows[0];
-  if (!row) fail(404, "Relevé introuvable.");
+  if (!row) fail(404, "Pointage introuvable.");
   return row;
 }
+
 // Materialize missing absences per slot (MATIN, APRES_MIDI, SOIR) as soon as its cutoff has passed.
 // Never replace an arrival or an explicit manual correction.
 export async function reconcileAbsences(client, org, start, end) {
@@ -75,6 +78,7 @@ export async function reconcileAbsences(client, org, start, end) {
     WHERE presences_journalieres.source = 'AUTOMATIC' AND presences_journalieres.arrivee_at IS NULL
       AND presences_journalieres.statut IS DISTINCT FROM EXCLUDED.statut`, [org, start, end]);
 }
+
 export function lateForArrival(schedules, date, arrivalDate, time) {
   const offset = (Date.parse(arrivalDate) - Date.parse(date)) / 86400000;
   const minute = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));

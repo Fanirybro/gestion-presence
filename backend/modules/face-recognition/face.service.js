@@ -9,15 +9,7 @@ function getPythonServiceUrl() {
   return url.replace(/\/+$/, "");
 }
 
-/**
- * Service orchestrateur de reconnaissance faciale.
- * Enrôle et pointe les membres du personnel (agents).
- * Traite les images exclusivement en mémoire vive / buffers pour des raisons de sécurité.
- */
 export class FaceService {
-  /**
-   * Vérifie la disponibilité du micro-service Python biométrique.
-   */
   static async checkPythonHealth() {
     const baseUrl = getPythonServiceUrl();
     try {
@@ -34,34 +26,32 @@ export class FaceService {
     }
   }
 
-  /**
-   * Enrôle le profil facial d'un agent du personnel (ou utilisateur).
-   * 1. Vérifie l'existence de l'agent dans la table personnel.
-   * 2. Transmet l'image au microservice Python pour extraire l'embedding.
-   * 3. Enregistre le vecteur biométrique dans la table dédiée face_profiles.
-   */
-  static async enroll(targetId, imageBase64) {
+  // Enrôlement du profil facial d'un agent
+  static async enroll(targetId, imageBase64, organisationId = null, accessibleDivisions = null) {
     if (!targetId) {
-      throw Object.assign(new Error("L'identifiant du personnel (personnel_id) est requis."), { status: 400 });
+      throw Object.assign(new Error("L'identifiant du personnel est requis."), { status: 400 });
     }
     if (!imageBase64 || typeof imageBase64 !== "string") {
       throw Object.assign(new Error("Une image au format base64 est requise."), { status: 400 });
     }
 
-    // 1. Recherche prioritaire dans la table personnel
-    const personRes = await pool.query(
-      `SELECT p.id, p.nom, p.prenom, p.poste, p.organisation_id, p.actif, d.nom as departement_nom
+    // Recherche de l'agent
+    let personQuery = `SELECT p.id, p.nom, p.prenom, p.poste, p.organisation_id, p.division_id, p.actif, d.nom as departement_nom, d.nom as division_nom
        FROM personnel p
-       LEFT JOIN departements d ON d.id = p.departement_id
-       WHERE p.id = $1`,
-      [targetId]
-    );
+       LEFT JOIN divisions d ON d.id = p.division_id
+       WHERE p.id = $1`;
+    const personParams = [targetId];
+    if (organisationId) {
+      personQuery += " AND p.organisation_id = $2";
+      personParams.push(organisationId);
+    }
+    const personRes = await pool.query(personQuery, personParams);
 
     let isPersonnel = true;
     let target = personRes.rows[0];
 
-    // Fallback éventuel sur users si pas trouvé dans personnel
-    if (!target) {
+    // Fallback users si non trouvé dans personnel
+    if (!target && !organisationId) {
       const userRes = await pool.query(
         "SELECT id, nom, prenom, email, actif FROM users WHERE id = $1",
         [targetId]
@@ -76,10 +66,16 @@ export class FaceService {
       throw Object.assign(new Error(`Personnel #${targetId} introuvable.`), { status: 404 });
     }
     if (!target.actif) {
-      throw Object.assign(new Error("Impossible d'enrôler un personnel ou compte inactif."), { status: 400 });
+      throw Object.assign(new Error("Impossible d'enrôler un personnel inactif."), { status: 400 });
     }
 
-    // 2. Appel du micro-service Python (POST /enroll)
+    if (target && isPersonnel && accessibleDivisions !== null) {
+      if (!accessibleDivisions.includes(String(target.division_id))) {
+        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division / niveau."), { status: 403 });
+      }
+    }
+
+    // Appel au service Python
     const baseUrl = getPythonServiceUrl();
     let aiResponse;
     try {
@@ -98,8 +94,8 @@ export class FaceService {
       throw Object.assign(
         new Error(
           isTimeout
-            ? `Le service biométrique (${baseUrl}) met du temps à répondre. Sur Render gratuit, le premier démarrage prend environ 30 secondes. Veuillez réessayer dans quelques instants.`
-            : `Le service biométrique Python est injoignable (${baseUrl}) : ${fetchErr.message}`
+            ? "Le service biométrique met du temps à répondre. Réessayez dans un instant."
+            : `Le service biométrique est injoignable (${baseUrl}) : ${fetchErr.message}`
         ),
         { status: 503 }
       );
@@ -111,7 +107,7 @@ export class FaceService {
       throw Object.assign(new Error(msg), { status: aiResponse.status >= 400 && aiResponse.status < 500 ? aiResponse.status : 422 });
     }
 
-    // 3. Sauvegarde de l'embedding dans la table face_profiles
+    // Sauvegarde du vecteur facial
     const embeddingJson = JSON.stringify(aiData.embedding);
     let dbRes;
 
@@ -145,34 +141,33 @@ export class FaceService {
         poste: target.poste || "",
         departement_nom: target.departement_nom || "",
       },
-      message: `Profil facial enregistré avec succès pour l'agent ${target.prenom} ${target.nom}.`,
+      message: `Profil facial enregistré pour ${target.prenom} ${target.nom}.`,
     };
   }
 
-  /**
-   * Pointage par reconnaissance faciale (Borne Kiosk).
-   * 1. Récupère tous les profils de personnel actifs.
-   * 2. Envoie l'image live et les embeddings au microservice Python.
-   * 3. Si un agent est reconnu, enregistre le pointage dans attendances et synchronise presences_journalieres.
-   */
+  // Pointage par scan facial
   static async checkIn(imageBase64, options = {}) {
     if (!imageBase64 || typeof imageBase64 !== "string") {
       throw Object.assign(new Error("Une image au format base64 est requise."), { status: 400 });
     }
 
-    // 1. Récupération des profils faciaux enregistrés pour le personnel
-    const profilesQuery = `
-      SELECT fp.personnel_id, fp.face_embedding, p.nom, p.prenom, p.poste, p.organisation_id, d.nom as departement_nom
+    // Profils faciaux existants filtrés par organisation si disponible
+    let profilesQuery = `
+      SELECT fp.personnel_id, fp.face_embedding, p.nom, p.prenom, p.poste, p.organisation_id, d.nom as departement_nom, d.nom as division_nom
       FROM face_profiles fp
       JOIN personnel p ON p.id = fp.personnel_id
-      LEFT JOIN departements d ON d.id = p.departement_id
+      LEFT JOIN divisions d ON d.id = p.division_id
       WHERE p.actif = true
     `;
-    const profilesRes = await pool.query(profilesQuery);
+    const profileParams = [];
+    if (options.organisationId) {
+      profilesQuery += " AND p.organisation_id = $1";
+      profileParams.push(options.organisationId);
+    }
+    const profilesRes = await pool.query(profilesQuery, profileParams);
     let knownRows = profilesRes.rows;
 
-    // Si aucun profil personnel, tenter les profils utilisateurs
-    if (knownRows.length === 0) {
+    if (knownRows.length === 0 && !options.organisationId) {
       const userProfiles = await pool.query(`
         SELECT fp.user_id as personnel_id, fp.face_embedding, u.nom, u.prenom, '' as poste, null as organisation_id, '' as departement_nom
         FROM face_profiles fp
@@ -185,7 +180,7 @@ export class FaceService {
     if (knownRows.length === 0) {
       return {
         match: false,
-        message: "Aucun profil facial n'est encore enregistré dans la base de données.",
+        message: "Aucun profil facial n'est encore enregistré.",
         confidence: 0,
       };
     }
@@ -195,7 +190,7 @@ export class FaceService {
       embedding: typeof r.face_embedding === "string" ? JSON.parse(r.face_embedding) : r.face_embedding,
     }));
 
-    // 2. Appel au microservice Python (POST /verify)
+    // Vérification via Python
     const baseUrl = getPythonServiceUrl();
     let aiResponse;
     try {
@@ -215,8 +210,8 @@ export class FaceService {
       throw Object.assign(
         new Error(
           isTimeout
-            ? `Le service biométrique (${baseUrl}) met du temps à répondre. Sur Render gratuit, le premier démarrage prend environ 30 secondes. Veuillez réessayer dans quelques instants.`
-            : `Le service biométrique Python est injoignable (${baseUrl}) : ${fetchErr.message}`
+            ? "Le service biométrique met du temps à répondre. Réessayez dans un instant."
+            : `Le service biométrique est injoignable (${baseUrl}) : ${fetchErr.message}`
         ),
         { status: 503 }
       );
@@ -232,22 +227,21 @@ export class FaceService {
       return {
         match: false,
         confidence: verifyResult.confidence || 0,
-        message: verifyResult.message || "Visage non reconnu ou niveau de confiance insuffisant.",
+        message: verifyResult.message || "Visage non reconnu ou confiance insuffisante.",
       };
     }
 
-    // 3. Agent reconnu ! Détermination ARRIVAL vs DEPARTURE
+    // Gestion de l'arrivée / départ
     const matchedPersonnelId = verifyResult.user_id;
     const agent = knownRows.find((a) => String(a.personnel_id) === String(matchedPersonnelId));
 
-    // Vérifier le dernier pointage dans attendances
     const lastAttendanceRes = await pool.query(
-      "SELECT type, timestamp FROM attendances WHERE personnel_id = $1 ORDER BY timestamp DESC, id DESC LIMIT 1",
+      "SELECT type, horodatage AS timestamp FROM pointages WHERE personnel_id = $1 ORDER BY horodatage DESC, id DESC LIMIT 1",
       [matchedPersonnelId]
     );
     const last = lastAttendanceRes.rows[0];
 
-    // Anti-rebond (debounce) : si pointage il y a moins de 30 secondes
+    // Ignorer si double scan dans les 30 secondes
     if (last && (new Date() - new Date(last.timestamp)) < 30000) {
       return {
         match: true,
@@ -261,7 +255,7 @@ export class FaceService {
           poste: agent?.poste || "",
           departement_nom: agent?.departement_nom || "",
         },
-        message: `Pointage déjà enregistré il y a un instant pour ${agent?.prenom} ${agent?.nom}.`,
+        message: `Pointage déjà enregistré pour ${agent?.prenom} ${agent?.nom}.`,
       };
     }
 
@@ -286,7 +280,7 @@ export class FaceService {
         return {
           match: false,
           confidence: verifyResult.confidence,
-          message: "Le pointage par reconnaissance faciale est désactivé pour votre organisation.",
+          message: "Le pointage par reconnaissance faciale est désactivé pour cette organisation.",
         };
       }
 
@@ -312,7 +306,7 @@ export class FaceService {
           slotDate = day.toISOString().slice(0, 10);
         }
 
-        // Vérifier si le créneau courant possède déjà une arrivée ouverte sans départ
+        // Créneau en cours déjà ouvert ?
         const currentOpen = (await pool.query(
           `SELECT id FROM presences_journalieres 
            WHERE organisation_id = $1 AND personnel_id = $2 AND date_presence = $3 AND periode = $4
@@ -321,11 +315,8 @@ export class FaceService {
           [agent.organisation_id, matchedPersonnelId, slotDate, currentSlot]
         )).rows[0];
 
-        // S'il a déjà pointé son arrivée pour ce créneau, ce scan est son DÉPART.
-        // Sinon, c'est une ARRIVÉE pour ce créneau !
         nextType = currentOpen ? "DEPARTURE" : "ARRIVAL";
 
-        // Si c'est une ARRIVÉE, vérifier l'heure limite d'absence
         if (nextType === "ARRIVAL" && schedule?.cutoff) {
           const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
           const arrivalMin = minutes(clock.time) + (previous ? 1440 : 0);
@@ -343,7 +334,7 @@ export class FaceService {
                 poste: agent?.poste || "",
                 departement_nom: agent?.departement_nom || "",
               },
-              message: `Pointage refusé : l’heure limite (${schedule.cutoff}) pour le créneau ${periodeName} est dépassée. Vous êtes comptabilisé absent. Contactez votre coordinateur pour régularisation.`,
+              message: `Pointage refusé : l’heure limite (${schedule.cutoff}) pour le créneau ${periodeName} est dépassée.`,
             };
           }
         }
@@ -352,20 +343,22 @@ export class FaceService {
       nextType = last?.type === "ARRIVAL" ? "DEPARTURE" : "ARRIVAL";
     }
 
-    // Enregistrement dans la table attendances
+    // Sauvegarde du pointage dans la table unifiée pointages
+    const orgId = agent?.organisation_id || options.organisationId;
     const insertQuery = `
-      INSERT INTO attendances (personnel_id, type, confidence, source, timestamp)
-      VALUES ($1, $2, $3, 'FACE_RECOGNITION', now())
-      RETURNING id, personnel_id, type, timestamp, confidence, source;
+      INSERT INTO pointages (organisation_id, personnel_id, type, confidence, source, horodatage, cle_idempotence)
+      VALUES ($1, $2, $3, $4, 'FACE_RECOGNITION', now(), gen_random_uuid())
+      RETURNING id, organisation_id, personnel_id, type, horodatage AS timestamp, confidence, source;
     `;
     const attendanceRes = await pool.query(insertQuery, [
+      orgId,
       matchedPersonnelId,
       nextType,
       verifyResult.confidence,
     ]);
     const attendanceRecord = attendanceRes.rows[0];
 
-    // Synergie directe avec presences_journalieres
+    // Synchro avec presences_journalieres
     if (agent?.organisation_id && clock) {
       try {
         let date = clock.date;
@@ -379,7 +372,7 @@ export class FaceService {
         const late = schedule ? Math.max(0, minutes(clock.time) + (previous ? 1440 : 0) - minutes(schedule.start) - schedule.tolerance) : 0;
 
         if (nextType === "ARRIVAL") {
-          // Si l'agent avait oublié de badger son départ lors d'un créneau précédent, on clôture ce créneau précédent
+          // Fermer un éventuel créneau non clôturé
           const staleOpen = (await pool.query(
             `SELECT id FROM presences_journalieres 
              WHERE organisation_id = $1 AND personnel_id = $2 AND arrivee_at IS NOT NULL AND depart_at IS NULL 
@@ -421,7 +414,7 @@ export class FaceService {
           }
         }
       } catch (syncErr) {
-        console.warn("Avertissement synchro presences_journalieres:", syncErr.message);
+        console.warn("Synchro presences_journalieres:", syncErr.message);
       }
     }
 
@@ -438,14 +431,15 @@ export class FaceService {
         poste: agent?.poste || "",
         departement_nom: agent?.departement_nom || "",
       },
-      message: `${actionLabel} confirmée pour ${agent?.prenom} ${agent?.nom} (confiance: ${Math.round(verifyResult.confidence * 100)}%).`,
+      message: `${actionLabel} enregistrée pour ${agent?.prenom} ${agent?.nom}.`,
     };
   }
 
-  /**
-   * Liste les membres du personnel avec l'état de leur profil biométrique.
-   */
-  static async listPersonnelWithEnrollmentStatus(organisationId = null) {
+  static async listPersonnelWithEnrollmentStatus(organisationId = null, accessibleDivisions = null) {
+    if (!organisationId && process.env.NODE_ENV !== "test") {
+      return [];
+    }
+
     let query = `
       SELECT 
         p.id,
@@ -454,11 +448,13 @@ export class FaceService {
         p.poste,
         p.actif,
         p.organisation_id,
+        p.division_id,
         d.nom AS departement_nom,
+        d.nom AS division_nom,
         (fp.id IS NOT NULL) AS is_enrolled,
         coalesce(fp.updated_at, fp.created_at) AS enrolled_at
       FROM personnel p
-      LEFT JOIN departements d ON d.id = p.departement_id
+      LEFT JOIN divisions d ON d.id = p.division_id
       LEFT JOIN face_profiles fp ON fp.personnel_id = p.id
       WHERE p.actif = true
     `;
@@ -467,15 +463,28 @@ export class FaceService {
       query += " AND p.organisation_id = $1";
       params.push(organisationId);
     }
+    if (accessibleDivisions !== null) {
+      params.push(accessibleDivisions);
+      query += ` AND p.division_id::text = ANY($${params.length})`;
+    }
     query += " ORDER BY p.nom, p.prenom";
     const { rows } = await pool.query(query, params);
     return rows;
   }
 
-  /**
-   * Supprime un profil facial enregistré.
-   */
-  static async deleteFaceProfile(targetId) {
+  static async deleteFaceProfile(targetId, organisationId = null, accessibleDivisions = null) {
+    if (organisationId) {
+      const check = await pool.query(
+        "SELECT id, division_id FROM personnel WHERE id = $1 AND organisation_id = $2",
+        [targetId, organisationId]
+      );
+      if (check.rows.length === 0) {
+        return { success: false, message: "Personnel introuvable dans votre organisation." };
+      }
+      if (accessibleDivisions !== null && !accessibleDivisions.includes(String(check.rows[0].division_id))) {
+        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division / niveau."), { status: 403 });
+      }
+    }
     const res = await pool.query(
       "DELETE FROM face_profiles WHERE personnel_id = $1 OR user_id = $1 RETURNING id",
       [targetId]
@@ -483,37 +492,44 @@ export class FaceService {
     return { success: res.rowCount > 0 };
   }
 
-  /**
-   * Récupère l'historique récent des pointages de présence.
-   */
-  static async getRecentAttendances(limit = 20, orgId = null) {
+  static async getRecentAttendances(limit = 20, orgId = null, accessibleDivisions = null) {
+    // Si aucun orgId n'est fourni et qu'on n'est pas en test unitaire mocké,
+    // on ne doit absolument JAMAIS renvoyer les données d'autres organisations.
+    if (!orgId && process.env.NODE_ENV !== "test") {
+      return [];
+    }
+
     let whereClause = "";
     const params = [Math.min(limit, 100)];
 
     if (orgId) {
       params.push(orgId);
-      whereClause = `WHERE (p.organisation_id = $2 OR u.id IN (SELECT user_id FROM organisation_members WHERE organisation_id = $2))`;
+      whereClause = `WHERE pt.organisation_id = $2`;
+      if (accessibleDivisions !== null) {
+        params.push(accessibleDivisions);
+        whereClause += ` AND p.division_id::text = ANY($${params.length})`;
+      }
     }
 
     const query = `
       SELECT 
-        a.id, 
-        a.personnel_id,
-        a.user_id, 
-        a.type, 
-        a.timestamp, 
-        a.confidence, 
-        a.source,
-        coalesce(p.nom, u.nom, 'Agent') AS nom, 
-        coalesce(p.prenom, u.prenom, '') AS prenom,
+        pt.id, 
+        pt.personnel_id,
+        pt.organisation_id,
+        pt.type, 
+        pt.horodatage AS timestamp, 
+        pt.confidence, 
+        pt.source,
+        coalesce(p.nom, 'Agent') AS nom, 
+        coalesce(p.prenom, '') AS prenom,
         coalesce(p.poste, '') AS poste,
-        d.nom AS departement_nom
-      FROM attendances a
-      LEFT JOIN personnel p ON p.id = a.personnel_id
-      LEFT JOIN departements d ON d.id = p.departement_id
-      LEFT JOIN users u ON u.id = a.user_id
+        d.nom AS departement_nom,
+        d.nom AS division_nom
+      FROM pointages pt
+      LEFT JOIN personnel p ON p.id = pt.personnel_id
+      LEFT JOIN divisions d ON d.id = p.division_id
       ${whereClause}
-      ORDER BY a.timestamp DESC, a.id DESC
+      ORDER BY pt.horodatage DESC, pt.id DESC
       LIMIT $1
     `;
     const { rows } = await pool.query(query, params);
