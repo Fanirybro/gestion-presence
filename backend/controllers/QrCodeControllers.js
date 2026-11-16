@@ -97,8 +97,14 @@ export const getBadgeEvents = controller(async (req, client) => {
     coalesce(to_char(p.depart_at AT TIME ZONE o.fuseau_horaire, 'HH24:MI'), '') AS "departureAt",
     p.statut AS status, p.retard_minutes AS "lateMinutes", p.source, p.remarque AS note
     FROM presences_journalieres p JOIN organisations o ON o.id = p.organisation_id WHERE p.organisation_id = $1 ORDER BY p.date_presence DESC, p.id`, [org]);
-  const scans = await client.query(`SELECT id, personnel_id AS "agentId", type, horodatage AS at FROM pointages
-    WHERE organisation_id = $1 AND source = 'QR_SCAN' ORDER BY horodatage DESC, id DESC LIMIT 100`, [org]);
+  const scans = await client.query(`SELECT pt.id, pt.personnel_id AS "agentId", pt.type, pt.horodatage AS at,
+      coalesce(p.nom, '') AS "lastName", coalesce(p.prenom, '') AS "firstName",
+      coalesce(p.poste, '') AS "position", coalesce(d.nom, '') AS "divisionName"
+    FROM pointages pt
+    LEFT JOIN personnel p ON p.id = pt.personnel_id
+    LEFT JOIN divisions d ON d.id = p.division_id
+    WHERE pt.organisation_id = $1 AND pt.source = 'QR_SCAN'
+    ORDER BY pt.horodatage DESC, pt.id DESC LIMIT 100`, [org]);
   return { attendance: attendance.rows, scans: scans.rows };
 }, { coordinator: false });
 

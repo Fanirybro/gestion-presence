@@ -1,4 +1,5 @@
 import type { User, UserPermissions, CustomFieldDefinition } from "../types";
+import { apiClient } from "./api";
 
 export interface Account {
   id: string;
@@ -43,3 +44,9 @@ export const toUser = (account: Account): User => ({
   permissions: account.permissions || {},
   managed_division_ids: account.managed_division_ids || [],
 });
+
+export const authApi = {
+  verifyPassword: async (password: string) => {
+    return apiClient.post<{ valid: boolean; message: string }>("/auth/verify-password", { password });
+  },
+};

@@ -99,7 +99,7 @@ async function validatePersonnel(client, req, input, previous = {}) {
   delete data.departement_id;
 
   if (req.accessibleDivisions !== null && !req.accessibleDivisions.includes(String(data.division_id))) {
-    fail(403, "Accès refusé : vous n'êtes pas responsable de cette division / niveau.");
+    fail(403, "Accès refusé : vous n'êtes pas responsable de cette division.");
   }
 
   const { rows: divisions } = await client.query("SELECT id, actif FROM divisions WHERE organisation_id = $1 AND id = $2", [req.user.organisation_id, data.division_id]);
@@ -137,7 +137,7 @@ export const getPersonnels = controller(async (req, client) => {
 export const getPersonnel = controller(async (req, client) => {
   const p = await find(client, req.user.organisation_id, req.params.id);
   if (req.accessibleDivisions !== null && !req.accessibleDivisions.includes(String(p.division_id))) {
-    fail(403, "Accès refusé : cet agent appartient à une autre division / niveau.");
+    fail(403, "Accès refusé : cet agent appartient à une autre division.");
   }
   return { body: { personnel: p } };
 }, { byId: true });
@@ -158,7 +158,7 @@ export const updatePersonnel = controller(async (req, client) => {
   const input = body(req, allowedInputKeys);
   const previous = await find(client, req.user.organisation_id, req.params.id);
   if (req.accessibleDivisions !== null && !req.accessibleDivisions.includes(String(previous.division_id))) {
-    fail(403, "Accès refusé : cet agent appartient à une autre division / niveau.");
+    fail(403, "Accès refusé : cet agent appartient à une autre division.");
   }
   const data = await validatePersonnel(client, req, input, previous);
   await client.query(`UPDATE personnel SET ${fields.map((key, i) => `${key} = $${i + 3}`).join(", ")}, updated_at = now()

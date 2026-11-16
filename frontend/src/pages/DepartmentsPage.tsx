@@ -116,7 +116,7 @@ export default function DepartmentsPage() {
     e.preventDefault();
     const trimmed = nameInput.trim();
     if (!trimmed) {
-      setError("Le nom du niveau ne peut pas être vide.");
+      setError("Le nom de la division ne peut pas être vide.");
       return;
     }
 
@@ -127,7 +127,7 @@ export default function DepartmentsPage() {
         (!targetDept || d.id !== targetDept.id),
     );
     if (duplicate) {
-      setError("Un niveau / division portant ce nom existe déjà.");
+      setError("Une division portant ce nom existe déjà.");
       return;
     }
 
@@ -139,13 +139,13 @@ export default function DepartmentsPage() {
           nom: trimmed,
           responsable_ids: selectedResponsableIds,
         });
-        notify("Niveau créé avec succès.");
+        notify("Division créée avec succès.");
       } else if (modalMode === "RENAME" && targetDept) {
         await personnelApi.updateDepartment(targetDept.id, {
           nom: trimmed,
           responsable_ids: selectedResponsableIds,
         });
-        notify("Niveau mis à jour avec succès.");
+        notify("Division mise à jour avec succès.");
       }
       await refreshPersonnel();
       setModalMode(null);
@@ -167,7 +167,7 @@ export default function DepartmentsPage() {
     // Business rule: cannot deactivate if active agents exist
     if (isCurrentlyActive && active > 0) {
       notify(
-        `Impossible de désactiver : ce niveau contient ${active} agent(s) actif(s). Réaffectez-les d'abord.`,
+        `Impossible de désactiver : cette division contient ${active} agent(s) actif(s). Réaffectez-les d'abord.`,
         true,
       );
       setConfirmToggle(null);
@@ -182,8 +182,8 @@ export default function DepartmentsPage() {
       await refreshPersonnel();
       notify(
         isCurrentlyActive
-          ? "Niveau désactivé."
-          : "Niveau réactivé avec succès.",
+          ? "Division désactivée."
+          : "Division réactivée avec succès.",
       );
     } catch (err) {
       notify((err as Error).message, true);
@@ -197,13 +197,13 @@ export default function DepartmentsPage() {
     <>
       <Heading
         eyebrow="STRUCTURE ORGANISATIONNELLE"
-        title="Divisions & Niveaux"
-        subtitle="Gestion des niveaux, affectation des responsables et partitionnement des données"
+        title="Divisions"
+        subtitle="Gestion des divisions, affectation des responsables et partitionnement des données"
       >
         {isCoordinator && (
           <button className="button primary" onClick={handleOpenCreate}>
             <Plus size={16} />
-            Nouveau niveau
+            Nouvelle division
           </button>
         )}
       </Heading>
@@ -212,7 +212,7 @@ export default function DepartmentsPage() {
       <div className="rp-metrics-row">
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <CheckCircle2 size={14} style={{ color: "#1e6b52" }} /> Niveaux actifs
+            <CheckCircle2 size={14} style={{ color: "#1e6b52" }} /> Divisions actives
           </span>
           <strong className="rp-metric-value green">{activeCount}</strong>
           <small className="rp-metric-sub">Sur un total de {totalCount}</small>
@@ -220,10 +220,10 @@ export default function DepartmentsPage() {
 
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <XCircle size={14} /> Niveaux inactifs
+            <XCircle size={14} /> Divisions inactives
           </span>
           <strong className="rp-metric-value">{inactiveCount}</strong>
-          <small className="rp-metric-sub">Archivés ou suspendus</small>
+          <small className="rp-metric-sub">Archivées ou suspendues</small>
         </div>
 
         <div className="rp-metric-cell">
@@ -236,12 +236,12 @@ export default function DepartmentsPage() {
 
         <div className="rp-metric-cell">
           <span className="rp-metric-label">
-            <Layers size={14} /> Moyenne par niveau
+            <Layers size={14} /> Moyenne par division
           </span>
           <strong className="rp-metric-value">
             {activeCount > 0 ? (totalAgentsCount / activeCount).toFixed(1) : "0"}
           </strong>
-          <small className="rp-metric-sub">Agents par niveau actif</small>
+          <small className="rp-metric-sub">Agents par division active</small>
         </div>
       </div>
 
@@ -255,7 +255,7 @@ export default function DepartmentsPage() {
             className={`profile-tab-item ${filterStatus === "ALL" ? "active" : ""}`}
             onClick={() => setFilterStatus("ALL")}
           >
-            <span>Tous les niveaux ({totalCount})</span>
+            <span>Toutes les divisions ({totalCount})</span>
           </button>
 
           <button
@@ -295,8 +295,8 @@ export default function DepartmentsPage() {
             <Search size={15} className="segment-icon" aria-hidden="true" />
             <div className="segment-input-group">
               <input
-                aria-label="Rechercher un niveau ou responsable"
-                placeholder="Rechercher niveau ou responsable…"
+                aria-label="Rechercher une division ou responsable"
+                placeholder="Rechercher division ou responsable…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="unified-search-input"
@@ -327,8 +327,8 @@ export default function DepartmentsPage() {
           <Empty
             text={
               totalCount === 0
-                ? "Aucun niveau enregistré pour le moment."
-                : "Aucun niveau ne correspond aux filtres de recherche."
+                ? "Aucune division enregistrée pour le moment."
+                : "Aucune division ne correspond aux filtres de recherche."
             }
           />
         ) : (
@@ -336,7 +336,7 @@ export default function DepartmentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>NIVEAU / DIVISION</th>
+                  <th>DIVISION</th>
                   <th>RESPONSABLE(S)</th>
                   <th>STATUT</th>
                   <th>EFFECTIF RATTACHÉ</th>
@@ -425,7 +425,7 @@ export default function DepartmentsPage() {
                         <Link
                           to={`/agents?department=${dept.id}`}
                           className="text-link"
-                          title="Voir les agents de ce niveau"
+                          title="Voir les agents de cette division"
                           style={{ gap: 4 }}
                         >
                           <strong>{stats.total}</strong> agent{stats.total > 1 ? "s" : ""}
@@ -447,7 +447,7 @@ export default function DepartmentsPage() {
 
                       <td style={{ textAlign: "right" }}>
                         <RowActionsMenu
-                          ariaLabel={`Actions pour le niveau ${dept.name}`}
+                          ariaLabel={`Actions pour la division ${dept.name}`}
                           items={[
                             {
                               label: "Voir les agents",
@@ -469,13 +469,13 @@ export default function DepartmentsPage() {
                             ...(isCoordinator
                               ? [
                                   {
-                                    label: isActive ? "Désactiver le niveau" : "Réactiver le niveau",
+                                    label: isActive ? "Désactiver la division" : "Réactiver la division",
                                     icon: <Power size={14} />,
                                     variant: (isActive ? "danger" : "default") as "danger" | "default",
                                     disabled: pending || (isActive && stats.active > 0),
                                     title:
                                       isActive && stats.active > 0
-                                        ? "Ce niveau contient des agents actifs et ne peut pas être désactivé"
+                                        ? "Cette division contient des agents actifs et ne peut pas être désactivée"
                                         : undefined,
                                     onClick: () => setConfirmToggle(dept),
                                   },
@@ -498,7 +498,7 @@ export default function DepartmentsPage() {
         {modalMode && (
           <Modal
             key="dept-modal"
-            title={modalMode === "CREATE" ? "Nouveau niveau / division" : "Modifier le niveau / division"}
+            title={modalMode === "CREATE" ? "Nouvelle division" : "Modifier la division"}
             close={() => {
               if (!pending) setModalMode(null);
             }}
@@ -506,7 +506,7 @@ export default function DepartmentsPage() {
             <form onSubmit={handleSaveModal}>
               <div className="field">
                 <label htmlFor="dept-name-input">
-                  Nom du niveau / division <span style={{ color: "#a4384c" }}>*</span>
+                  Nom de la division <span style={{ color: "#a4384c" }}>*</span>
                 </label>
                 <input
                   id="dept-name-input"
@@ -514,12 +514,12 @@ export default function DepartmentsPage() {
                   required
                   maxLength={100}
                   autoFocus
-                  placeholder="Ex : L1 Informatique, M1 Gestion, Direction Technique…"
+                  placeholder="Ex : Direction Technique, Finances, Logistique…"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   disabled={pending}
                 />
-                <small>Nom clair et explicite pour identifier ce niveau ou division.</small>
+                <small>Nom clair et explicite pour identifier cette division.</small>
               </div>
 
               <div className="field">
@@ -583,7 +583,7 @@ export default function DepartmentsPage() {
                   )}
                 </div>
                 <small>
-                  Les responsables auront accès uniquement aux personnels, pointages et congés de ce niveau.
+                  Les responsables auront accès uniquement aux personnels, pointages et congés de cette division.
                 </small>
               </div>
 
@@ -606,7 +606,7 @@ export default function DepartmentsPage() {
                   {pending
                     ? "Enregistrement…"
                     : modalMode === "CREATE"
-                      ? "Créer le niveau"
+                      ? "Créer la division"
                       : "Enregistrer"}
                 </button>
               </footer>
@@ -633,13 +633,13 @@ export default function DepartmentsPage() {
             key="confirm-dept-toggle"
             title={
               confirmToggle.isActive !== false
-                ? `Désactiver le niveau « ${confirmToggle.name} » ?`
-                : `Réactiver le niveau « ${confirmToggle.name} » ?`
+                ? `Désactiver la division « ${confirmToggle.name} » ?`
+                : `Réactiver la division « ${confirmToggle.name} » ?`
             }
             text={
               confirmToggle.isActive !== false
-                ? "Ce niveau sera marqué comme inactif. Il ne pourra plus être sélectionné pour de nouveaux agents."
-                : "Ce niveau redeviendra actif et pourra à nouveau recevoir de nouveaux agents."
+                ? "Cette division sera marquée comme inactive. Elle ne pourra plus être sélectionnée pour de nouveaux agents."
+                : "Cette division redeviendra active et pourra à nouveau recevoir de nouveaux agents."
             }
             close={() => setConfirmToggle(null)}
             confirm={() => void handleToggleStatus(confirmToggle)}

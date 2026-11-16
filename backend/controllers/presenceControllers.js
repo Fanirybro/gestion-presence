@@ -24,7 +24,7 @@ export const getPresence = presenceController(async (req, client) => {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, attendance.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {
-      fail(403, "Accès refusé : ce pointage concerne un agent d'une autre division / niveau.");
+      fail(403, "Accès refusé : ce pointage concerne un agent d'une autre division.");
     }
   }
   const audit = await client.query(`SELECT j.id, j.entite_id AS "entityId", j.created_at AS at, j.action, coalesce(j.motif,'') AS reason,
@@ -43,7 +43,7 @@ export const correctPresence = presenceController(async (req, client) => {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {
-      fail(403, "Accès refusé : cet agent appartient à une autre division / niveau.");
+      fail(403, "Accès refusé : cet agent appartient à une autre division.");
     }
   }
 
@@ -82,7 +82,7 @@ export const justifyAbsence = presenceController(async (req, client) => {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {
-      fail(403, "Accès refusé : cet agent appartient à une autre division / niveau.");
+      fail(403, "Accès refusé : cet agent appartient à une autre division.");
     }
   }
 

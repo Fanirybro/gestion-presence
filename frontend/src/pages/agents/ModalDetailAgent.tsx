@@ -517,7 +517,7 @@ export function ModalDetailAgent({
                 {formatImpression === "cr80" ? (
                   <section ref={badgeCardRef} className="qr-badge print-area">
                     <div className="qr-badge-header">
-                      présence.<small>{db.settings.organization}</small>
+                      presence+<small>{db.settings.organization}</small>
                     </div>
                     <div className="badge-content">
                       <div
@@ -553,7 +553,7 @@ export function ModalDetailAgent({
                 ) : (
                   <section ref={badgeCardRef} className="qr-badge-a6 print-area">
                     <div className="qr-badge-header-a6">
-                      <span className="brand-title">présence.</span>
+                      <span className="brand-title">presence+</span>
                       <small>{db.settings.organization}</small>
                     </div>
                     <div className="badge-content-a6">

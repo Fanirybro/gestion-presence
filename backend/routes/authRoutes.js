@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
-import { login, logout, getMe, signup } from "../controllers/authControllers.js";
+import { login, logout, getMe, signup, verifyCurrentPassword } from "../controllers/authControllers.js";
 import { requireAuth } from "../middlewares/authMiddlewares.js";
 
 const router = Router();
+router.post("/verify-password", requireAuth, rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: process.env.NODE_ENV === "development" ? 200 : 25,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { valid: false, message: "Trop de tentatives. Réessayez dans quelques minutes." },
+}), verifyCurrentPassword);
 router.post("/login", rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: process.env.NODE_ENV === "development" ? 100 : 10,

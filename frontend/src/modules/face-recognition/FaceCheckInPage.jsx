@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
+import { useKioskMode, KioskSwitch, KioskExitModal, KioskClock } from "../../components/kiosk";
 import "./face-recognition.css";
 
 // Petit bip audio via Web Audio API (aucun fichier externe requis)
@@ -45,6 +46,15 @@ const playBeep = (freq = 600, duration = 0.1) => {
 
 export default function FaceCheckInPage() {
   const { user, organisation } = useApp();
+  const {
+    isKiosk,
+    showExitModal,
+    exitError,
+    isVerifying,
+    toggleKiosk,
+    cancelExit,
+    confirmExitWithPassword,
+  } = useKioskMode();
   const currentOrgId = organisation?.id || user?.organisationId || null;
 
   const videoRef = useRef(null);
@@ -341,30 +351,38 @@ export default function FaceCheckInPage() {
     <>
       <Heading
         eyebrow="BORNE DE POINTAGE"
-        title="Pointage facial"
-        subtitle="Détection automatique et enregistrement instantané des arrivées et départs par caméra"
+        title={isKiosk ? "Borne de Pointage Facial" : "Pointage facial"}
+        subtitle={isKiosk ? "Borne en libre-service · Positionnez votre visage face à la caméra" : "Détection automatique et enregistrement instantané des arrivées et départs par caméra"}
       >
-        <div
-          className={`face-status-pill ${
-            healthStatus?.pythonService?.online ? "online" : "offline"
-          }`}
-          title={
-            healthStatus?.pythonService?.online
-              ? `Moteur IA actif : ${healthStatus.pythonService.engine}`
-              : "Microservice IA injoignable"
-          }
-        >
-          <span className="dot" />
-          <span>
-            {healthStatus?.pythonService?.online ? "IA Connectée" : "IA Déconnectée"}
-          </span>
-        </div>
+        <KioskSwitch isKiosk={isKiosk} onToggle={toggleKiosk} />
 
-        <Link to="/admin/face-setup" className="button">
-          <UserCheck size={16} />
-          <span>Enrôlement</span>
-        </Link>
+        {!isKiosk && (
+          <>
+            <div
+              className={`face-status-pill ${
+                healthStatus?.pythonService?.online ? "online" : "offline"
+              }`}
+              title={
+                healthStatus?.pythonService?.online
+                  ? `Moteur IA actif : ${healthStatus.pythonService.engine}`
+                  : "Microservice IA injoignable"
+              }
+            >
+              <span className="dot" />
+              <span>
+                {healthStatus?.pythonService?.online ? "IA Connectée" : "IA Déconnectée"}
+              </span>
+            </div>
+
+            <Link to="/admin/face-setup" className="button">
+              <UserCheck size={16} />
+              <span>Enrôlement</span>
+            </Link>
+          </>
+        )}
       </Heading>
+
+      {isKiosk && <KioskClock />}
 
       <div className="face-page-layout">
         {/* Colonne Gauche : Caméra et Actions */}
@@ -639,79 +657,89 @@ export default function FaceCheckInPage() {
           </div>
         </div>
 
-        {/* Colonne Droite : Derniers Pointages */}
-        <div className="face-side-panel">
-          <div className="face-card">
-            <div className="section-heading">
-              <h2>
-                <Clock size={16} />
-                <span>Derniers pointages</span>
-              </h2>
-              <button
-                type="button"
-                className="button"
-                style={{ padding: "4px 10px", fontSize: "12px" }}
-                onClick={fetchHealthAndHistory}
-              >
-                <RefreshCw size={13} />
-                <span>Actualiser</span>
-              </button>
-            </div>
-
-            {attendances.length === 0 ? (
-              <div
-                style={{
-                  padding: "40px 20px",
-                  textAlign: "center",
-                  color: "var(--muted, #536b61)",
-                  fontSize: "13px",
-                }}
-              >
-                Aucun pointage facial récent enregistré aujourd'hui.
+        {/* Colonne Droite : Derniers Pointages (masquée en Mode Borne pour confidentialité) */}
+        {!isKiosk && (
+          <div className="face-side-panel">
+            <div className="face-card">
+              <div className="section-heading">
+                <h2>
+                  <Clock size={16} />
+                  <span>Derniers pointages</span>
+                </h2>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ padding: "4px 10px", fontSize: "12px" }}
+                  onClick={fetchHealthAndHistory}
+                >
+                  <RefreshCw size={13} />
+                  <span>Actualiser</span>
+                </button>
               </div>
-            ) : (
-              <div className="face-item-list">
-                {attendances.map((item) => {
-                  const initials = `${item.prenom?.[0] || ""}${
-                    item.nom?.[0] || ""
-                  }`.toUpperCase();
-                  const time = new Date(item.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  });
-                  const date = new Date(item.timestamp).toLocaleDateString();
 
-                  return (
-                    <div key={item.id} className="face-list-item">
-                      <div className="face-list-item-left">
-                        <div className="face-item-avatar">
-                          {initials || "A"}
-                        </div>
-                        <div className="face-item-info">
-                          <div className="face-item-name">
-                            {item.prenom} {item.nom}
+              {attendances.length === 0 ? (
+                <div
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    color: "var(--muted, #536b61)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Aucun pointage facial récent enregistré aujourd'hui.
+                </div>
+              ) : (
+                <div className="face-item-list">
+                  {attendances.map((item) => {
+                    const initials = `${item.prenom?.[0] || ""}${
+                      item.nom?.[0] || ""
+                    }`.toUpperCase();
+                    const time = new Date(item.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    });
+                    const date = new Date(item.timestamp).toLocaleDateString();
+
+                    return (
+                      <div key={item.id} className="face-list-item">
+                        <div className="face-list-item-left">
+                          <div className="face-item-avatar">
+                            {initials || "A"}
                           </div>
-                          <div className="face-item-meta">
-                            {time} • {date}
+                          <div className="face-item-info">
+                            <div className="face-item-name">
+                              {item.prenom} {item.nom}
+                            </div>
+                            <div className="face-item-meta">
+                              {time} • {date}
+                            </div>
                           </div>
                         </div>
+                        <span
+                          className={`tag-badge ${
+                            item.type === "ARRIVAL" ? "arrival" : "departure"
+                          }`}
+                        >
+                          {item.type === "ARRIVAL" ? "Arrivée" : "Départ"}
+                        </span>
                       </div>
-                      <span
-                        className={`tag-badge ${
-                          item.type === "ARRIVAL" ? "arrival" : "departure"
-                        }`}
-                      >
-                        {item.type === "ARRIVAL" ? "Arrivée" : "Départ"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      <KioskExitModal
+        isOpen={showExitModal}
+        onCancel={cancelExit}
+        onConfirm={confirmExitWithPassword}
+        error={exitError}
+        isVerifying={isVerifying}
+      />
     </>
   );
 }

@@ -109,7 +109,7 @@ export default function DashboardLayout() {
     { path: "/settings", name: "Paramètres", icon: Settings, permission: "settings" },
   ].filter((item) => !item.permission || hasPermission(user, item.permission));
 
-  const orgNom = organisation?.nom || "présence";
+  const orgNom = organisation?.nom || "presence+";
   const nameLen = orgNom.length;
   const isLongName = nameLen > 25;
   const brandFontSize =
@@ -203,7 +203,7 @@ export default function DashboardLayout() {
             }}
           >
             {orgNom}
-            <span className="brand-dot">.</span>
+            {organisation?.nom && <span className="brand-dot">.</span>}
             <small>GESTION DE PRÉSENCE</small>
           </Link>
         </div>

@@ -234,7 +234,7 @@ export default function OrganisationSetup() {
       <header className="onboarding-header">
         <div className="onboarding-brand">
           <QrCode size={20} className="brand-icon" />
-          <span className="brand-title">présence.</span>
+          <span className="brand-title">presence+</span>
         </div>
 
         {!organisationCreee && mode === "wizard" && (

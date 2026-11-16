@@ -144,7 +144,7 @@ export function ModalExportFichePresence({
           />
         </div>
 
-        {/* Division / Niveau (Détermine automatiquement le format portrait ou paysage) */}
+        {/* Division (Détermine automatiquement le format portrait ou paysage) */}
         <div className="field">
           <label htmlFor="export-division">
             <Layers size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />

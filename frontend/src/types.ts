@@ -169,6 +169,10 @@ export interface Scan {
   agentId: string;
   type: "ARRIVAL" | "DEPARTURE";
   at: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
+  divisionName?: string;
 }
 
 export type SchedulePeriod = "MATIN" | "APRES_MIDI" | "SOIR";

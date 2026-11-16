@@ -51,6 +51,21 @@ export function getMe(req, res) {
   res.json({ user: req.user });
 }
 
+export async function verifyCurrentPassword(req, res, next) {
+  const { password } = req.body ?? {};
+  if (typeof password !== "string" || !password.length || password.length > 128) {
+    return res.status(400).json({ valid: false, message: "Mot de passe requis." });
+  }
+  try {
+    const user = await loadAccount(pool, { id: req.user.id });
+    const valid = await verifyPassword(password, user?.password_hash ?? dummyHash);
+    if (!valid || !user?.actif) {
+      return res.status(401).json({ valid: false, message: "Mot de passe incorrect." });
+    }
+    return res.json({ valid: true, message: "Mot de passe validé." });
+  } catch (error) { next(error); }
+}
+
 export async function signup(req, res, next) {
   const trace = req.signupTrace ?? createTrace("signup");
   trace.result("Validate signup fields — START");

@@ -39,12 +39,12 @@ export const saveAbsence = presenceController(async (req, client) => {
   if (req.actor?.role !== "COORDINATOR") {
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!managed.includes(String(person.division_id))) {
-      fail(403, "Accès refusé : cet agent appartient à une autre division / niveau.");
+      fail(403, "Accès refusé : cet agent appartient à une autre division.");
     }
     if (before) {
       const beforePerson = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
       if (!beforePerson || !managed.includes(String(beforePerson.division_id))) {
-        fail(403, "Accès refusé : cette absence concerne une autre division / niveau.");
+        fail(403, "Accès refusé : cette absence concerne une autre division.");
       }
     }
   }
@@ -74,7 +74,7 @@ export const cancelAbsence = presenceController(async (req, client) => {
     const beforePerson = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!beforePerson || !managed.includes(String(beforePerson.division_id))) {
-      fail(403, "Accès refusé : cette absence concerne une autre division / niveau.");
+      fail(403, "Accès refusé : cette absence concerne une autre division.");
     }
   }
   if (!before.cancelled) {

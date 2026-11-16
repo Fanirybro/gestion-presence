@@ -22,7 +22,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (
     response.status === 401 &&
-    !["/auth/login", "/auth/signup"].includes(path)
+    !["/auth/login", "/auth/signup", "/auth/verify-password"].includes(path)
   )
     unauthorized();
   if (!response.ok) {

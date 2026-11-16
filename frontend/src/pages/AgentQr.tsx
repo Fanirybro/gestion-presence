@@ -109,7 +109,7 @@ export default function AgentQr() {
       <div className="qr-layout" data-badge-format={printFormat}>
         <section ref={card} className="qr-badge print-area">
           <div className="qr-badge-header">
-            présence.<small>{db.settings.organization}</small>
+            presence+<small>{db.settings.organization}</small>
           </div>
           <div className="badge-content">
             <div

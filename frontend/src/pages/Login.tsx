@@ -40,7 +40,7 @@ export default function Login({
       </nav>
       <div className="auth-heading">
         <span className="auth-kicker">
-          {signupMode ? "BIENVENUE CHEZ PRÉSENCE" : "VOTRE ESPACE VOUS ATTEND"}
+          {signupMode ? "BIENVENUE SUR PRESENCE+" : "VOTRE ESPACE VOUS ATTEND"}
         </span>
         <h2>
           {signupMode ? "Faisons connaissance." : "Heureux de vous retrouver."}
@@ -160,7 +160,7 @@ export default function Login({
       <p className="auth-alternate">
         {signupMode
           ? "Vous avez déjà un compte ?"
-          : "Vous découvrez Présence ?"}{" "}
+          : "Vous découvrez presence+ ?"}{" "}
         <Link
           to={signupMode ? "/login" : "/signup"}
           onClick={() => setError("")}

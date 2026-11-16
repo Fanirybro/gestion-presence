@@ -15,9 +15,20 @@ import {
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading, Person, Empty } from "../components/ui";
+import type { Agent } from "../types";
 import { today } from "../utils";
+import { useKioskMode, KioskSwitch, KioskExitModal, KioskClock } from "../components/kiosk";
 export default function ScanPage() {
   const { db, user, update } = useApp();
+  const {
+    isKiosk,
+    showExitModal,
+    exitError,
+    isVerifying,
+    toggleKiosk,
+    cancelExit,
+    confirmExitWithPassword,
+  } = useKioskMode();
   const events = useQuery({
     queryKey: ["badge-events", user?.organisationId, user?.id],
     queryFn: badgesApi.events,
@@ -148,16 +159,22 @@ export default function ScanPage() {
     }
   };
   return (
-    <div>
+    <div className={isKiosk ? "kiosk-view-container" : ""}>
       <Heading
-        title="Pointage QR"
-        subtitle="Arrivées et départs · Heure de Madagascar"
+        title={isKiosk ? "Borne de Pointage QR" : "Pointage QR"}
+        subtitle={isKiosk ? "Borne en libre-service · Scannez votre badge pour pointer" : "Arrivées et départs · Heure de Madagascar"}
       >
-        <span className="date-chip">
-          <span className="online-dot" />
-          {today()}
-        </span>
+        <KioskSwitch isKiosk={isKiosk} onToggle={toggleKiosk} />
+        {!isKiosk && (
+          <span className="date-chip">
+            <span className="online-dot" />
+            {today()}
+          </span>
+        )}
       </Heading>
+
+      {isKiosk && <KioskClock />}
+
       <div className="scan-layout">
         <section className="scanner-section">
           <div className="section-heading">
@@ -212,46 +229,78 @@ export default function ScanPage() {
             </div>
           )}
         </section>
-        <section className="recent-scans">
-          <div className="section-heading">
-            <h2>Derniers scans</h2>
-            <span className="count">
-              {scans.filter((s) => s.at.slice(0, 10) === today()).length}
-            </span>
-          </div>
-          {events.isError ? (
-            <p role="alert">
-              Historique indisponible.{" "}
-              <button
-                className="text-link"
-                onClick={() => void events.refetch()}
-              >
-                Réessayer
-              </button>
-            </p>
-          ) : scans.length ? (
-            scans.slice(0, 8).map((s) => (
-              <div className="scan-row" key={s.id}>
-                <Person agent={db.agents.find((a) => a.id === s.agentId)} />
-                <div>
-                  <span className={s.type === "ARRIVAL" ? "green-text" : ""}>
-                    {s.type === "ARRIVAL" ? "Arrivée" : "Départ"}
-                  </span>
-                  <small>
-                    {new Date(s.at).toLocaleTimeString("fr-FR", {
-                      timeZone: "Indian/Antananarivo",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </small>
-                </div>
-              </div>
-            ))
-          ) : (
-            <Empty text="Aucun pointage" />
-          )}
-        </section>
+
+        {!isKiosk && (
+          <section className="recent-scans">
+            <div className="section-heading">
+              <h2>Derniers scans</h2>
+              <span className="count">
+                {scans.filter((s) => s.at.slice(0, 10) === today()).length}
+              </span>
+            </div>
+            {events.isError ? (
+              <p role="alert">
+                Historique indisponible.{" "}
+                <button
+                  className="text-link"
+                  onClick={() => void events.refetch()}
+                >
+                  Réessayer
+                </button>
+              </p>
+            ) : scans.length ? (
+              scans.slice(0, 8).map((s) => {
+                const matched = db.agents.find((a) => a.id === s.agentId);
+                const agent: Agent | undefined =
+                  matched ??
+                  (s.firstName || s.lastName
+                    ? {
+                        id: String(s.agentId),
+                        firstName: s.firstName || "",
+                        lastName: s.lastName || "",
+                        position: s.position || "",
+                        departmentId: "",
+                        divisionName: s.divisionName || "",
+                        isActive: true,
+                        token: "",
+                        createdAt: "",
+                      }
+                    : undefined);
+                return (
+                  <div className="scan-row" key={s.id}>
+                    <Person
+                      agent={agent}
+                      detail={agent?.divisionName || agent?.position || undefined}
+                    />
+                    <div>
+                      <span className={s.type === "ARRIVAL" ? "green-text" : ""}>
+                        {s.type === "ARRIVAL" ? "Arrivée" : "Départ"}
+                      </span>
+                      <small>
+                        {new Date(s.at).toLocaleTimeString("fr-FR", {
+                          timeZone: "Indian/Antananarivo",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </small>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <Empty text="Aucun pointage" />
+            )}
+          </section>
+        )}
       </div>
+
+      <KioskExitModal
+        isOpen={showExitModal}
+        onCancel={cancelExit}
+        onConfirm={confirmExitWithPassword}
+        error={exitError}
+        isVerifying={isVerifying}
+      />
     </div>
   );
 }

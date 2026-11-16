@@ -148,7 +148,7 @@ export default function AgentBadges() {
           {agents.map((agent, index) => (
             <section className="qr-badge" key={agent.id}>
               <div className="qr-badge-header">
-                présence.<small>{db.settings.organization}</small>
+                presence+<small>{db.settings.organization}</small>
               </div>
               <div className="badge-content">
                 <div className="badge-qr-wrapper">

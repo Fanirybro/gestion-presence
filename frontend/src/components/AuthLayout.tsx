@@ -11,9 +11,9 @@ export default function AuthLayout({
   return (
     <main className="auth-shell">
       <aside className="auth-story">
-        <a href="/login" className="auth-logo" aria-label="Présence, accueil">
+        <a href="/login" className="auth-logo" aria-label="presence+, accueil">
           <QrCode size={28} />
-          <span>présence.</span>
+          <span>presence+</span>
         </a>
         <div className="auth-story-main">
           <p className="auth-kicker">LE POINT DE RENCONTRE DE VOTRE ÉQUIPE</p>
@@ -31,7 +31,7 @@ export default function AuthLayout({
           </p>
           <div className="auth-pass" aria-hidden="true">
             <div className="auth-pass-top">
-              <span>PRÉSENCE · ESPACE ÉQUIPE</span>
+              <span>PRESENCE+ · ESPACE ÉQUIPE</span>
               <ScanLine size={23} />
             </div>
             <div className="auth-pass-middle">
@@ -58,12 +58,12 @@ export default function AuthLayout({
             </div>
           </div>
         </div>
-        <p className="auth-story-footer">Gestion de présence du personnel</p>
+        <p className="auth-story-footer">presence+ — Gestion de présence du personnel</p>
       </aside>
       <section className="auth-panel">
         <div className="auth-panel-inner">{children}</div>
         <footer className="auth-footer">
-          Présence · Votre espace de travail partagé
+          presence+ · Votre espace de travail partagé
         </footer>
       </section>
     </main>

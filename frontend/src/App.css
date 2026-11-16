@@ -473,13 +473,16 @@
   height: 6px;
   border-radius: 2px;
 }
-.green {
+.legend i.green,
+.chart-bar.green {
   background: #6aa687;
 }
-.amber {
+.legend i.amber,
+.chart-bar.amber {
   background: #dfb966;
 }
-.rose {
+.legend i.rose,
+.chart-bar.rose {
   background: #dda3a7;
 }
 .bar-chart {
@@ -577,7 +580,25 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 4px 21px 16px;
+  padding: 4px 18px 16px 21px;
+  max-height: 430px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(30, 107, 82, 0.25) transparent;
+}
+.dept-chart-list::-webkit-scrollbar {
+  width: 6px;
+}
+.dept-chart-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dept-chart-list::-webkit-scrollbar-thumb {
+  background: rgba(30, 107, 82, 0.25);
+  border-radius: 9999px;
+}
+.dept-chart-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 107, 82, 0.45);
 }
 .dept-chart-row {
   display: flex;
@@ -1519,7 +1540,7 @@ dialog p {
   max-width: 100%;
   background: white;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -1531,7 +1552,7 @@ dialog p {
   color: #fff;
   width: calc(100% + 44px);
   padding: 20px;
-  border-radius: 7px 7px 0 0;
+  border-radius: 0;
   font-family: Manrope, sans-serif;
   font-weight: 800;
   font-size: 24px;
@@ -2560,18 +2581,22 @@ td {
   font-weight: 700;
   color: #192721;
   line-height: 1.15;
+  background: none !important;
 }
 
 .rp-metric-value.green {
   color: #1e6b52;
+  background: none !important;
 }
 
 .rp-metric-value.warn {
   color: #b45309;
+  background: none !important;
 }
 
 .rp-metric-value.danger {
   color: #be123c;
+  background: none !important;
 }
 
 .rp-metric-sub {

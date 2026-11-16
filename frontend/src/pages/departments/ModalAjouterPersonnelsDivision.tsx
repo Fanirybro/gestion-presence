@@ -109,7 +109,7 @@ export function ModalAjouterPersonnelsDivision({
       notify(
         `${ids.length} agent${ids.length > 1 ? "s" : ""} rattaché${
           ids.length > 1 ? "s" : ""
-        } au niveau « ${division.name} » avec succès !`,
+        } à la division « ${division.name} » avec succès !`,
       );
       await refreshPersonnel();
       onSuccess();
@@ -127,7 +127,7 @@ export function ModalAjouterPersonnelsDivision({
     <Modal title={`Ajouter des personnels · ${division.name}`} close={onClose}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 460, maxWidth: "100%" }}>
         <p style={{ margin: 0, color: "#475569", fontSize: 13, lineHeight: 1.4 }}>
-          Sélectionnez les agents à affecter ou muter vers le niveau{" "}
+          Sélectionnez les agents à affecter ou muter vers la division{" "}
           <strong style={{ color: "#1e6b52" }}>{division.name}</strong>.
         </p>
 

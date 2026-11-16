@@ -172,18 +172,18 @@ export function Agents() {
 
         <div className="unified-filter-divider" aria-hidden="true" />
 
-        {/* 2. Niveau / Division */}
+        {/* 2. Division */}
         <div className="unified-filter-segment segment-dept" style={{ flex: 1.2, minWidth: 170 }}>
           <Layers size={16} className="segment-icon" aria-hidden="true" />
           <div className="segment-input-group">
-            <span className="segment-label">Niveau</span>
+            <span className="segment-label">Division</span>
             <select
-              aria-label="Filtrer par niveau"
+              aria-label="Filtrer par division"
               value={department}
               onChange={(e) => handleDepartmentChange(e.target.value)}
               className="unified-select"
             >
-              <option value="">Tous les niveaux</option>
+              <option value="">Toutes les divisions</option>
               {db.departments.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -197,8 +197,8 @@ export function Agents() {
               type="button"
               className="segment-clear-btn"
               onClick={() => handleDepartmentChange("")}
-              title="Effacer le filtre niveau"
-              aria-label="Effacer le filtre niveau"
+              title="Effacer le filtre division"
+              aria-label="Effacer le filtre division"
             >
               <X size={12} />
             </button>
@@ -276,7 +276,7 @@ export function Agents() {
       <section className="data-section">
         <Table
           loading={personnelLoading}
-          headers={["AGENT", "NIVEAU", "POSTE", "STATUT", "TÉLÉPHONE", "ENRÔLEMENT", "ACTIONS"]}
+          headers={["AGENT", "DIVISION", "POSTE", "STATUT", "TÉLÉPHONE", "ENRÔLEMENT", "ACTIONS"]}
           empty={
             db.agents.length
               ? "Aucun agent ne correspond aux filtres de recherche."
@@ -485,7 +485,7 @@ export function AgentDetails() {
           ["IM (MATRICULE)", a.metadata?.im || a.metadata?.matricule || "—"],
           ["CIN", a.metadata?.cin || "—"],
           [
-            "NIVEAU / DIVISION",
+            "DIVISION",
             db.departments.find((d) => d.id === a.departmentId)?.name ?? a.metadata?.structure ?? "—",
           ],
           ["POSTE", a.position || "—"],

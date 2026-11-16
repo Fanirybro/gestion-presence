@@ -159,7 +159,7 @@
 
 /* Personnel card: a quiet identity panel beside the machine-readable area. */
 .qr-badge {
-  border-radius: 3mm;
+  border-radius: 0;
   background: #ffffff;
   box-shadow: 0 14px 35px #163d321a;
   align-items: stretch;
@@ -236,7 +236,7 @@
   flex-shrink: 0;
   padding: 0;
   border: 0;
-  border-radius: 4mm;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;

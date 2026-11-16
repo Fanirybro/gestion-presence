@@ -170,7 +170,7 @@ export default function ProfilePage() {
           onClick={() => setActiveTab("security")}
         >
           <Lock size={15} />
-          <span>Sécurité &amp; Mot de passe</span>
+          <span>Changer son mot de passe</span>
         </button>
       </div>
 
@@ -258,7 +258,7 @@ export default function ProfilePage() {
           onSubmit={handleChangePassword}
         >
           <section className="settings-section">
-            <h2>Sécurité &amp; Mot de passe</h2>
+            <h2>Changement de mot de passe</h2>
             <div className="form-grid">
               <Field label="Mot de passe actuel">
                 <div className="password-input-row">

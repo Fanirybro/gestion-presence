@@ -266,8 +266,7 @@
     border-color: #99bfac;
   }
   .qr-badge-header {
-    border-radius: calc(var(--radius-panel) - 1px)
-      calc(var(--radius-panel) - 1px) 0 0;
+    border-radius: 0;
   }
   .login-page {
     background: transparent;

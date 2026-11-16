@@ -71,7 +71,7 @@ export class FaceService {
 
     if (target && isPersonnel && accessibleDivisions !== null) {
       if (!accessibleDivisions.includes(String(target.division_id))) {
-        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division / niveau."), { status: 403 });
+        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division."), { status: 403 });
       }
     }
 
@@ -484,7 +484,7 @@ export class FaceService {
         return { success: false, message: "Personnel introuvable dans votre organisation." };
       }
       if (accessibleDivisions !== null && !accessibleDivisions.includes(String(check.rows[0].division_id))) {
-        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division / niveau."), { status: 403 });
+        throw Object.assign(new Error("Accès refusé : cet agent appartient à une autre division."), { status: 403 });
       }
     }
     const res = await pool.query(
