@@ -85,9 +85,8 @@ export default function AuthorizedAbsences() {
   return (
     <div className="authorized-absences">
       <Heading
-        eyebrow="RH & PLANNING"
         title="Congés et permissions"
-        subtitle="Recensez et gérez les absences préalablement autorisées au sein de l'organisation."
+        subtitle="Gestion des congés, permissions et absences justifiées"
       >
         {canManage && (
           <button

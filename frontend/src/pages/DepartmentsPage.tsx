@@ -196,9 +196,8 @@ export default function DepartmentsPage() {
   return (
     <>
       <Heading
-        eyebrow="STRUCTURE ORGANISATIONNELLE"
         title="Divisions"
-        subtitle="Gestion des divisions, affectation des responsables et partitionnement des données"
+        subtitle="Gestion des divisions et des responsables"
       >
         {isCoordinator && (
           <button className="button primary" onClick={handleOpenCreate}>

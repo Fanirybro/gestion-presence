@@ -4,7 +4,6 @@ import {
   Layers,
   Clock,
   MapPin,
-  Building,
   LoaderCircle,
   Download,
 } from "lucide-react";
@@ -52,7 +51,6 @@ export function ModalExportFichePresence({
   const [lieu, setLieu] = useState(
     organisation?.adresse?.split(",")[0]?.trim() || db.settings.address?.split(",")[0]?.trim() || "Toliara",
   );
-  const [serviceNom, setServiceNom] = useState("Direction du Budget");
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
@@ -66,6 +64,7 @@ export function ModalExportFichePresence({
 
       const attendances = presencesRes.attendance || [];
       const orgNom = organisation?.nom || db.settings.organization || "Ministère de l'Économie et des Finances";
+      const orgLogo = organisation?.logo_url || db.settings.logo_url || null;
 
       if (!isGlobal) {
         // Format Portrait : Division spécifique
@@ -81,18 +80,18 @@ export function ModalExportFichePresence({
           periode,
           divisionId: selectedDivisionId,
           divisionNom: divNom,
-          serviceNom,
           nomOrganisation: orgNom,
+          logoUrl: orgLogo,
           agents: targetAgents,
           attendances,
           absencesAutorisees: absencesList,
         });
 
-        notify(`Fiche de présence (${divNom}) générée en Portrait.`);
+        notify("Fiche de présence générée.");
       } else {
-        // Format Paysage : Consolidé (Toutes les divisions)
+        // Format Toutes les divisions
         let targetAgents = db.agents.filter((a) => a.isActive);
-        const divNom = "Toutes les divisions (Vue consolidée)";
+        const divNom = "Toutes les divisions";
 
         if (!isCoordinator) {
           // Si responsable de division non-coordinateur, restreindre à son périmètre
@@ -105,8 +104,8 @@ export function ModalExportFichePresence({
           format: "paysage",
           date,
           divisionNom: divNom,
-          serviceNom,
           nomOrganisation: orgNom,
+          logoUrl: orgLogo,
           lieu,
           agents: targetAgents,
           attendances,
@@ -114,26 +113,26 @@ export function ModalExportFichePresence({
           divisions: db.departments,
         });
 
-        notify("Fiche de présence consolidée générée en Paysage.");
+        notify("Fiche de présence générée.");
       }
 
       onClose();
     } catch (err) {
       console.error("Erreur génération PDF fiche de présence:", err);
-      notify("Échec de la génération du document officiel PDF.", true);
+      notify("Échec de la génération du PDF.", true);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title="Édition de la Fiche de Présence Officielle" close={onClose}>
+    <Modal title="Fiche de présence" close={onClose}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Date de la fiche */}
+        {/* Date */}
         <div className="field">
           <label htmlFor="export-date">
             <Calendar size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-            Date de la fiche de présence
+            Date
           </label>
           <input
             id="export-date"
@@ -144,11 +143,11 @@ export function ModalExportFichePresence({
           />
         </div>
 
-        {/* Division (Détermine automatiquement le format portrait ou paysage) */}
+        {/* Division */}
         <div className="field">
           <label htmlFor="export-division">
             <Layers size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-            Périmètre de division
+            Division
           </label>
           <select
             id="export-division"
@@ -157,22 +156,22 @@ export function ModalExportFichePresence({
             disabled={loading}
           >
             {isCoordinator && (
-              <option value="">Toutes les divisions (Vue globale — Paysage)</option>
+              <option value="">Toutes les divisions</option>
             )}
             {accessibleDepartments.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name} {d.isActive === false ? "(Inactif)" : ""} — Portrait
+                {d.name} {d.isActive === false ? "(Inactif)" : ""}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Paramètres contextuels : Créneau pour division (portrait) ou Lieu pour consolidé (paysage) */}
+        {/* Créneau pour une division spécifique */}
         {!isGlobal ? (
           <div className="field">
             <label htmlFor="export-periode">
               <Clock size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Créneau horaire à cocher
+              Créneau
             </label>
             <select
               id="export-periode"
@@ -180,46 +179,29 @@ export function ModalExportFichePresence({
               onChange={(e) => setPeriode(e.target.value as any)}
               disabled={loading}
             >
-              <option value="MATIN">[X] MATIN</option>
-              <option value="APRES_MIDI">[X] APRÈS-MIDI</option>
-              <option value="JOURNEE">[X] MATIN et APRÈS-MIDI (Journée)</option>
+              <option value="MATIN">Matin</option>
+              <option value="APRES_MIDI">Après-midi</option>
+              <option value="JOURNEE">Toute la journée</option>
             </select>
           </div>
         ) : null}
 
-        <div style={{ display: "grid", gridTemplateColumns: isGlobal ? "1fr 1fr" : "1fr", gap: 10 }}>
-          {isGlobal && (
-            <div className="field">
-              <label htmlFor="export-lieu">
-                <MapPin size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-                Lieu d'édition (Fait à...)
-              </label>
-              <input
-                id="export-lieu"
-                type="text"
-                placeholder="Ex: Toliara"
-                value={lieu}
-                onChange={(e) => setLieu(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          )}
-
+        {isGlobal && (
           <div className="field">
-            <label htmlFor="export-service">
-              <Building size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Direction / Service
+            <label htmlFor="export-lieu">
+              <MapPin size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+              Lieu
             </label>
             <input
-              id="export-service"
+              id="export-lieu"
               type="text"
-              placeholder="Ex: Direction du Budget"
-              value={serviceNom}
-              onChange={(e) => setServiceNom(e.target.value)}
+              placeholder="Ex: Toliara"
+              value={lieu}
+              onChange={(e) => setLieu(e.target.value)}
               disabled={loading}
             />
           </div>
-        </div>
+        )}
 
         <footer style={{ marginTop: 10 }}>
           <button type="button" className="button" onClick={onClose} disabled={loading}>
@@ -239,9 +221,7 @@ export function ModalExportFichePresence({
             ) : (
               <>
                 <Download size={15} />
-                <span>
-                  Générer le PDF {isGlobal ? "Paysage (Consolidé)" : "Portrait (Division)"}
-                </span>
+                <span>Générer le PDF</span>
               </>
             )}
           </button>

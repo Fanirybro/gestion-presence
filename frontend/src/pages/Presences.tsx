@@ -150,15 +150,14 @@ export function Presences({
     history: "Historique",
   }[mode];
   const subtitle = {
-    presences: "Consultez les pointages et relevés de présence de la journée.",
-    absences: "Liste des agents absents par créneau (Matin, Après-midi, Soir).",
-    retards: "Pointages enregistrés avec retard et cumul des minutes.",
-    history: "Retrouvez les pointages sur la période de votre choix.",
+    presences: "Pointages et relevés de présence du jour",
+    absences: "Agents absents par créneau",
+    retards: "Retards enregistrés et cumul des minutes",
+    history: "Pointages sur la période sélectionnée",
   }[mode];
   return (
     <>
       <Heading
-        eyebrow="SUIVI DU PERSONNEL"
         title={title}
         subtitle={subtitle}
       />

@@ -206,7 +206,7 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
       <Back to="/agents" label="Personnel" />
       <Heading
         title={agent ? `Modifier ${fullName(agent)}` : "Nouvel agent"}
-        subtitle="Fiche administrative officielle DRBF · Identification, coordonnées et situation administrative."
+        subtitle="Informations administratives de l'agent"
       />
 
       <div style={{ maxWidth: 840, margin: "0 0 2rem 0" }}>
@@ -695,11 +695,8 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
                                   letterSpacing: "0.03em",
                                 }}
                               >
-                                Champs Personnalisés Additionnels
+                                Champs additionnels
                               </h3>
-                              <p style={{ fontSize: "12px", color: "#6e8275", margin: "2px 0 0" }}>
-                                Attributs spécifiques configurés dans les paramètres de l'organisation.
-                              </p>
                             </div>
                           </div>
 

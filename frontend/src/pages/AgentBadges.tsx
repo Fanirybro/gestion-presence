@@ -93,8 +93,8 @@ export default function AgentBadges() {
     <>
       <Back to="/agents" label="Personnel" />
       <Heading
-        title="Imprimer tous les badges"
-        subtitle="Une planche de badges à imprimer ou à enregistrer en PDF depuis la fenêtre d’impression."
+        title="Imprimer les badges"
+        subtitle="Planche de badges à imprimer ou enregistrer en PDF"
       >
         <button
           className="button"

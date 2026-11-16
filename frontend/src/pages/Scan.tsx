@@ -162,7 +162,7 @@ export default function ScanPage() {
     <div className={isKiosk ? "kiosk-view-container" : ""}>
       <Heading
         title={isKiosk ? "Borne de Pointage QR" : "Pointage QR"}
-        subtitle={isKiosk ? "Borne en libre-service · Scannez votre badge pour pointer" : "Arrivées et départs · Heure de Madagascar"}
+        subtitle={isKiosk ? "Scannez votre badge pour pointer" : "Arrivées et départs"}
       >
         <KioskSwitch isKiosk={isKiosk} onToggle={toggleKiosk} />
         {!isKiosk && (

@@ -350,9 +350,8 @@ export default function FaceCheckInPage() {
   return (
     <>
       <Heading
-        eyebrow="BORNE DE POINTAGE"
         title={isKiosk ? "Borne de Pointage Facial" : "Pointage facial"}
-        subtitle={isKiosk ? "Borne en libre-service · Positionnez votre visage face à la caméra" : "Détection automatique et enregistrement instantané des arrivées et départs par caméra"}
+        subtitle={isKiosk ? "Positionnez votre visage face à la caméra" : "Arrivées et départs par caméra"}
       >
         <KioskSwitch isKiosk={isKiosk} onToggle={toggleKiosk} />
 
@@ -364,13 +363,13 @@ export default function FaceCheckInPage() {
               }`}
               title={
                 healthStatus?.pythonService?.online
-                  ? `Moteur IA actif : ${healthStatus.pythonService.engine}`
-                  : "Microservice IA injoignable"
+                  ? `Service actif : ${healthStatus.pythonService.engine}`
+                  : "Service injoignable"
               }
             >
               <span className="dot" />
               <span>
-                {healthStatus?.pythonService?.online ? "IA Connectée" : "IA Déconnectée"}
+                {healthStatus?.pythonService?.online ? "Service actif" : "Hors ligne"}
               </span>
             </div>
 

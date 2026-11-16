@@ -65,13 +65,13 @@ export function OngletChampsPersonnalises({
 
   return (
     <section className="settings-section">
-      <h2>Champs dynamiques du personnel (metadata jsonb)</h2>
+      <h2>Champs personnalisés du personnel</h2>
       <p className="text-secondary" style={{ fontSize: "0.875rem", marginBottom: "1.25rem" }}>
-        Configurez les attributs supplémentaires à afficher sur les fiches des agents (ex. Numéro CIN, contact d'urgence, groupe sanguin) sans modifier le schéma de la base de données.
+        Ajoutez des informations supplémentaires à renseigner sur les fiches des agents (ex. Numéro CIN, contact d'urgence, groupe sanguin).
       </p>
 
       <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-        <Field label="Libellé du champ">
+        <Field label="Nom du champ">
           <input
             placeholder="Ex. Contact d'urgence"
             value={nomNouveauChamp}
@@ -80,14 +80,14 @@ export function OngletChampsPersonnalises({
           />
         </Field>
 
-        <Field label="Type de donnée">
+        <Field label="Type">
           <select
             value={typeNouveauChamp}
             onChange={(e) => setTypeNouveauChamp(e.target.value as any)}
             style={{ padding: "0.55rem" }}
           >
-            <option value="text">Texte libre</option>
-            <option value="number">Numérique</option>
+            <option value="text">Texte</option>
+            <option value="number">Nombre</option>
             <option value="date">Date</option>
           </select>
         </Field>
@@ -99,20 +99,17 @@ export function OngletChampsPersonnalises({
           onClick={ajouterChamp}
         >
           <Plus size={16} />
-          <span>Ajouter le champ</span>
+          <span>Ajouter</span>
         </button>
       </div>
 
       <Table
         empty="Aucun champ personnalisé pour le moment. Ajoutez-en un ci-dessus."
-        headers={["Nom interne (clé)", "Libellé affiché", "Type", "Action"]}
+        headers={["Nom du champ", "Type", "Action"]}
         rows={liste.map((f) => [
-          <code key="key" style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>
-            {f.name}
-          </code>,
           <strong key="label">{f.label}</strong>,
-          <span key="type" className="badge" style={{ textTransform: "uppercase", fontSize: "11px" }}>
-            {f.type}
+          <span key="type" className="badge" style={{ textTransform: "capitalize", fontSize: "12px" }}>
+            {f.type === "text" ? "Texte" : f.type === "number" ? "Nombre" : f.type === "date" ? "Date" : f.type}
           </span>,
           <button
             key="action"
@@ -121,7 +118,7 @@ export function OngletChampsPersonnalises({
             style={{ padding: "3px 8px", fontSize: "12px" }}
             onClick={() => supprimerChamp(f.id)}
           >
-            <Trash2 size={13} /> Retirer
+            <Trash2 size={13} /> Supprimer
           </button>,
         ])}
       />
@@ -134,7 +131,7 @@ export function OngletChampsPersonnalises({
           onClick={surEnregistrement}
         >
           <Save size={16} />
-          {enSauvegarde ? "Enregistrement…" : "Sauvegarder les champs"}
+          {enSauvegarde ? "Enregistrement…" : "Enregistrer"}
         </button>
       </div>
     </section>

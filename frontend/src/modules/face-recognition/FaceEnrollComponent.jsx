@@ -510,9 +510,8 @@ export default function FaceEnrollComponent({
         </div>
       ) : (
         <Heading
-          eyebrow="BIOMÉTRIE & SÉCURITÉ"
           title="Enrôlement facial"
-          subtitle="Enregistrez et configurez le profil biométrique du personnel pour la borne de pointage"
+          subtitle="Enregistrement des visages pour le pointage"
         >
           <Link to="/kiosk" className="button">
             <Camera size={16} />

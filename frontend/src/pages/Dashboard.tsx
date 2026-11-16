@@ -116,9 +116,8 @@ export default function Dashboard() {
   return (
     <>
       <Heading
-        eyebrow="VUE D’ENSEMBLE"
         title={`Bonjour, ${user?.name.split(" ")[0]}.`}
-        subtitle={`Voici le point sur la présence de votre équipe aujourd'hui (${dateLabel(day, true)}).`}
+        subtitle={dateLabel(day, true)}
       >
         <span className="date-chip">
           <CalendarDays size={15} />
@@ -287,7 +286,7 @@ export default function Dashboard() {
           <div className="section-heading">
             <div>
               <h2>Synthèse du jour</h2>
-              <p>Performance d'assiduité globale</p>
+              <p>Taux de présence du jour</p>
             </div>
             <Award size={19} color="#1e6b52" />
           </div>
@@ -349,7 +348,7 @@ export default function Dashboard() {
               <div className="donut-top-dept">
                 <div className="top-dept-icon">🏆</div>
                 <div className="top-dept-meta">
-                  <span className="top-dept-tag">Division la plus assidue</span>
+                  <span className="top-dept-tag">Meilleur taux</span>
                   <strong className="top-dept-name">{topDivision.name}</strong>
                   <small className="top-dept-rate">{topDivision.rate}% de présence ({topDivision.present}/{topDivision.total})</small>
                 </div>

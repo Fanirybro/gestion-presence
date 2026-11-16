@@ -223,16 +223,15 @@ export default function Reports() {
   return (
     <>
       <Heading
-        eyebrow="RH & PAIE"
         title="Rapports"
-        subtitle="Agrégation des présences, indicateurs d'assiduité et préparation de la paie."
+        subtitle="Bilan mensuel et export des présences"
       >
         {hasPermission(user, "reports_print") && (
           <div className="rp-header-actions">
             <button
               className="button"
               onClick={() => setShowFicheModal(true)}
-              title="Générer une fiche de présence officielle (Portrait ou Paysage)"
+              title="Imprimer une fiche de présence"
             >
               <FileSpreadsheet size={15} />
               <span>Imprimer une fiche de présence</span>
@@ -242,10 +241,10 @@ export default function Reports() {
               onClick={handleExportPdf}
               disabled={tableRows.length === 0 || pdfBusy}
               aria-busy={pdfBusy}
-              title="Générer et télécharger le rapport officiel PDF"
+              title="Télécharger le rapport PDF"
             >
               {pdfBusy ? <LoaderCircle className="busy-icon" size={15} /> : <FileText size={15} />}
-              <span>{pdfBusy ? "Génération…" : "Télécharger Rapport PDF"}</span>
+              <span>{pdfBusy ? "Génération…" : "Télécharger le rapport"}</span>
             </button>
           </div>
         )}
@@ -374,7 +373,7 @@ export default function Reports() {
               onClick={() => setActiveTab("summary")}
             >
               <TrendingUp size={15} />
-              <span>Évolution &amp; Assiduité</span>
+              <span>Tendance des présences</span>
             </button>
 
             <button
@@ -391,7 +390,7 @@ export default function Reports() {
             </button>
           </div>
 
-          {/* Tab 1: Évolution de l'assiduité sur le mois */}
+          {/* Tab 1: Tendance des présences sur le mois */}
           {activeTab === "summary" && (
             <section
               id="rp-panel-summary"
@@ -401,7 +400,7 @@ export default function Reports() {
             >
               <div className="rp-section-header">
                 <div>
-                  <h2>Évolution de l'assiduité</h2>
+                  <h2>Tendance des présences</h2>
                   <p className="rp-section-subtitle">
                     Taux de présence journalier {hoveredDayIdx !== null ? `au ${daysInMonth[hoveredDayIdx]}` : `pour ${monthLabel}`}
                   </p>

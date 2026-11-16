@@ -129,9 +129,8 @@ export function Agents() {
   return (
     <>
       <Heading
-        eyebrow="RÉFÉRENTIEL RH"
         title="Personnel"
-        subtitle={`${db.agents.length} agent${db.agents.length > 1 ? "s" : ""} · Fiches d'identité, affectations et badges`}
+        subtitle={`${db.agents.length} agent${db.agents.length > 1 ? "s" : ""}`}
       >
         <Link className="button" to="/agents/badges">
           Imprimer les badges

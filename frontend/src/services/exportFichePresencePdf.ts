@@ -11,12 +11,48 @@ export interface FichePresenceOptions {
   divisionNom?: string;
   nomOrganisation?: string;
   adresseOrganisation?: string;
-  serviceNom?: string;
+  logoUrl?: string | null;
   lieu?: string; // Ville (ex: Toliara)
   agents: Agent[];
   attendances: PresenceRecord[];
   absencesAutorisees?: AuthorizedAbsence[];
   divisions?: { id: string; name: string }[];
+}
+
+/**
+ * Charge une image (data URI, webp, png, jpeg, svg) et la convertit en PNG sécurisé pour jsPDF
+ */
+async function loadLogoForPdf(
+  logoUrl?: string | null,
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  if (!logoUrl || typeof logoUrl !== "string" || !logoUrl.trim()) return null;
+
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const naturalW = img.naturalWidth || img.width || 100;
+          const naturalH = img.naturalHeight || img.height || 100;
+          const canvas = document.createElement("canvas");
+          canvas.width = naturalW;
+          canvas.height = naturalH;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(null);
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = canvas.toDataURL("image/png");
+          resolve({ dataUrl, width: naturalW, height: naturalH });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = logoUrl;
+    } catch {
+      resolve(null);
+    }
+  });
 }
 
 function getAgentIM(agent: Agent): string {
@@ -67,11 +103,33 @@ export async function exporterFicheDivisionPortrait(options: FichePresenceOption
     date,
     periode = "MATIN",
     divisionNom = "Division",
-    serviceNom = "Direction du Budget",
     agents,
     attendances,
     absencesAutorisees = [],
+    logoUrl,
   } = options;
+
+  const loadedLogo = await loadLogoForPdf(logoUrl);
+
+  let topShift = 0;
+  if (loadedLogo) {
+    const maxW = 24;
+    const maxH = 15;
+    let logoW = maxW;
+    let logoH = (loadedLogo.height / loadedLogo.width) * logoW;
+    if (logoH > maxH) {
+      logoH = maxH;
+      logoW = (loadedLogo.width / loadedLogo.height) * logoH;
+    }
+    const logoX = 105 - logoW / 2;
+    const logoY = 6;
+    try {
+      doc.addImage(loadedLogo.dataUrl, "PNG", logoX, logoY, logoW, logoH);
+      topShift = logoH + 4;
+    } catch (e) {
+      console.warn("Impossible d'ajouter le logo au PDF:", e);
+    }
+  }
 
   const { jj_mm_aaaa } = formatDateFr(date);
 
@@ -80,51 +138,50 @@ export async function exporterFicheDivisionPortrait(options: FichePresenceOption
   doc.setFont("times", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(20, 20, 20);
-  doc.text("REPOBLIKAN'I MADAGASIKARA", 105, 14, { align: "center" });
+  doc.text("REPOBLIKAN'I MADAGASIKARA", 105, 14 + topShift, { align: "center" });
 
   doc.setFont("times", "italic");
   doc.setFontSize(8.5);
   doc.setTextColor(50, 50, 50);
-  doc.text("Fitiavana - Tanindrazana - Fandrosoana", 105, 18, { align: "center" });
+  doc.text("Fitiavana - Tanindrazana - Fandrosoana", 105, 18 + topShift, { align: "center" });
 
   doc.setLineWidth(0.3);
   doc.setDrawColor(80, 80, 80);
-  doc.line(90, 19.5, 120, 19.5);
+  doc.line(90, 19.5 + topShift, 120, 19.5 + topShift);
 
   // Hiérarchie ministérielle (Haut Gauche)
   doc.setFont("times", "bold");
   doc.setFontSize(8);
   doc.setTextColor(30, 30, 30);
-  doc.text("MINISTÈRE DE L'ÉCONOMIE ET DES FINANCES", 14, 25);
+  doc.text("MINISTÈRE DE L'ÉCONOMIE ET DES FINANCES", 14, 25 + topShift);
 
   doc.setFont("times", "normal");
   doc.setFontSize(7.5);
-  doc.text("SECRÉTARIAT GÉNÉRAL", 14, 29);
-  doc.text("DIRECTION GÉNÉRALE DU BUDGET", 14, 33);
-  doc.text(serviceNom.toUpperCase(), 14, 37);
+  doc.text("SECRÉTARIAT GÉNÉRAL", 14, 29 + topShift);
+  doc.text("DIRECTION GÉNÉRALE DU BUDGET", 14, 33 + topShift);
 
   doc.setFont("times", "bold");
   doc.setFontSize(8.5);
-  doc.text(`DIVISION : ${divisionNom.toUpperCase()}`, 14, 42);
+  doc.text(`DIVISION : ${divisionNom.toUpperCase()}`, 14, 38.5 + topShift);
 
   doc.setLineWidth(0.2);
-  doc.line(14, 44, 75, 44);
+  doc.line(14, 40.5 + topShift, 75, 40.5 + topShift);
 
   // --- TITRE DU DOCUMENT ---
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(10, 10, 10);
-  doc.text("FICHE DE PRESENCE", 105, 50, { align: "center" });
+  doc.text("FICHE DE PRESENCE", 105, 50 + topShift, { align: "center" });
 
   // Date et cases à cocher des créneaux
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Date : ${jj_mm_aaaa}`, 14, 57);
+  doc.text(`Date : ${jj_mm_aaaa}`, 14, 57 + topShift);
 
   const matinCoche = periode === "MATIN" || periode === "JOURNEE" || !periode ? "[X]" : "[  ]";
   const apresMidiCoche = periode === "APRES_MIDI" || periode === "JOURNEE" ? "[X]" : "[  ]";
   doc.setFont("helvetica", "bold");
-  doc.text(`${matinCoche}  MATIN        ${apresMidiCoche}  APRÈS-MIDI`, 120, 57);
+  doc.text(`${matinCoche}  MATIN        ${apresMidiCoche}  APRÈS-MIDI`, 120, 57 + topShift);
 
   // --- PRÉPARATION DES DONNÉES DU PERSONNEL ---
   let nbConge = 0;
@@ -178,7 +235,7 @@ export async function exporterFicheDivisionPortrait(options: FichePresenceOption
 
   // --- TABLEAU DU PERSONNEL (PAS DE COLONNE SIGNATURE) ---
   autoTable(doc, {
-    startY: 62,
+    startY: 62 + topShift,
     head: [["N°", "NOM ET PRENOM, IM", "HEURE D'ENTREE", "HEURE DE SORTIE"]],
     body: tableData,
     theme: "grid",
@@ -286,14 +343,33 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
   const {
     date,
     divisionNom,
-    serviceNom = "Direction du Budget",
     nomOrganisation = "Direction Générale du Budget",
     lieu = "Toliara",
     agents,
     attendances,
     absencesAutorisees = [],
     divisions = [],
+    logoUrl,
   } = options;
+
+  const loadedLogo = await loadLogoForPdf(logoUrl);
+  if (loadedLogo) {
+    const maxW = 30;
+    const maxH = 18;
+    let logoW = maxW;
+    let logoH = (loadedLogo.height / loadedLogo.width) * logoW;
+    if (logoH > maxH) {
+      logoH = maxH;
+      logoW = (loadedLogo.width / loadedLogo.height) * logoH;
+    }
+    const logoX = 148.5 - logoW / 2;
+    const logoY = 8;
+    try {
+      doc.addImage(loadedLogo.dataUrl, "PNG", logoX, logoY, logoW, logoH);
+    } catch (e) {
+      console.warn("Impossible d'ajouter le logo au PDF:", e);
+    }
+  }
 
   const { jj_mm_aaaa, moisNom, annee } = formatDateFr(date);
 
@@ -322,7 +398,6 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
   doc.setFontSize(7.5);
   doc.text("SECRÉTARIAT GÉNÉRAL", 14, 26.5);
   doc.text("DIRECTION GÉNÉRALE DU BUDGET", 14, 30);
-  doc.text(serviceNom.toUpperCase(), 14, 33.5);
 
   // Titre principal et métadonnées à droite
   doc.setFont("helvetica", "bold");
@@ -334,13 +409,12 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
   doc.setFontSize(8.5);
   doc.setTextColor(40, 40, 40);
 
-  doc.text(`Direction / Service : ${nomOrganisation}`, 170, 21);
-  doc.text(`Division : ${divisionNom || "Toutes les divisions (Vue consolidée)"}`, 170, 25.5);
-  doc.text(`Date : ${jj_mm_aaaa}`, 170, 30);
-  doc.text(`Mois : ${moisNom}     Année : ${annee}`, 170, 34.5);
+  doc.text(`Division : ${divisionNom || "Toutes les divisions"}`, 170, 21);
+  doc.text(`Date : ${jj_mm_aaaa}`, 170, 25.5);
+  doc.text(`Mois : ${moisNom}     Année : ${annee}`, 170, 30);
 
   doc.setLineWidth(0.3);
-  doc.line(170, 36.5, 283, 36.5);
+  doc.line(170, 32.5, 283, 32.5);
 
   // --- DONNÉES DU TABLEAU CONSOLIDÉ ÉTENDU ---
   let nbConge = 0;
@@ -505,13 +579,13 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
     doc.setFontSize(7.5);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `Fiche de présence quotidienne consolidée — ${nomOrganisation} · Page ${p}/${totalPages}`,
+      `Fiche de présence — ${nomOrganisation} · Page ${p}/${totalPages}`,
       148.5,
       202,
       { align: "center" },
     );
   }
 
-  doc.save(`fiche-presence-consolidee-${date}.pdf`);
+  doc.save(`fiche-presence-${date}.pdf`);
 }
 

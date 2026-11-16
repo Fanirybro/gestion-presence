@@ -99,9 +99,8 @@ export function SettingsPage() {
   return (
     <>
       <Heading
-        eyebrow="CONFIGURATION SYSTÈME"
         title="Paramètres"
-        subtitle="Centre unifié de configuration de votre organisation"
+        subtitle="Configuration de l'organisation"
       />
 
       <div className="profile-clean-tabs" role="tablist" style={{ marginBottom: "1.5rem" }}>
@@ -143,7 +142,7 @@ export function SettingsPage() {
           onClick={() => setActiveTab("fields")}
         >
           <SlidersHorizontal size={15} />
-          <span>Fiches personnalisées</span>
+          <span>Champs personnalisés</span>
           <span className="badge" style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px" }}>
             {champsPersonnalises.length}
           </span>

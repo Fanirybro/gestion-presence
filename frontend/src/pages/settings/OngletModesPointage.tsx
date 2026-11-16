@@ -44,7 +44,7 @@ export function OngletModesPointage({
               <div>
                 <strong>Pointage par QR Code</strong>
                 <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
-                  Badges physiques scannés par webcam ou smartphones.
+                  Pointage par scan de badge QR.
                 </p>
               </div>
             </label>
@@ -66,7 +66,7 @@ export function OngletModesPointage({
               <div>
                 <strong>Pointage par Reconnaissance Faciale</strong>
                 <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
-                  Borne Kiosk biométrique avec vérification d'empreinte faciale par IA.
+                  Pointage automatique par caméra.
                 </p>
               </div>
             </label>
@@ -78,7 +78,7 @@ export function OngletModesPointage({
         <div className="form-actions" style={{ marginTop: "1.5rem" }}>
           <button className="button primary" disabled={enSauvegarde}>
             <Save size={16} />
-            {enSauvegarde ? "Enregistrement…" : "Enregistrer les modes"}
+            {enSauvegarde ? "Enregistrement…" : "Enregistrer"}
           </button>
         </div>
       </fieldset>

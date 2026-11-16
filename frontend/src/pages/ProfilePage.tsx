@@ -127,9 +127,8 @@ export default function ProfilePage() {
   return (
     <div className="profile-page-clean">
       <Heading
-        eyebrow="ESPACE UTILISATEUR"
         title="Mon profil"
-        subtitle="Gérez vos informations de compte et vos accès de connexion."
+        subtitle="Informations de votre compte"
       >
         <div className="profile-identity-strip">
           <span className="avatar tone-0">

@@ -149,9 +149,8 @@ export function GestionUtilisateurs() {
   return (
     <>
       <Heading
-        eyebrow="ADMINISTRATION SYSTÈME"
         title="Utilisateurs & Rôles"
-        subtitle="Gestion des comptes, création des rôles et configuration des privilèges"
+        subtitle="Gestion des comptes utilisateurs et des rôles"
       >
         {activeTab === "users" ? (
           <Link className="button primary" to="/users/new">

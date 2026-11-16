@@ -133,9 +133,8 @@ export default function SchedulesPage() {
   return (
     <>
       <Heading
-        eyebrow="TEMPS DE TRAVAIL & DISCIPLINE"
         title="Horaires de travail"
-        subtitle="Configuration hebdomadaire des créneaux, tolérances de retard et seuils d'absence"
+        subtitle="Créneaux horaires et tolérances de pointage"
       >
         <div className="sched-header-actions">
           <button
