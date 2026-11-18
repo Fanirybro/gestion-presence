@@ -35,7 +35,7 @@ export function ModalExportFichePresence({
     : [];
 
   // Divisions accessibles à l'utilisateur
-  const accessibleDepartments = isCoordinator
+  const accessibleDepartments = (isCoordinator || managedDivisions.length === 0)
     ? db.departments
     : db.departments.filter((d) => managedDivisions.includes(String(d.id)));
 
@@ -47,7 +47,7 @@ export function ModalExportFichePresence({
   );
 
   const isGlobal = !selectedDivisionId;
-  const [periode, setPeriode] = useState<"MATIN" | "APRES_MIDI" | "JOURNEE">("MATIN");
+  const [periode, setPeriode] = useState<"MATIN" | "APRES_MIDI" | "JOURNEE">("JOURNEE");
   const [lieu, setLieu] = useState(
     organisation?.adresse?.split(",")[0]?.trim() || db.settings.address?.split(",")[0]?.trim() || "Toliara",
   );
@@ -82,6 +82,7 @@ export function ModalExportFichePresence({
           divisionNom: divNom,
           nomOrganisation: orgNom,
           logoUrl: orgLogo,
+          lieu,
           agents: targetAgents,
           attendances,
           absencesAutorisees: absencesList,
@@ -93,8 +94,8 @@ export function ModalExportFichePresence({
         let targetAgents = db.agents.filter((a) => a.isActive);
         const divNom = "Toutes les divisions";
 
-        if (!isCoordinator) {
-          // Si responsable de division non-coordinateur, restreindre à son périmètre
+        if (!isCoordinator && managedDivisions.length > 0) {
+          // Si responsable de division avec périmètre restreint
           targetAgents = targetAgents.filter((a) =>
             managedDivisions.includes(String(a.departmentId)),
           );
@@ -155,7 +156,7 @@ export function ModalExportFichePresence({
             onChange={(e) => setSelectedDivisionId(e.target.value)}
             disabled={loading}
           >
-            {isCoordinator && (
+            {(isCoordinator || managedDivisions.length === 0) && (
               <option value="">Toutes les divisions</option>
             )}
             {accessibleDepartments.map((d) => (
@@ -167,7 +168,7 @@ export function ModalExportFichePresence({
         </div>
 
         {/* Créneau pour une division spécifique */}
-        {!isGlobal ? (
+        {!isGlobal && (
           <div className="field">
             <label htmlFor="export-periode">
               <Clock size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
@@ -179,29 +180,27 @@ export function ModalExportFichePresence({
               onChange={(e) => setPeriode(e.target.value as any)}
               disabled={loading}
             >
-              <option value="MATIN">Matin</option>
-              <option value="APRES_MIDI">Après-midi</option>
-              <option value="JOURNEE">Toute la journée</option>
+              <option value="JOURNEE">Toute la journée (Matin et Après-midi)</option>
+              <option value="MATIN">Matin uniquement</option>
+              <option value="APRES_MIDI">Après-midi uniquement</option>
             </select>
           </div>
-        ) : null}
-
-        {isGlobal && (
-          <div className="field">
-            <label htmlFor="export-lieu">
-              <MapPin size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Lieu
-            </label>
-            <input
-              id="export-lieu"
-              type="text"
-              placeholder="Ex: Toliara"
-              value={lieu}
-              onChange={(e) => setLieu(e.target.value)}
-              disabled={loading}
-            />
-          </div>
         )}
+
+        <div className="field">
+          <label htmlFor="export-lieu">
+            <MapPin size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+            Lieu
+          </label>
+          <input
+            id="export-lieu"
+            type="text"
+            placeholder="Ex: Toliara"
+            value={lieu}
+            onChange={(e) => setLieu(e.target.value)}
+            disabled={loading}
+          />
+        </div>
 
         <footer style={{ marginTop: 10 }}>
           <button type="button" className="button" onClick={onClose} disabled={loading}>

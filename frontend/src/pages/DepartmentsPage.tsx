@@ -22,6 +22,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { personnelApi, type DivisionResponsable } from "../services/personnel";
 import { RowActionsMenu } from "../components/RowActionsMenu";
 import { ModalAjouterPersonnelsDivision } from "./departments/ModalAjouterPersonnelsDivision";
+import { hasPermission } from "../types";
 
 type DepartmentItem = {
   id: string;
@@ -56,8 +57,10 @@ export default function DepartmentsPage() {
   });
   const membres = membersData?.membres || [];
 
+  const canManageDepartments = hasPermission(user, "departments");
+
   // Accessible departments based on user scope
-  const allDepartments: DepartmentItem[] = isCoordinator
+  const allDepartments: DepartmentItem[] = (isCoordinator || managedDivisions.length === 0)
     ? db.departments
     : db.departments.filter((d) => managedDivisions.includes(String(d.id)));
 
@@ -65,7 +68,7 @@ export default function DepartmentsPage() {
   const totalCount = allDepartments.length;
   const activeCount = allDepartments.filter((d) => d.isActive !== false).length;
   const inactiveCount = totalCount - activeCount;
-  const totalAgentsCount = isCoordinator
+  const totalAgentsCount = (isCoordinator || managedDivisions.length === 0)
     ? db.agents.length
     : db.agents.filter((a) => managedDivisions.includes(String(a.departmentId))).length;
 
@@ -199,7 +202,7 @@ export default function DepartmentsPage() {
         title="Divisions"
         subtitle="Gestion des divisions et des responsables"
       >
-        {isCoordinator && (
+        {canManageDepartments && (
           <button className="button primary" onClick={handleOpenCreate}>
             <Plus size={16} />
             Nouvelle division
@@ -465,7 +468,7 @@ export default function DepartmentsPage() {
                               disabled: pending,
                               onClick: () => handleOpenRename(dept),
                             },
-                            ...(isCoordinator
+                            ...(canManageDepartments
                               ? [
                                   {
                                     label: isActive ? "Désactiver la division" : "Réactiver la division",

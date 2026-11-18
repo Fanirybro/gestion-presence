@@ -136,8 +136,8 @@ const PERMISSION_GROUPS: PermGroupConfig[] = [
     items: [
       {
         key: "departments",
-        title: "Départements & Services",
-        description: "Gérer l'organigramme et les départements",
+        title: "Divisions",
+        description: "Gérer l'organigramme et les divisions",
       },
       {
         key: "schedules",

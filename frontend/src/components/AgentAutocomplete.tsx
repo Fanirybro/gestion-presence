@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
-import { Search, X, Check, User, Users } from "lucide-react";
+import { Search, X, Check, User, Users, ChevronDown } from "lucide-react";
 import type { Agent } from "../types";
 import { fullName, initials } from "../utils";
 import "./agentAutocomplete.css";
@@ -12,6 +12,9 @@ interface AgentAutocompleteProps {
   placeholder?: string;
   ariaLabel?: string;
   embedded?: boolean;
+  allowAll?: boolean;
+  fullWidth?: boolean;
+  required?: boolean;
 }
 
 export function AgentAutocomplete({
@@ -22,6 +25,9 @@ export function AgentAutocomplete({
   placeholder = "Rechercher par nom, prénom…",
   ariaLabel = "Rechercher un employé",
   embedded = false,
+  allowAll = true,
+  fullWidth = false,
+  required = false,
 }: AgentAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -95,6 +101,8 @@ export function AgentAutocomplete({
     inputRef.current?.focus();
   };
 
+  const totalItems = allowAll ? filteredAgents.length + 1 : filteredAgents.length;
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
       if (e.key === "ArrowDown" || e.key === "Enter") {
@@ -103,8 +111,6 @@ export function AgentAutocomplete({
       }
       return;
     }
-
-    const totalItems = filteredAgents.length + 1; // +1 for "Tous les employés"
 
     switch (e.key) {
       case "ArrowDown":
@@ -117,13 +123,19 @@ export function AgentAutocomplete({
         break;
       case "Enter":
         e.preventDefault();
-        if (highlightedIndex === 0) {
-          handleSelect("");
-        } else if (
-          highlightedIndex > 0 &&
-          highlightedIndex <= filteredAgents.length
-        ) {
-          handleSelect(filteredAgents[highlightedIndex - 1].id);
+        if (allowAll) {
+          if (highlightedIndex === 0) {
+            handleSelect("");
+          } else if (
+            highlightedIndex > 0 &&
+            highlightedIndex <= filteredAgents.length
+          ) {
+            handleSelect(filteredAgents[highlightedIndex - 1].id);
+          }
+        } else {
+          if (highlightedIndex >= 0 && highlightedIndex < filteredAgents.length) {
+            handleSelect(filteredAgents[highlightedIndex].id);
+          }
         }
         break;
       case "Escape":
@@ -138,7 +150,9 @@ export function AgentAutocomplete({
 
   return (
     <div
-      className={`agent-autocomplete-wrapper ${embedded ? "embedded" : ""}`}
+      className={`agent-autocomplete-wrapper ${embedded ? "embedded" : ""} ${
+        fullWidth ? "full-width" : ""
+      }`}
       ref={containerRef}
     >
       <div
@@ -163,6 +177,7 @@ export function AgentAutocomplete({
           aria-haspopup="listbox"
           aria-label={ariaLabel}
           placeholder={placeholder}
+          required={required && !value}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -181,12 +196,29 @@ export function AgentAutocomplete({
             type="button"
             className="agent-autocomplete-clear"
             onClick={handleClear}
-            title="Désélectionner l'employé"
-            aria-label="Effacer le filtre employé"
+            title="Effacer la sélection"
+            aria-label="Effacer la sélection"
           >
             <X size={13} />
           </button>
         ) : null}
+
+        <button
+          type="button"
+          tabIndex={-1}
+          className="agent-autocomplete-toggle-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+            if (!isOpen) inputRef.current?.focus();
+          }}
+          aria-label="Afficher ou masquer la liste"
+        >
+          <ChevronDown
+            size={15}
+            className={`agent-autocomplete-chevron ${isOpen ? "open" : ""}`}
+          />
+        </button>
       </div>
 
       {isOpen && (
@@ -200,29 +232,31 @@ export function AgentAutocomplete({
           </div>
 
           <div className="agent-autocomplete-list">
-            {/* Option "Tous les employés" */}
-            <div
-              role="option"
-              aria-selected={!value}
-              className={`agent-autocomplete-item ${!value ? "active" : ""} ${
-                highlightedIndex === 0 ? "highlighted" : ""
-              }`}
-              onClick={() => handleSelect("")}
-              onMouseEnter={() => setHighlightedIndex(0)}
-            >
-              <span className="agent-autocomplete-avatar-all">
-                <Users size={14} />
-              </span>
-              <div className="agent-autocomplete-details">
-                <span className="agent-name">Tous les employés</span>
-                <span className="agent-meta">Réinitialiser le filtre personnel</span>
+            {/* Option "Tous les employés" (uniquement si allowAll) */}
+            {allowAll && (
+              <div
+                role="option"
+                aria-selected={!value}
+                className={`agent-autocomplete-item ${!value ? "active" : ""} ${
+                  highlightedIndex === 0 ? "highlighted" : ""
+                }`}
+                onClick={() => handleSelect("")}
+                onMouseEnter={() => setHighlightedIndex(0)}
+              >
+                <span className="agent-autocomplete-avatar-all">
+                  <Users size={14} />
+                </span>
+                <div className="agent-autocomplete-details">
+                  <span className="agent-name">Tous les employés</span>
+                  <span className="agent-meta">Réinitialiser le filtre personnel</span>
+                </div>
+                {!value && <Check size={15} className="agent-check-icon" />}
               </div>
-              {!value && <Check size={15} className="agent-check-icon" />}
-            </div>
+            )}
 
             {/* List of matching agents */}
             {filteredAgents.map((agent, index) => {
-              const itemIdx = index + 1;
+              const itemIdx = allowAll ? index + 1 : index;
               const isSelected = agent.id === value;
               const isHighlighted = highlightedIndex === itemIdx;
               const deptName =

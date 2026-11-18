@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import {
+  Briefcase,
   Building2,
   Calendar,
   CalendarCheck,
@@ -21,18 +22,22 @@ import {
 } from "../services/authorizedAbsences";
 import { dateLabel, fullName, today } from "../utils";
 import { RowActionsMenu } from "../components/RowActionsMenu";
+import { hasPermission } from "../types";
 import "./authorizedAbsences.css";
 
-const label = (r: AuthorizedAbsence) =>
-  r.type === "LEAVE" ? "Congé autorisé" : "Permission autorisée";
+const label = (r: AuthorizedAbsence) => {
+  if (r.type === "LEAVE") return "Congé autorisé";
+  if (r.type === "MISSION") return "En mission";
+  return "Permission autorisée";
+};
 const period = (r: AuthorizedAbsence) =>
-  r.type === "LEAVE"
-    ? `${dateLabel(r.start)} — ${dateLabel(r.end)}`
-    : `${dateLabel(r.start)} · ${r.from} — ${r.to}`;
+  r.type === "PERMISSION"
+    ? `${dateLabel(r.start)} · ${r.from} — ${r.to}`
+    : `${dateLabel(r.start)} — ${dateLabel(r.end)}`;
 
 export default function AuthorizedAbsences() {
   const { db, notify, user } = useApp();
-  const canManage = user?.role === "COORDINATOR";
+  const canManage = hasPermission(user, "leaves");
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["authorized-absences", user?.organisationId, user?.id],
@@ -79,6 +84,7 @@ export default function AuthorizedAbsences() {
   };
   const leaveCount = (query.data || []).filter((r) => r.type === "LEAVE").length;
   const permissionCount = (query.data || []).filter((r) => r.type === "PERMISSION").length;
+  const missionCount = (query.data || []).filter((r) => r.type === "MISSION").length;
   const hasActiveFilters = Boolean(
     filters.start || filters.end || filters.agent || filters.department,
   );
@@ -122,6 +128,17 @@ export default function AuthorizedAbsences() {
         >
           <Clock3 size={14} />
           <span>Permissions ({permissionCount})</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filters.type === "MISSION"}
+          className={`profile-tab-item ${filters.type === "MISSION" ? "active" : ""}`}
+          onClick={() => filter("type", "MISSION")}
+        >
+          <Briefcase size={14} />
+          <span>En mission ({missionCount})</span>
         </button>
       </div>
 
@@ -301,10 +318,12 @@ export default function AuthorizedAbsences() {
                 ),
                 <div key="type" className="absence-type">
                   <span
-                    className={`badge ${r.type === "LEAVE" ? "present" : "justified"}`}
+                    className={`badge ${r.type === "LEAVE" ? "present" : r.type === "MISSION" ? "late" : "justified"}`}
                   >
                     {r.type === "LEAVE" ? (
                       <CalendarDays size={16} />
+                    ) : r.type === "MISSION" ? (
+                      <Briefcase size={16} />
                     ) : (
                       <Clock3 size={16} />
                     )}
@@ -435,8 +454,20 @@ function AbsenceForm({
   close: () => void;
   saved: (rows: AuthorizedAbsence[]) => void;
 }) {
-  const { db } = useApp();
-  const [type, setType] = useState<"LEAVE" | "PERMISSION">(
+  const { db, user } = useApp();
+  const isCoordinator = user?.role === "COORDINATOR";
+  const managedDivs = Array.isArray(user?.managed_division_ids)
+    ? user.managed_division_ids.map(String)
+    : [];
+
+  const availableAgents = db.agents.filter((a) => {
+    const matchesScope =
+      isCoordinator || managedDivs.length === 0 || managedDivs.includes(String(a.departmentId));
+    return (a.isActive || a.id === record?.agentId) && matchesScope;
+  });
+
+  const [agentId, setAgentId] = useState(record?.agentId || "");
+  const [type, setType] = useState<"LEAVE" | "PERMISSION" | "MISSION">(
     record?.type || "LEAVE",
   );
   const [busy, setBusy] = useState(false);
@@ -445,8 +476,14 @@ function AbsenceForm({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const value = (key: string) => String(form.get(key) || "").trim();
+    const targetAgentId = agentId || value("agentId");
+    if (!targetAgentId) {
+      setError("Veuillez sélectionner un employé.");
+      return;
+    }
+    const isDateRange = type === "LEAVE" || type === "MISSION";
     const start = value("start"),
-      end = type === "LEAVE" ? value("end") : start;
+      end = isDateRange ? value("end") : start;
     if (
       end < start ||
       (type === "PERMISSION" && value("to") <= value("from"))
@@ -457,16 +494,17 @@ function AbsenceForm({
       return;
     }
     if (
-      !db.agents.some(
+      !availableAgents.some(
         (a) =>
-          a.id === value("agentId") && (a.isActive || a.id === record?.agentId),
+          a.id === targetAgentId && (a.isActive || a.id === record?.agentId),
       )
     ) {
-      setError("Sélectionnez un employé disponible.");
+      setError("Cet employé n'est pas dans votre périmètre de gestion.");
       return;
     }
-    const common = {
-      agentId: value("agentId"),
+    const next = {
+      agentId: targetAgentId,
+      type,
       start,
       end,
       remark: value("remark"),
@@ -474,17 +512,13 @@ function AbsenceForm({
       from: type === "PERMISSION" ? value("from") : null,
       to: type === "PERMISSION" ? value("to") : null,
     };
-    const next =
-      type === "LEAVE"
-        ? { ...common, type }
-        : { ...common, type };
     setBusy(true);
     setError("");
     try {
       saved(await authorizedAbsences.save(next, record?.id));
-    } catch {
+    } catch (err: any) {
       setError(
-        "Impossible d’enregistrer l’absence. Vérifiez les champs, puis réessayez.",
+        err?.message || "Impossible d’enregistrer l’absence. Vérifiez les champs, puis réessayez.",
       );
     } finally {
       setBusy(false);
@@ -503,19 +537,17 @@ function AbsenceForm({
     >
       <form className="absence-form" onSubmit={submit}>
         <Field label="Employé">
-          <select name="agentId" defaultValue={record?.agentId || ""} required>
-            <option value="" disabled>
-              Choisir un employé
-            </option>
-            {db.agents
-              .filter((a) => a.isActive || a.id === record?.agentId)
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {fullName(a)}
-                  {!a.isActive ? " (inactif)" : ""}
-                </option>
-              ))}
-          </select>
+          <input type="hidden" name="agentId" value={agentId} />
+          <AgentAutocomplete
+            agents={availableAgents}
+            departments={db.departments}
+            value={agentId}
+            onChange={(id) => setAgentId(id)}
+            placeholder="Rechercher par nom, prénom ou division…"
+            allowAll={false}
+            fullWidth
+            required
+          />
         </Field>
         <Field label="Type">
           <select
@@ -524,10 +556,11 @@ function AbsenceForm({
           >
             <option value="LEAVE">Congé</option>
             <option value="PERMISSION">Permission</option>
+            <option value="MISSION">En mission</option>
           </select>
         </Field>
         <div className="form-grid">
-          <Field label={type === "LEAVE" ? "Date de début" : "Date"}>
+          <Field label={type === "PERMISSION" ? "Date" : "Date de début"}>
             <input
               name="start"
               type="date"
@@ -535,7 +568,7 @@ function AbsenceForm({
               defaultValue={record?.start || today()}
             />
           </Field>
-          {type === "LEAVE" && (
+          {type !== "PERMISSION" && (
             <Field label="Date de fin">
               <input
                 name="end"

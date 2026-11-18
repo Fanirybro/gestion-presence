@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 
 export type AuthorizedAbsence = {
-  id: string; agentId: string; type: "LEAVE" | "PERMISSION";
+  id: string; agentId: string; type: "LEAVE" | "PERMISSION" | "MISSION";
   start: string; end: string; from: string | null; to: string | null;
   remark: string; cancelled: boolean; version: string;
 };

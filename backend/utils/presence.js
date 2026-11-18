@@ -65,7 +65,7 @@ export async function reconcileAbsences(client, org, start, end) {
         CASE WHEN h.fin_jour_suivant AND h.heure_limite_absence < h.heure_debut THEN interval '1 day' ELSE interval '0 day' END)
         AT TIME ZONE o.fuseau_horaire) AS cutoff,
       EXISTS (SELECT 1 FROM absences_autorisees a WHERE a.organisation_id = $1 AND a.personnel_id = p.id AND a.annule_at IS NULL
-        AND d.day BETWEEN a.date_debut AND a.date_fin AND (a.type = 'LEAVE' OR
+        AND d.day BETWEEN a.date_debut AND a.date_fin AND (a.type IN ('LEAVE', 'MISSION') OR
           (NOT h.fin_jour_suivant AND a.heure_debut <= h.heure_debut AND a.heure_fin >= h.heure_fin))) AS justified
     FROM days d JOIN organisations o ON o.id = $1
     JOIN personnel p ON p.organisation_id = o.id AND p.actif = true

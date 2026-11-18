@@ -88,19 +88,19 @@ export const DEFAULT_SECRETARY_PERMISSIONS: UserPermissions = {
   scan: true,
   kiosk: true,
   presences: true,
-  presences_justify: false,
-  presences_add: false,
+  presences_justify: true,
+  presences_add: true,
   reports: true,
   reports_print: true,
   leaves: true,
-  agents: false,
-  agents_manage: false,
-  agents_badges: false,
-  departments: false,
-  schedules: false,
-  face_enroll: false,
-  users: false,
-  settings: false,
+  agents: true,
+  agents_manage: true,
+  agents_badges: true,
+  departments: false, // Réservé à l'administration par défaut
+  face_enroll: true,
+  schedules: false, // Inclus dans Paramètres
+  users: false,     // Inclus dans Paramètres
+  settings: false,  // Inclus dans Paramètres
 };
 
 export function hasPermission(
@@ -109,25 +109,39 @@ export function hasPermission(
 ): boolean {
   if (!user) return false;
   if (user.role === "COORDINATOR") return true;
+
+  // Options d'administration et paramètres système : réservées par défaut
+  const isSettingsOrAdminOption =
+    key === "settings" || key === "users" || key === "schedules" || key === "departments";
+
+  // Si des permissions explicites sont définies sur l'utilisateur
+  if (user.permissions && Object.prototype.hasOwnProperty.call(user.permissions, key)) {
+    return Boolean(user.permissions[key]);
+  }
+
+  // Périmètre par division si configuré
   if (Array.isArray(user.managed_division_ids) && user.managed_division_ids.length > 0) {
     if (
-      key === "departments" ||
       key === "agents" ||
       key === "agents_manage" ||
+      key === "agents_badges" ||
       key === "leaves" ||
       key === "presences" ||
       key === "presences_add" ||
       key === "presences_justify" ||
       key === "face_enroll" ||
-      key === "reports"
+      key === "reports" ||
+      key === "reports_print"
     ) {
       return true;
     }
   }
-  if (user.permissions && Object.prototype.hasOwnProperty.call(user.permissions, key)) {
-    return Boolean(user.permissions[key]);
+
+  if (isSettingsOrAdminOption) {
+    return false;
   }
-  return Boolean(DEFAULT_SECRETARY_PERMISSIONS[key]);
+
+  return Boolean(DEFAULT_SECRETARY_PERMISSIONS[key] ?? true);
 }
 
 export interface User {

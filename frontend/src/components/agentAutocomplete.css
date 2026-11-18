@@ -6,6 +6,18 @@
   max-width: 320px;
 }
 
+.agent-autocomplete-wrapper.full-width,
+.field .agent-autocomplete-wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.field .agent-autocomplete-dropdown,
+.agent-autocomplete-wrapper.full-width .agent-autocomplete-dropdown {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 /* Embedded in unified filter bar */
 .agent-autocomplete-wrapper.embedded {
   min-width: 0;
@@ -113,6 +125,31 @@
 .agent-autocomplete-clear:hover {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.agent-autocomplete-toggle-btn {
+  border: none;
+  background: transparent;
+  color: #7a8880;
+  cursor: pointer;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.agent-autocomplete-toggle-btn:hover {
+  color: #227057;
+}
+
+.agent-autocomplete-chevron {
+  transition: transform 0.2s ease;
+}
+
+.agent-autocomplete-chevron.open {
+  transform: rotate(180deg);
 }
 
 /* Floating Dropdown */

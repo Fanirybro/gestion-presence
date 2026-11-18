@@ -27,10 +27,10 @@ export const listAbsences = presenceController(async (req, client) => {
 
 export const saveAbsence = presenceController(async (req, client) => {
   const b = inputBody(req, ["agentId", "type", "start", "end", "from", "to", "remark", "version"]), org = req.user.organisation_id;
-  if (!validId(b.agentId) || !["LEAVE", "PERMISSION"].includes(b.type) || !validDate(b.start) || !validDate(b.end) || b.end < b.start || Date.parse(b.end) - Date.parse(b.start) > 366 * 86400000
+  if (!validId(b.agentId) || !["LEAVE", "PERMISSION", "MISSION"].includes(b.type) || !validDate(b.start) || !validDate(b.end) || b.end < b.start || Date.parse(b.end) - Date.parse(b.start) > 366 * 86400000
     || typeof b.remark !== "string" || b.remark.length > 500) fail(400, "Vérifiez l’agent, le type, les dates (un an maximum) et le motif.");
   if (b.type === "PERMISSION" && (b.start !== b.end || !validTime(b.from) || !validTime(b.to) || b.to <= b.from)) fail(400, "Une permission doit commencer et finir dans la même journée, avec une fin après le début.");
-  if (b.type === "LEAVE" && (b.from || b.to)) fail(400, "Un congé ne contient pas d’horaires.");
+  if (["LEAVE", "MISSION"].includes(b.type) && (b.from || b.to)) fail(400, "Un congé ou une mission ne contient pas d’horaires.");
   const before = req.params.id ? await find(client, org, req.params.id) : null;
   if (before && (before.cancelled || before.version !== b.version)) fail(409, "Enregistrement annulé ou modifié. Rechargez la liste.");
   const person = (await client.query("SELECT id, actif, division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, b.agentId])).rows[0];
@@ -38,12 +38,12 @@ export const saveAbsence = presenceController(async (req, client) => {
 
   if (req.actor?.role !== "COORDINATOR") {
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
-    if (!managed.includes(String(person.division_id))) {
+    if (managed.length > 0 && !managed.includes(String(person.division_id))) {
       fail(403, "Accès refusé : cet agent appartient à une autre division.");
     }
     if (before) {
       const beforePerson = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
-      if (!beforePerson || !managed.includes(String(beforePerson.division_id))) {
+      if (managed.length > 0 && beforePerson && !managed.includes(String(beforePerson.division_id))) {
         fail(403, "Accès refusé : cette absence concerne une autre division.");
       }
     }
@@ -51,7 +51,7 @@ export const saveAbsence = presenceController(async (req, client) => {
 
   const overlaps = await client.query(`SELECT id FROM absences_autorisees WHERE organisation_id=$1 AND personnel_id=$2 AND annule_at IS NULL
     AND ($3::bigint IS NULL OR id<>$3) AND date_debut<=$5::date AND date_fin>=$4::date
-    AND (type='LEAVE' OR $6='LEAVE' OR (heure_debut<$8::time AND heure_fin>$7::time)) LIMIT 1`,
+    AND (type IN ('LEAVE', 'MISSION') OR $6 IN ('LEAVE', 'MISSION') OR (heure_debut<$8::time AND heure_fin>$7::time)) LIMIT 1`,
     [org, b.agentId, before?.id ?? null, b.start, b.end, b.type, b.from || null, b.to || null]);
   if (overlaps.rows.length) fail(409, "Une absence autorisée couvre déjà cette période.");
   let id = before?.id;
@@ -73,7 +73,7 @@ export const cancelAbsence = presenceController(async (req, client) => {
   if (req.actor?.role !== "COORDINATOR") {
     const beforePerson = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
-    if (!beforePerson || !managed.includes(String(beforePerson.division_id))) {
+    if (beforePerson && managed.length > 0 && !managed.includes(String(beforePerson.division_id))) {
       fail(403, "Accès refusé : cette absence concerne une autre division.");
     }
   }

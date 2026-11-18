@@ -118,7 +118,7 @@ CREATE TABLE absences_autorisees (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     organisation_id bigint NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
     personnel_id bigint NOT NULL,
-    type text NOT NULL CHECK (type IN ('LEAVE', 'PERMISSION')),
+    type text NOT NULL CHECK (type IN ('LEAVE', 'PERMISSION', 'MISSION')),
     date_debut date NOT NULL CHECK (isfinite(date_debut)),
     date_fin date NOT NULL CHECK (isfinite(date_fin)),
     heure_debut time,
@@ -136,7 +136,7 @@ CREATE TABLE absences_autorisees (
     FOREIGN KEY (organisation_id, annule_par) REFERENCES organisation_members(organisation_id, user_id) ON DELETE RESTRICT,
     CHECK (date_fin >= date_debut),
     CHECK (
-        (type = 'LEAVE' AND heure_debut IS NULL AND heure_fin IS NULL)
+        (type IN ('LEAVE', 'MISSION') AND heure_debut IS NULL AND heure_fin IS NULL)
         OR (type = 'PERMISSION' AND date_debut = date_fin
             AND heure_debut IS NOT NULL AND heure_fin IS NOT NULL
             AND heure_fin > heure_debut AND heure_fin < TIME '24:00')

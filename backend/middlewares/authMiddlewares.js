@@ -55,12 +55,14 @@ export function requirePermission(...permissionKeys) {
         "departments",
         "agents",
         "agents_manage",
+        "agents_badges",
         "presences",
         "presences_add",
         "presences_justify",
         "leaves",
         "face_enroll",
         "reports",
+        "reports_print",
       ];
       if (permissionKeys.some((key) => divisionScopedPermissions.includes(key))) {
         return next();

@@ -2,7 +2,7 @@ import { useSecretaryMode } from "../app/secretaryMode";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   RotateCcw,
   Search,
@@ -15,6 +15,7 @@ import {
   CalendarCheck,
   Building2,
   X,
+  Eye,
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { hasPermission } from "../types";
@@ -50,6 +51,7 @@ export function Presences({
         ? "absences"
         : "presences");
   const { db, user, notify } = useApp();
+  const navigate = useNavigate();
   const client = useQueryClient();
   const [modal, setModal] = useState<{
     type: "correct" | "justify";
@@ -410,36 +412,60 @@ export function Presences({
               <span key="departure" className="time">
                 {p.departureAt || "—"}
               </span>,
-              <Badge key="status" status={p.status} />,
+              <div key="status" style={{ display: "inline-flex", flexDirection: "column", gap: "2px", alignItems: "flex-start" }}>
+                <Badge status={p.status} />
+                {p.note && (
+                  <span
+                    title={`Motif : ${p.note}`}
+                    style={{
+                      fontSize: "0.73rem",
+                      color: "#52606d",
+                      fontStyle: "italic",
+                      maxWidth: "150px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      cursor: "help",
+                      display: "block",
+                      marginTop: "1px",
+                    }}
+                  >
+                    « {p.note} »
+                  </span>
+                )}
+              </div>,
               ...(!simple
                 ? [p.lateMinutes ? `${p.lateMinutes} min` : "—"]
                 : []),
-              canCorrect || canJustify ? (
-                <RowActionsMenu
-                  key="actions"
-                  ariaLabel={`Actions pour ${fullName(a)}`}
-                  items={[
-                    canCorrect && {
-                      label: "Corriger",
-                      icon: <Pencil size={14} />,
-                      onClick: () => {
-                        setError("");
-                        setModal({ type: "correct", record: p });
-                      },
+              <RowActionsMenu
+                key="actions"
+                ariaLabel={`Actions pour ${fullName(a)}`}
+                items={[
+                  {
+                    label: "Détails & historique",
+                    icon: <Eye size={14} />,
+                    onClick: () => {
+                      navigate(`/presences/${p.id}`);
                     },
-                    canJustify && {
-                      label: "Justifier l’absence",
-                      icon: <CheckSquare size={14} />,
-                      onClick: () => {
-                        setError("");
-                        setModal({ type: "justify", record: p });
-                      },
+                  },
+                  canCorrect && {
+                    label: "Corriger",
+                    icon: <Pencil size={14} />,
+                    onClick: () => {
+                      setError("");
+                      setModal({ type: "correct", record: p });
                     },
-                  ]}
-                />
-              ) : (
-                <span key="actions" style={{ color: "#8a968f", fontSize: "12px" }}>—</span>
-              ),
+                  },
+                  canJustify && {
+                    label: "Justifier l’absence",
+                    icon: <CheckSquare size={14} />,
+                    onClick: () => {
+                      setError("");
+                      setModal({ type: "justify", record: p });
+                    },
+                  },
+                ]}
+              />,
             ];
           })}
         />

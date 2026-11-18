@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import {
-  CalendarDays,
   Users,
   UserCheck,
   UserX,
@@ -10,13 +9,14 @@ import {
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { Heading } from "../components/ui";
-import { dateLabel, today } from "../utils";
+import { today } from "../utils";
 import { RollingNumber } from "../components/MotionEffects";
 import { motion } from "motion/react";
 import { useMotionPreference as useReducedMotion } from "../components/useMotionPreference";
 import { useQuery } from "@tanstack/react-query";
 import { presencesApi } from "../services/presences";
 import { useMemo } from "react";
+import { hasPermission } from "../types";
 
 export default function Dashboard() {
   const reduced = useReducedMotion();
@@ -115,15 +115,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Heading
-        title={`Bonjour, ${user?.name.split(" ")[0]}.`}
-        subtitle={dateLabel(day, true)}
-      >
-        <span className="date-chip">
-          <CalendarDays size={15} />
-          {dateLabel(day)}
-        </span>
-      </Heading>
+      <Heading title={`Bonjour, ${user?.name.split(" ")[0]}.`} />
       {/* KPI Metrics Strip (Model from Reports) */}
       <div className="rp-metrics-row">
         {[
@@ -133,7 +125,7 @@ export default function Dashboard() {
             icon: Users,
             valueClass: "",
             note: "Agents actifs",
-            to: user?.role === "COORDINATOR" ? "/agents" : "/presences",
+            to: hasPermission(user, "agents") ? "/agents" : "/presences",
           },
           {
             label: "Présents aujourd’hui",
