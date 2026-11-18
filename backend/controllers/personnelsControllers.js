@@ -188,7 +188,6 @@ export const deletePersonnel = controller(async (req, client) => {
   await client.query("DELETE FROM badges WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
   await client.query("DELETE FROM absences_autorisees WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
   await client.query("DELETE FROM presences_journalieres WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
-  await client.query("DELETE FROM face_attendances WHERE personnel_id = $1", [id]);
   await client.query("DELETE FROM face_profiles WHERE personnel_id = $1", [id]);
   await client.query("DELETE FROM personnel WHERE organisation_id = $1 AND id = $2", [org, id]);
 
