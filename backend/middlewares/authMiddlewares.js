@@ -110,8 +110,19 @@ export function requireTrustedOrigin(origins) {
     if (!isAllowed || req.get("sec-fetch-site") === "cross-site") {
       return res.status(403).json({ message: "Origine non autorisée." });
     }
-    // Les mutations utilisent exclusivement du JSON, y compris sans Origin.
-    if (!req.is("application/json")) return res.status(415).json({ message: "Content-Type application/json requis." });
+    // Les mutations avec un corps utilisent exclusivement du JSON (les requêtes sans corps comme DELETE renvoient null sur req.is())
+    const hasBody = Boolean(
+      (req.get("content-length") && req.get("content-length") !== "0") ||
+      req.get("transfer-encoding")
+    );
+    if (hasBody) {
+      if (!req.is("application/json")) return res.status(415).json({ message: "Content-Type application/json requis." });
+    } else {
+      const ct = req.get("content-type");
+      if (ct && !ct.toLowerCase().includes("application/json")) {
+        return res.status(415).json({ message: "Content-Type application/json requis." });
+      }
+    }
     next();
   };
 }
