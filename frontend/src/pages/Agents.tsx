@@ -11,24 +11,46 @@ import {
   QrCode,
   RotateCcw,
   Search,
+  Trash2,
   UserCheck,
   X,
 } from "lucide-react";
 import { useApp } from "../app/context";
-import { Back, Empty, Heading, Person, Table } from "../components/ui";
+import { Back, Confirm, Empty, Heading, Person, Table } from "../components/ui";
 import { RowActionsMenu } from "../components/RowActionsMenu";
 import { dateLabel, fullName } from "../utils";
 import { ModalDetailAgent } from "./agents/ModalDetailAgent";
 import { FormulairePersonnel } from "./agents/FormulairePersonnel";
 import { ModalEnrollAgent } from "../modules/face-recognition/ModalEnrollAgent";
+import { personnelApi } from "../services/personnel";
 import type { Agent } from "../types";
+import { hasPermission } from "../types";
 
 export function Agents() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { db, organisation, notify, refreshPersonnel, personnelLoading } = useApp();
+  const { db, user, organisation, notify, refreshPersonnel, personnelLoading } = useApp();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [enrollAgent, setEnrollAgent] = useState<Agent | null>(null);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const canManage = hasPermission(user, "agents_manage");
+
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete || deleting) return;
+    setDeleting(true);
+    try {
+      await personnelApi.delete(agentToDelete.id);
+      notify(`Agent ${fullName(agentToDelete)} supprimé avec succès.`);
+      setAgentToDelete(null);
+      await refreshPersonnel();
+    } catch (err) {
+      notify((err as Error).message || "Erreur lors de la suppression de l'agent.", true);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const currentDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: organisation?.fuseau_horaire || "Indian/Antananarivo",
@@ -398,6 +420,12 @@ export function Agents() {
                       icon: <QrCode size={14} />,
                       onClick: () => navigate(`/agents/${a.id}/qr`),
                     },
+                    canManage && {
+                      label: "Supprimer l'agent",
+                      icon: <Trash2 size={14} />,
+                      variant: "danger",
+                      onClick: () => setAgentToDelete(a),
+                    },
                   ]}
                 />
               </div>,
@@ -432,6 +460,18 @@ export function Agents() {
               setEnrollAgent(null);
               await refreshPersonnel();
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {agentToDelete && (
+          <Confirm
+            key="confirm-delete-agent"
+            title={`Supprimer définitivement ${fullName(agentToDelete)} ?`}
+            text="Cette action est irréversible. L'ensemble des données liées à cet agent (pointages, badges, présences, visage) seront définitivement supprimées."
+            close={() => !deleting && setAgentToDelete(null)}
+            confirm={handleDeleteAgent}
           />
         )}
       </AnimatePresence>

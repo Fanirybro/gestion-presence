@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireOrganisation, requirePermission } from "../middlewares/authMiddlewares.js";
-import { getPersonnels, getPersonnel, createPersonnel, updatePersonnel, getPersonnelMembers } from "../controllers/personnelsControllers.js";
+import { getPersonnels, getPersonnel, createPersonnel, updatePersonnel, deletePersonnel, getPersonnelMembers } from "../controllers/personnelsControllers.js";
 const router = Router();
 router.use(requireAuth, requireOrganisation);
 router.get("/", getPersonnels);
@@ -8,4 +8,5 @@ router.get("/membres", requirePermission("agents", "agents_manage"), getPersonne
 router.get("/:id", getPersonnel);
 router.post("/", requirePermission("agents_manage"), createPersonnel);
 router.patch("/:id", requirePermission("agents_manage"), updatePersonnel);
+router.delete("/:id", requirePermission("agents_manage"), deletePersonnel);
 export default router;

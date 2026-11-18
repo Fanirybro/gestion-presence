@@ -175,6 +175,27 @@ export const updatePersonnel = controller(async (req, client) => {
   return { body: { personnel: saved } };
 }, { write: true, byId: true });
 
+export const deletePersonnel = controller(async (req, client) => {
+  const previous = await find(client, req.user.organisation_id, req.params.id);
+  if (req.accessibleDivisions !== null && !req.accessibleDivisions.includes(String(previous.division_id))) {
+    fail(403, "Accès refusé : cet agent appartient à une autre division.");
+  }
+  const org = req.user.organisation_id;
+  const id = req.params.id;
+
+  // Nettoyage complet des données liées à l'agent avant suppression
+  await client.query("DELETE FROM pointages WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
+  await client.query("DELETE FROM badges WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
+  await client.query("DELETE FROM absences_autorisees WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
+  await client.query("DELETE FROM presences_journalieres WHERE organisation_id = $1 AND personnel_id = $2", [org, id]);
+  await client.query("DELETE FROM face_attendances WHERE personnel_id = $1", [id]);
+  await client.query("DELETE FROM face_profiles WHERE personnel_id = $1", [id]);
+  await client.query("DELETE FROM personnel WHERE organisation_id = $1 AND id = $2", [org, id]);
+
+  await audit(client, req, "personnel", id, "DELETE", previous, null);
+  return { status: 200, body: { success: true, message: "Agent supprimé avec succès." } };
+}, { write: true, byId: true });
+
 export const getDivisions = controller(async (req, client) => {
   const { rows } = await client.query(
     `SELECT d.id, d.organisation_id, d.nom, d.actif, d.created_at, d.updated_at,

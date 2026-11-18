@@ -66,6 +66,8 @@ export const personnelApi = {
     apiClient.post<{ personnel: Personnel }>("/personnels", body),
   update: (id: string, body: Partial<PersonnelInput>) =>
     apiClient.patch<{ personnel: Personnel }>(`/personnels/${id}`, body),
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean; message: string }>(`/personnels/${id}`),
   divisions: () =>
     apiClient.get<{ divisions: Division[]; departements: Division[] }>("/divisions"),
   departments: () =>
