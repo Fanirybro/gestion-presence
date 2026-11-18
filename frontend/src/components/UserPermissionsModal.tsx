@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal } from "./ui";
 import {
   DEFAULT_SECRETARY_PERMISSIONS,
+  isSuperAdmin,
   type User,
   type UserPermissions,
 } from "../types";
@@ -164,7 +165,7 @@ const PERMISSION_GROUPS: PermGroupConfig[] = [
 ];
 
 export default function UserPermissionsModal({ targetUser, close, onSave }: Props) {
-  const isSuperadmin = targetUser.role === "COORDINATOR";
+  const isSuperadmin = isSuperAdmin(targetUser.role);
 
   const [perms, setPerms] = useState<UserPermissions>(() => {
     if (isSuperadmin) {
@@ -277,8 +278,8 @@ export default function UserPermissionsModal({ targetUser, close, onSave }: Prop
             <strong>{targetUser.name}</strong>
             <span>{targetUser.email}</span>
           </div>
-          <span className={`badge ${targetUser.role === "COORDINATOR" ? "role-coord" : "role-sec"}`}>
-            {targetUser.role === "COORDINATOR" ? "SuperAdmin" : "Responsable de division"}
+          <span className={`badge ${isSuperAdmin(targetUser.role) ? "role-coord" : "role-sec"}`}>
+            {isSuperAdmin(targetUser.role) ? "SuperAdmin" : "Responsable de division"}
           </span>
         </div>
 

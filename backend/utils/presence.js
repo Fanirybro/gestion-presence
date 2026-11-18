@@ -23,7 +23,7 @@ export function presenceController(action, { coordinator = false } = {}) {
       await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [req.user.organisation_id]);
       const actor = await loadAccount(client, { id: String(req.session.userId), organisationId: req.user.organisation_id });
       if (!actor?.actif || String(actor.organisation_id) !== String(req.user.organisation_id)) fail(403, "Accès non autorisé.");
-      if (coordinator && actor.role !== "COORDINATOR") fail(403, "Accès non autorisé.");
+      if (coordinator && actor.role !== "SUPERADMIN" && actor.role !== "COORDINATOR") fail(403, "Accès non autorisé.");
       req.actor = actor;
       const result = await action(req, client);
       await client.query("COMMIT");

@@ -37,9 +37,15 @@ export async function attachUserIfSession(req, res, next) {
 }
 
 export function requireRole(...roles) {
+  const expanded = new Set(roles);
+  if (expanded.has("SUPERADMIN")) expanded.add("COORDINATOR");
+  if (expanded.has("COORDINATOR")) expanded.add("SUPERADMIN");
+  if (expanded.has("ADMIN")) expanded.add("SECRETARY");
+  if (expanded.has("SECRETARY")) expanded.add("ADMIN");
+
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: "Connexion requise." });
-    if (!roles.includes(req.user.role)) return res.status(403).json({ message: "Accès interdit." });
+    if (!expanded.has(req.user.role)) return res.status(403).json({ message: "Accès interdit." });
     next();
   };
 }
@@ -47,7 +53,7 @@ export function requireRole(...roles) {
 export function requirePermission(...permissionKeys) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: "Connexion requise." });
-    if (req.user.role === "COORDINATOR") return next();
+    if (req.user.role === "SUPERADMIN" || req.user.role === "COORDINATOR") return next();
 
     // Les responsables de division ont accès opérationnel aux actions de leur périmètre
     if (Array.isArray(req.user.managed_division_ids) && req.user.managed_division_ids.length > 0) {

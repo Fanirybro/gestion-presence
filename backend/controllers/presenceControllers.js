@@ -1,5 +1,7 @@
 import { presenceController, inputBody, fail, validDate, validTime, reason, attendanceSelect, attendanceById, auditPresence, reconcileAbsences, lateForArrival } from "../utils/presence.js";
 
+const isSuperAdminRole = (role) => role === "SUPERADMIN" || role === "COORDINATOR";
+
 export const listPresences = presenceController(async (req, client) => {
   const { start, end } = req.query;
   if (!validDate(start) || !validDate(end) || end < start || Date.parse(end) - Date.parse(start) > 92 * 86400000) fail(400, "Choisissez une période valide de 93 jours maximum.");
@@ -7,7 +9,7 @@ export const listPresences = presenceController(async (req, client) => {
   await reconcileAbsences(client, org, start, end);
   let query = attendanceSelect + " JOIN personnel pers ON pers.id = p.personnel_id WHERE p.organisation_id = $1 AND p.date_presence BETWEEN $2::date AND $3::date";
   const params = [org, start, end];
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     query += " AND pers.division_id::text = ANY($4)";
     params.push(managed);
@@ -20,7 +22,7 @@ export const listPresences = presenceController(async (req, client) => {
 export const getPresence = presenceController(async (req, client) => {
   const org = req.user.organisation_id;
   const attendance = await attendanceById(client, org, req.params.id);
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, attendance.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {
@@ -39,7 +41,7 @@ export const correctPresence = presenceController(async (req, client) => {
   const before = await attendanceById(client, org, req.params.id);
   if (typeof body.version !== "string" || body.version !== before.version) fail(409, "Ce relevé a été modifié. Rechargez-le avant de corriger.");
 
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {
@@ -78,7 +80,7 @@ export const justifyAbsence = presenceController(async (req, client) => {
   if (typeof body.version !== "string" || body.version !== before.version) fail(409, "Ce relevé a été modifié. Rechargez-le.");
   if (!["ABSENT", "JUSTIFIED"].includes(before.status)) fail(409, "Seule une absence peut être justifiée.");
 
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const person = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (!person || !managed.includes(String(person.division_id))) {

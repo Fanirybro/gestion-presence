@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ShieldCheck, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "../../app/context";
+import { isSuperAdmin } from "../../types";
 
 interface KioskExitModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ export function KioskExitModal({
   };
 
   const roleLabel =
-    user?.role === "COORDINATOR" ? "SuperAdmin" : "Responsable de division";
+    isSuperAdmin(user?.role) ? "SuperAdmin" : "Responsable de division";
 
   return (
     <div className="kiosk-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="kiosk-exit-title">

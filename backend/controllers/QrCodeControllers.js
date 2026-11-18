@@ -19,7 +19,7 @@ function controller(action, { write = false, coordinator = true } = {}) {
         await client.query("BEGIN"); transaction = true;
         await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [req.user.organisation_id]);
         const actor = await loadAccount(client, { id: String(req.session.userId), organisationId: req.user.organisation_id });
-        if (!actor?.actif || !actor.organisation_id || (coordinator && actor.role !== "COORDINATOR")) fail(403, "Accès non autorisé.");
+        if (!actor?.actif || !actor.organisation_id || (coordinator && actor.role !== "SUPERADMIN" && actor.role !== "COORDINATOR")) fail(403, "Accès non autorisé.");
       }
       const result = await action(req, client);
       if (transaction) { await client.query("COMMIT"); transaction = false; }

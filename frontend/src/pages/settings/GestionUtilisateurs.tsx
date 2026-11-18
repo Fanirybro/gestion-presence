@@ -20,6 +20,7 @@ import RolePermissionsModal from "../../components/RolePermissionsModal";
 import { usersService } from "../../services/users";
 import { rolesService } from "../../services/roles";
 import type { Role, RoleDefinition, User, UserPermissions } from "../../types";
+import { isSuperAdmin } from "../../types";
 
 export function GestionUtilisateurs() {
   const { db, user, update, notify, audit } = useApp();
@@ -238,8 +239,8 @@ export function GestionUtilisateurs() {
                   ))
                 ) : (
                   <>
-                    <option value="COORDINATOR">SuperAdmin</option>
-                    <option value="SECRETARY">Responsable de division</option>
+                    <option value="SUPERADMIN">SuperAdmin</option>
+                    <option value="ADMIN">Responsable de division</option>
                   </>
                 )}
               </select>,
@@ -284,7 +285,7 @@ export function GestionUtilisateurs() {
             loading={chargementRoles && !roles.length}
             headers={["RÔLE", "DESCRIPTION", "UTILISATEURS ACTIFS", "STATUT", "ACTIONS"]}
             rows={roles.map((r) => {
-              const isCoordinator = r.code === "COORDINATOR";
+              const isCoordinator = isSuperAdmin(r.code);
               return [
                 <div key="role-info">
                   <strong>{r.nom}</strong>
@@ -566,7 +567,7 @@ export function CreerUtilisateur() {
             <input name="email" type="email" required />
           </Field>
           <Field label="Rôle">
-            <select name="role" defaultValue="SECRETARY">
+            <select name="role" defaultValue="ADMIN">
               {roles.length > 0 ? (
                 roles.map((r) => (
                   <option key={r.code} value={r.code}>
@@ -575,8 +576,8 @@ export function CreerUtilisateur() {
                 ))
               ) : (
                 <>
-                  <option value="SECRETARY">Responsable de division</option>
-                  <option value="COORDINATOR">SuperAdmin</option>
+                  <option value="ADMIN">Responsable de division</option>
+                  <option value="SUPERADMIN">SuperAdmin</option>
                 </>
               )}
             </select>

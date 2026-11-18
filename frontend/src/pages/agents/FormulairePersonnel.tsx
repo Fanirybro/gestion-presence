@@ -15,6 +15,7 @@ import { Back, Field, Heading } from "../../components/ui";
 import { fullName } from "../../utils";
 import { personnelApi, type PersonnelInput } from "../../services/personnel";
 import type { Agent } from "../../types";
+import { isSuperAdmin } from "../../types";
 import "../onboarding.css";
 
 const STANDARD_METADATA_KEYS = new Set([
@@ -106,7 +107,7 @@ export function FormulairePersonnel({ agent }: { agent?: Agent }) {
   const [erreur, setErreur] = useState("");
   const [enAttente, setEnAttente] = useState(false);
 
-  const isCoordinator = user?.role === "COORDINATOR";
+  const isCoordinator = isSuperAdmin(user?.role);
   const departements = isCoordinator
     ? db.departments
     : db.departments.filter((d) => managedDivisions.includes(String(d.id)));

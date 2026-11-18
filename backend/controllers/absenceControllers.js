@@ -14,6 +14,8 @@ const list = async (client, org, accessibleDivisions = null) => {
   return (await client.query(query, params)).rows;
 };
 
+const isSuperAdminRole = (role) => role === "SUPERADMIN" || role === "COORDINATOR";
+
 async function find(client, org, id) {
   const row = (await client.query(select + " WHERE a.organisation_id=$1 AND a.id=$2", [org, id])).rows[0];
   if (!row) fail(404, "Absence autorisée introuvable.");
@@ -21,7 +23,7 @@ async function find(client, org, id) {
 }
 
 export const listAbsences = presenceController(async (req, client) => {
-  const accessibleDivisions = req.actor?.role === "COORDINATOR" ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
+  const accessibleDivisions = isSuperAdminRole(req.actor?.role) ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
   return { absences: await list(client, req.user.organisation_id, accessibleDivisions) };
 });
 
@@ -36,7 +38,7 @@ export const saveAbsence = presenceController(async (req, client) => {
   const person = (await client.query("SELECT id, actif, division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, b.agentId])).rows[0];
   if (!person || (!person.actif && before?.agentId !== b.agentId)) fail(400, "Choisissez un agent actif de cette organisation.");
 
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (managed.length > 0 && !managed.includes(String(person.division_id))) {
       fail(403, "Accès refusé : cet agent appartient à une autre division.");
@@ -62,7 +64,7 @@ export const saveAbsence = presenceController(async (req, client) => {
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) RETURNING id`, values)).rows[0].id;
   const after = await find(client, org, id);
   await auditPresence(client, req, 'absences_autorisees', id, before ? 'UPDATE' : 'CREATE', before, after, b.remark.trim());
-  const accessibleDivisions = req.actor?.role === "COORDINATOR" ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
+  const accessibleDivisions = isSuperAdminRole(req.actor?.role) ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
   return { absences: await list(client, org, accessibleDivisions) };
 });
 
@@ -70,7 +72,7 @@ export const cancelAbsence = presenceController(async (req, client) => {
   const b = inputBody(req, ["version"]), org = req.user.organisation_id;
   const before = await find(client, org, req.params.id);
   if (before.version !== b.version) fail(409, "Enregistrement modifié. Rechargez la liste.");
-  if (req.actor?.role !== "COORDINATOR") {
+  if (!isSuperAdminRole(req.actor?.role)) {
     const beforePerson = (await client.query("SELECT division_id FROM personnel WHERE organisation_id=$1 AND id=$2", [org, before.agentId])).rows[0];
     const managed = Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : [];
     if (beforePerson && managed.length > 0 && !managed.includes(String(beforePerson.division_id))) {
@@ -81,6 +83,6 @@ export const cancelAbsence = presenceController(async (req, client) => {
     await client.query("UPDATE absences_autorisees SET annule_at=now(),annule_par=$3,updated_by=$3,updated_at=clock_timestamp() WHERE organisation_id=$1 AND id=$2", [org, before.id, req.session.userId]);
     await auditPresence(client, req, 'absences_autorisees', before.id, 'CANCEL', before, await find(client, org, before.id), 'Annulation');
   }
-  const accessibleDivisions = req.actor?.role === "COORDINATOR" ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
+  const accessibleDivisions = isSuperAdminRole(req.actor?.role) ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
   return { absences: await list(client, org, accessibleDivisions) };
 });

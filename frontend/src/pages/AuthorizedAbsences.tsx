@@ -22,7 +22,7 @@ import {
 } from "../services/authorizedAbsences";
 import { dateLabel, fullName, today } from "../utils";
 import { RowActionsMenu } from "../components/RowActionsMenu";
-import { hasPermission } from "../types";
+import { hasPermission, isSuperAdmin } from "../types";
 import "./authorizedAbsences.css";
 
 const label = (r: AuthorizedAbsence) => {
@@ -455,7 +455,7 @@ function AbsenceForm({
   saved: (rows: AuthorizedAbsence[]) => void;
 }) {
   const { db, user } = useApp();
-  const isCoordinator = user?.role === "COORDINATOR";
+  const isCoordinator = isSuperAdmin(user?.role);
   const managedDivs = Array.isArray(user?.managed_division_ids)
     ? user.managed_division_ids.map(String)
     : [];

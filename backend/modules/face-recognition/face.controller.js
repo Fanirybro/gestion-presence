@@ -16,7 +16,7 @@ async function getAccessibleDivisions(req, orgId) {
   const userId = req.session?.userId || req.user?.id;
   if (!userId || !orgId) return null;
   const actor = await loadAccount(pool, { id: String(userId), organisationId: orgId });
-  if (!actor || actor.role === "COORDINATOR") return null;
+  if (!actor || actor.role === "SUPERADMIN" || actor.role === "COORDINATOR") return null;
   return Array.isArray(actor.managed_division_ids) ? actor.managed_division_ids.map(String) : [];
 }
 

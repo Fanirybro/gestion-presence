@@ -22,7 +22,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { personnelApi, type DivisionResponsable } from "../services/personnel";
 import { RowActionsMenu } from "../components/RowActionsMenu";
 import { ModalAjouterPersonnelsDivision } from "./departments/ModalAjouterPersonnelsDivision";
-import { hasPermission } from "../types";
+import { hasPermission, isSuperAdmin } from "../types";
 
 type DepartmentItem = {
   id: string;
@@ -35,7 +35,7 @@ export default function DepartmentsPage() {
   const navigate = useNavigate();
   const { db, user, refreshPersonnel, notify, personnelLoading } = useApp();
 
-  const isCoordinator = user?.role === "COORDINATOR";
+  const isCoordinator = isSuperAdmin(user?.role);
   const managedDivisions = Array.isArray(user?.managed_division_ids)
     ? user.managed_division_ids.map(String)
     : [];

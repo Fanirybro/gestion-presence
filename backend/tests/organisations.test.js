@@ -118,14 +118,14 @@ test("organisations : inscription atomique, isolation et permissions", async (t)
     assert.equal((await request("/users")).status, 403);
     assert.equal((await request("/organisations", "POST", { nom: "Test", role: "COORDINATOR" })).status, 400);
   });
-  await t.test("création : code aléatoire et rôle coordinateur", async () => {
+  await t.test("création : code aléatoire et rôle superadmin", async () => {
     calls = [];
     const res = await request("/organisations", "POST", { nom: "Nouvelle équipe" });
     assert.equal(res.status, 201);
     const body = await res.json();
-    assert.equal(body.user.role, "COORDINATOR");
+    assert.equal(body.user.role, "SUPERADMIN");
     assert.equal(body.user.organisation_id, "7");
-    assert.equal(body.membership.role, "COORDINATOR");
+    assert.equal(body.membership.role, "SUPERADMIN");
     assert.equal(body.membership.status, "ACTIVE");
     assert.equal(body.membership.user_id, "1");
     assert.ok(Number.isInteger(body.organisation.organisation_code));
@@ -135,10 +135,10 @@ test("organisations : inscription atomique, isolation et permissions", async (t)
     assert.ok(!calls.some(({sql}) => /UPDATE users SET organisation_id/.test(sql)));
     assert.equal(calls.at(-1).sql, "COMMIT");
   });
-  await t.test("rejoindre : code normalisé et rôle secrétaire", async () => {
+  await t.test("rejoindre : code normalisé et rôle admin", async () => {
     const res = await request("/organisations/join", "POST", { organisation_code: " 582394107 " });
     assert.equal(res.status, 200);
-    assert.equal((await res.json()).user.role, "SECRETARY");
+    assert.equal((await res.json()).user.role, "ADMIN");
     assert.equal((await request("/organisations/join", "POST", { organisation_code: "999999999" })).status, 404);
     assert.equal((await request("/organisations/join", "POST", { organisation_code: "582394107", role: "COORDINATOR" })).status, 400);
   });

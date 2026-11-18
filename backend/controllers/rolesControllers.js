@@ -24,7 +24,7 @@ function roleController(action, { write = false, byId = false } = {}) {
       if (!req.user?.organisation_id) fail(403, "Organisation requise.");
       const actor = await loadAccount(client, { id: String(sessionId), organisationId: req.user.organisation_id });
       if (!actor?.actif) fail(401, "Compte indisponible.");
-      if (actor.role !== "COORDINATOR") fail(403, "Accès réservé au coordinateur.");
+      if (actor.role !== "SUPERADMIN" && actor.role !== "COORDINATOR") fail(403, "Accès réservé au superadministrateur.");
 
       if (write) {
         await client.query("BEGIN");
@@ -116,8 +116,8 @@ export const updateRole = roleController(async (req, client, actor) => {
   if (!existing.length) fail(404, "Rôle introuvable.");
   const role = existing[0];
 
-  if (role.code === "COORDINATOR") {
-    fail(400, "Le rôle Coordinateur est le rôle racine du système et n'est pas modifiable.");
+  if (role.code === "SUPERADMIN" || role.code === "COORDINATOR") {
+    fail(400, "Le rôle SuperAdmin est le rôle racine du système et n'est pas modifiable.");
   }
 
   const assignments = [];
@@ -174,8 +174,8 @@ export const deleteRole = roleController(async (req, client, actor) => {
   if (!existing.length) fail(404, "Rôle introuvable.");
   const role = existing[0];
 
-  if (role.code === "COORDINATOR") {
-    fail(400, "Le rôle Coordinateur est le rôle racine du système et ne peut pas être supprimé.");
+  if (role.code === "SUPERADMIN" || role.code === "COORDINATOR") {
+    fail(400, "Le rôle SuperAdmin est le rôle racine du système et ne peut pas être supprimé.");
   }
 
   const { rows: members } = await client.query(

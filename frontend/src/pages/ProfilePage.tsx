@@ -12,6 +12,7 @@ import { z } from "zod";
 import { useApp } from "../app/context";
 import { Field, Heading } from "../components/ui";
 import { initials } from "../utils";
+import { isSuperAdmin } from "../types";
 
 type ProfileTab = "general" | "security";
 
@@ -35,7 +36,7 @@ export default function ProfilePage() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdError, setPwdError] = useState("");
 
-  const isCoordinator = user?.role === "COORDINATOR";
+  const isCoordinator = isSuperAdmin(user?.role);
 
   // Handle saving personal info
   const handleSaveInfo = (e: React.FormEvent) => {

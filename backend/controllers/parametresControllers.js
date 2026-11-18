@@ -102,7 +102,7 @@ export async function updateParametres(req, res, next) {
     await client.query("BEGIN"); transaction = true;
     await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [organisationId]);
     const actor = await loadAccount(client, { id: String(req.session.userId), organisationId });
-    if (!actor?.actif || !actor.organisation_id || actor.role !== "COORDINATOR") throw Object.assign(new Error("Accès réservé au coordinateur actif."), { status: 403 });
+    if (!actor?.actif || !actor.organisation_id || (actor.role !== "SUPERADMIN" && actor.role !== "COORDINATOR")) throw Object.assign(new Error("Accès réservé au superadministrateur actif."), { status: 403 });
     const before = await read(client, organisationId);
 
     await client.query(

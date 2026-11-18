@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../app/context";
 import { initials } from "../utils";
-import { hasPermission } from "../types";
+import { hasPermission, isSuperAdmin } from "../types";
 
 export default function DashboardLayout() {
   const { db, user, organisation, logout } = useApp();
@@ -283,7 +283,7 @@ export default function DashboardLayout() {
             <span>
               <strong>{user?.name}</strong>
               <small>
-                {user?.role === "COORDINATOR" ? "SuperAdmin" : "Responsable de division"}
+                {isSuperAdmin(user?.role) ? "SuperAdmin" : "Responsable de division"}
               </small>
             </span>
           </Link>

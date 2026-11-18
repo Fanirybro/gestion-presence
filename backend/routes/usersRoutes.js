@@ -3,7 +3,7 @@ import { requireAuth, requireOrganisation, requireRole } from "../middlewares/au
 import { getUsers, getUserById, createUser, updateUser, updateUserRole, updateUserStatus, updateUserPermissions } from "../controllers/usersControllers.js";
 
 const router = Router();
-router.use(requireAuth, requireOrganisation, requireRole("COORDINATOR"));
+router.use(requireAuth, requireOrganisation, requireRole("SUPERADMIN"));
 router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.post("/", createUser);

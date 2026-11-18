@@ -6,7 +6,7 @@ const router = Router();
 router.use(requireAuth, requireOrganisation);
 router.get("/events", getBadgeEvents);
 router.post("/scan", rateLimit({ windowMs: 60000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }), scanBadge);
-router.use(requireRole("COORDINATOR"));
+router.use(requireRole("SUPERADMIN"));
 router.post("/prepare", prepareBadges);
 router.get("/personnel/:id", getBadge);
 router.post("/personnel/:id", createBadge);

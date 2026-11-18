@@ -1,4 +1,4 @@
-import type { User, UserPermissions, CustomFieldDefinition } from "../types";
+import type { User, UserPermissions, CustomFieldDefinition, Role } from "../types";
 import { apiClient } from "./api";
 
 export interface Account {
@@ -6,7 +6,7 @@ export interface Account {
   nom: string;
   prenom: string;
   email: string;
-  role: "COORDINATOR" | "SECRETARY" | null;
+  role: Role | null;
   actif: boolean;
   organisation_id: string | null;
   permissions?: UserPermissions;
@@ -37,7 +37,7 @@ export const toUser = (account: Account): User => ({
   id: String(account.id),
   name: `${account.prenom} ${account.nom}`,
   email: account.email,
-  role: account.role ?? "SECRETARY",
+  role: account.role ?? "ADMIN",
   isActive: account.actif,
   organisationId:
     account.organisation_id == null ? null : String(account.organisation_id),

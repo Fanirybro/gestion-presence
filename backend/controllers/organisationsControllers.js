@@ -99,12 +99,12 @@ async function attachOrganisation(req, res, next, create) {
         }
       }
 
-      // Initialisation des rôles par défaut de l'organisation (COORDINATOR et SECRETARY)
+      // Initialisation des rôles par défaut de l'organisation (SUPERADMIN et ADMIN)
       await client.query(
         `INSERT INTO organisation_roles (organisation_id, code, nom, description, permissions, is_system)
          VALUES 
-           ($1, 'COORDINATOR', 'SuperAdmin', 'Superadministrateur avec accès total et irrévocable à l''ensemble du système', '{}'::jsonb, true),
-           ($1, 'SECRETARY', 'Responsable de division', 'Responsable de division avec gestion des personnels, pointages et présences de son périmètre', '{"dashboard": true, "scan": true, "kiosk": true, "presences": true, "presences_justify": true, "presences_add": true, "reports": true, "reports_print": true, "leaves": true, "agents": true, "agents_manage": true, "agents_badges": true, "departments": false, "face_enroll": true, "schedules": false, "users": false, "settings": false}'::jsonb, false)
+           ($1, 'SUPERADMIN', 'SuperAdmin', 'Superadministrateur avec accès total et irrévocable à l''ensemble du système', '{}'::jsonb, true),
+           ($1, 'ADMIN', 'Responsable de division', 'Responsable de division avec gestion des personnels, pointages et présences de son périmètre', '{"dashboard": true, "scan": true, "kiosk": true, "presences": true, "presences_justify": true, "presences_add": true, "reports": true, "reports_print": true, "leaves": true, "agents": true, "agents_manage": true, "agents_badges": true, "departments": false, "face_enroll": true, "schedules": false, "users": false, "settings": false}'::jsonb, false)
          ON CONFLICT (organisation_id, code) DO NOTHING`,
         [organisation.id]
       );
@@ -118,7 +118,7 @@ async function attachOrganisation(req, res, next, create) {
       const previous = await client.query("SELECT id FROM organisation_members WHERE user_id = $1 AND organisation_id = $2 LIMIT 1", [req.user.id, organisation.id]);
       if (previous.rows.length) throw Object.assign(new Error("Une adhésion existe déjà pour ce compte. Contactez votre coordinateur."), { status: 409 });
     }
-    const role = create ? "COORDINATOR" : "SECRETARY";
+    const role = create ? "SUPERADMIN" : "ADMIN";
     const { rows } = await client.query(
       `INSERT INTO organisation_members (organisation_id, user_id, role, status)
        VALUES ($1, $2, $3, 'ACTIVE') RETURNING id, organisation_id, user_id, role, status, created_at`,
@@ -229,8 +229,8 @@ export async function updateOrganisation(req, res, next) {
       [req.user.id, req.user.organisation_id],
     );
     if (!actor.rows.length) throw Object.assign(new Error("Compte indisponible."), { status: 401 });
-    if (actor.rows[0].role !== "COORDINATOR") {
-      throw Object.assign(new Error("Accès réservé au coordinateur."), { status: 403 });
+    if (actor.rows[0].role !== "SUPERADMIN" && actor.rows[0].role !== "COORDINATOR") {
+      throw Object.assign(new Error("Accès réservé au superadministrateur."), { status: 403 });
     }
     if (changes.fuseau_horaire !== undefined) {
       const timezone = await client.query("SELECT name FROM pg_timezone_names WHERE name = $1", [changes.fuseau_horaire]);

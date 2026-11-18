@@ -33,6 +33,8 @@ function date(value, label, optional = false) {
     || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value) fail(400, `${label} invalide.`);
   return value;
 }
+const isSuperAdminRole = (role) => role === "SUPERADMIN" || role === "COORDINATOR";
+
 function controller(action, { write = false, byId = false } = {}) {
   return async (req, res, next) => {
     let client;
@@ -43,14 +45,14 @@ function controller(action, { write = false, byId = false } = {}) {
       const actor = await loadAccount(client, { id: String(req.session.userId), organisationId: req.user.organisation_id });
       if (!actor?.actif || !actor.organisation_id) fail(401, "Compte indisponible.");
       const managedDivs = Array.isArray(actor.managed_division_ids) ? actor.managed_division_ids.map(String) : [];
-      const accessibleDivisions = actor.role === "COORDINATOR" ? null : managedDivs;
+      const accessibleDivisions = isSuperAdminRole(actor.role) ? null : managedDivs;
       req.actor = actor;
       req.accessibleDivisions = accessibleDivisions;
 
       if (write) {
         await client.query("BEGIN"); transaction = true;
         await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [req.user.organisation_id]);
-        if (actor.role !== "COORDINATOR" && (!managedDivs || managedDivs.length === 0)) {
+        if (!isSuperAdminRole(actor.role) && (!managedDivs || managedDivs.length === 0)) {
           fail(403, "Accès réservé au coordinateur actif de cette organisation.");
         }
       }

@@ -5,9 +5,9 @@ import { getRoles, createRole, updateRole, deleteRole } from "../controllers/rol
 const router = Router();
 router.use(requireAuth, requireOrganisation);
 router.get("/", getRoles);
-router.post("/", requireRole("COORDINATOR"), createRole);
-router.patch("/:id", requireRole("COORDINATOR"), updateRole);
-router.delete("/:id", requireRole("COORDINATOR"), deleteRole);
+router.post("/", requireRole("SUPERADMIN"), createRole);
+router.patch("/:id", requireRole("SUPERADMIN"), updateRole);
+router.delete("/:id", requireRole("SUPERADMIN"), deleteRole);
 
 export default router;
 

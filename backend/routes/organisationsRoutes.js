@@ -19,7 +19,7 @@ const onboardingLimit = rateLimit({
 router.post("/", onboardingLimit, createOrganisation);
 router.post("/join", onboardingLimit, joinOrganisation);
 router.get("/me", requireOrganisation, getOrganisation);
-router.patch("/me", requireOrganisation, requireRole("COORDINATOR"), updateOrganisation);
-router.post("/logo", requireOrganisation, requireRole("COORDINATOR"), uploadLogo);
+router.patch("/me", requireOrganisation, requireRole("SUPERADMIN"), updateOrganisation);
+router.post("/logo", requireOrganisation, requireRole("SUPERADMIN"), uploadLogo);
 
 export default router;

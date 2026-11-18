@@ -1,4 +1,8 @@
-export type Role = "COORDINATOR" | "SECRETARY" | (string & {});
+export type Role = "SUPERADMIN" | "ADMIN" | "COORDINATOR" | "SECRETARY" | (string & {});
+
+export function isSuperAdmin(role?: string | null): boolean {
+  return role === "SUPERADMIN" || role === "COORDINATOR";
+}
 
 export interface RoleDefinition {
   id: string;
@@ -108,7 +112,7 @@ export function hasPermission(
   key: keyof UserPermissions | string,
 ): boolean {
   if (!user) return false;
-  if (user.role === "COORDINATOR") return true;
+  if (isSuperAdmin(user.role)) return true;
 
   // Options d'administration et paramètres système : réservées par défaut
   const isSettingsOrAdminOption =

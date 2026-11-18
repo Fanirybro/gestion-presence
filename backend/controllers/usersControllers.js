@@ -4,7 +4,8 @@ import pool from "../config/database.js";
 
 const publicColumns = "u.id, m.organisation_id, u.nom, u.prenom, u.email, m.role, (u.actif AND m.status = 'ACTIVE') AS actif, m.status AS membership_status, COALESCE(m.permissions, '{}'::jsonb) AS permissions, u.created_at, u.updated_at";
 const memberJoin = "users u JOIN organisation_members m ON m.user_id = u.id";
-const roles = ["COORDINATOR", "SECRETARY"];
+const roles = ["SUPERADMIN", "ADMIN", "COORDINATOR", "SECRETARY"];
+const isSuperAdminRole = (role) => role === "SUPERADMIN" || role === "COORDINATOR";
 
 function fail(status, message) {
   throw Object.assign(new Error(message), { status });
@@ -70,7 +71,7 @@ function controller(action, { write = false, byId = false } = {}) {
       const loadActor = () => loadAccount(client, { id: String(sessionId), organisationId: req.user.organisation_id });
       let actor = await loadActor();
       if (!actor?.actif) fail(401, "Compte indisponible.");
-      if (actor.role !== "COORDINATOR") fail(403, "Accès réservé au coordinateur.");
+      if (!isSuperAdminRole(actor.role)) fail(403, "Accès réservé au superadministrateur.");
       if (write) {
         await client.query("BEGIN");
         transaction = true;
@@ -79,7 +80,7 @@ function controller(action, { write = false, byId = false } = {}) {
         await client.query("SELECT id FROM organisations WHERE id = $1 FOR UPDATE", [actor.organisation_id]);
         actor = await loadActor();
         if (!actor?.actif) fail(401, "Compte indisponible.");
-        if (actor.role !== "COORDINATOR") fail(403, "Accès réservé au coordinateur.");
+        if (!isSuperAdminRole(actor.role)) fail(403, "Accès réservé au superadministrateur.");
       }
       const result = await action(req, client, actor);
       if (transaction) {
@@ -188,19 +189,19 @@ export const updateUser = controller(async (req, client, actor) => {
 }, { write: true, byId: true });
 
 async function protectLastCoordinator(client, user) {
-  if (user.role !== "COORDINATOR" || !user.actif) return;
+  if (!isSuperAdminRole(user.role) || !user.actif) return;
   const { rows } = await client.query(
     `SELECT u.id FROM ${memberJoin} WHERE m.organisation_id = $1
-     AND m.role = 'COORDINATOR' AND m.status = 'ACTIVE' AND u.actif = true AND u.id <> $2 LIMIT 1`,
+     AND m.role IN ('SUPERADMIN', 'COORDINATOR') AND m.status = 'ACTIVE' AND u.actif = true AND u.id <> $2 LIMIT 1`,
     [user.organisation_id, user.id],
   );
-  if (!rows.length) fail(409, "Impossible de retirer le dernier coordinateur actif.");
+  if (!rows.length) fail(409, "Impossible de retirer le dernier superadministrateur actif.");
 }
 
 export const updateUserRole = controller(async (req, client, actor) => {
   const newRole = await checkRole(client, actor.organisation_id, bodyOf(req, ["role"]).role);
   const user = await findUser(client, req.params.id, actor.organisation_id);
-  if (newRole !== "COORDINATOR") await protectLastCoordinator(client, user);
+  if (!isSuperAdminRole(newRole)) await protectLastCoordinator(client, user);
   await client.query(
     `UPDATE organisation_members SET role = $1 WHERE user_id = $2 AND organisation_id = $3`,
     [newRole, req.params.id, actor.organisation_id],

@@ -37,7 +37,7 @@ CREATE TABLE organisation_members (
     organisation_id bigint NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
     user_id bigint NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     status varchar NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACTIVE', 'REJECTED')),
-    role text NOT NULL CHECK (role IN ('COORDINATOR', 'SECRETARY')),
+    role text NOT NULL,
     UNIQUE (organisation_id, user_id)
 );
 CREATE INDEX organisation_members_user_idx ON organisation_members (user_id);

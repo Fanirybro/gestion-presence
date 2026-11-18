@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Field } from "./ui";
 import {
   DEFAULT_SECRETARY_PERMISSIONS,
+  isSuperAdmin,
   type RoleDefinition,
   type UserPermissions,
 } from "../types";
@@ -164,7 +165,7 @@ const PERMISSION_GROUPS: PermGroupConfig[] = [
 ];
 
 export default function RolePermissionsModal({ role, close, onSave }: Props) {
-  const isSuperadmin = role.code === "COORDINATOR";
+  const isSuperadmin = isSuperAdmin(role.code);
 
   const [nom, setNom] = useState(role.nom);
   const [description, setDescription] = useState(role.description || "");
