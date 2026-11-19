@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import FaceEnrollComponent from "./FaceEnrollComponent";
+import { fullName } from "../../utils";
 import type { Agent } from "../../types";
 
 export function ModalEnrollAgent({
@@ -17,7 +18,7 @@ export function ModalEnrollAgent({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`Enrôlement facial de ${agent.firstName} ${agent.lastName}`}
+      aria-label={`Enrôlement facial de ${fullName(agent)}`}
     >
       <motion.div
         className="face-modal-dialog"

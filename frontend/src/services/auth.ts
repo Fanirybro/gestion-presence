@@ -35,7 +35,7 @@ export interface Signup {
 
 export const toUser = (account: Account): User => ({
   id: String(account.id),
-  name: `${account.prenom} ${account.nom}`,
+  name: `${account.nom} ${account.prenom}`,
   email: account.email,
   role: account.role ?? "ADMIN",
   isActive: account.actif,

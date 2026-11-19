@@ -19,7 +19,7 @@ export const dateLabel = (date: string, long = false) =>
     timeZone: "Indian/Antananarivo",
   }).format(new Date(`${date}T12:00:00+03:00`));
 export const fullName = (agent?: Agent) =>
-  agent ? `${agent.firstName} ${agent.lastName}` : "Agent introuvable";
+  agent ? `${agent.lastName || ""} ${agent.firstName || ""}`.trim() : "Agent introuvable";
 export const initials = (name: string) =>
   name
     .split(" ")

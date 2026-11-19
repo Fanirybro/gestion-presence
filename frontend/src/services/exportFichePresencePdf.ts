@@ -250,18 +250,34 @@ export async function exporterFicheDivisionPortrait(options: FichePresenceOption
       let heureSortie = targetRecord?.departureAt || "—";
 
       if (absAuth) {
+        const remark = absAuth.remark?.trim();
         if (absAuth.type === "LEAVE") {
           nbConge++;
-          if (heureEntree === "—") heureEntree = "Congé";
+          if (heureEntree === "—") heureEntree = remark ? `Congé (${remark})` : "Congé";
         } else if (absAuth.type === "MISSION") {
           nbConge++;
-          if (heureEntree === "—") heureEntree = "Mission";
+          if (heureEntree === "—") heureEntree = remark ? `En mission (${remark})` : "En mission";
         } else {
           nbPermission++;
-          if (heureEntree === "—") heureEntree = "Perm.";
+          if (heureEntree === "—") {
+            const timeStr = absAuth.from && absAuth.to ? `${absAuth.from} - ${absAuth.to}` : "";
+            if (timeStr && remark) {
+              heureEntree = `Permission ${timeStr} (${remark})`;
+            } else if (timeStr) {
+              heureEntree = `Permission (${timeStr})`;
+            } else if (remark) {
+              heureEntree = `Permission (${remark})`;
+            } else {
+              heureEntree = "Permission";
+            }
+          }
         }
       } else if (targetRecord && ["PRESENT", "LATE"].includes(targetRecord.status)) {
         nbPresents++;
+      } else if (targetRecord && targetRecord.status === "JUSTIFIED") {
+        nbPermission++;
+        const note = targetRecord.note?.trim();
+        if (heureEntree === "—") heureEntree = note ? `Absence justifiée (${note})` : "Absence justifiée";
       } else {
         nbAbsence++;
       }
@@ -296,10 +312,10 @@ export async function exporterFicheDivisionPortrait(options: FichePresenceOption
         lineColor: [40, 40, 40],
       },
       columnStyles: {
-        0: { cellWidth: 12, halign: "center" },
-        1: { cellWidth: 104, halign: "left" },
-        2: { cellWidth: 32, halign: "center" },
-        3: { cellWidth: 32, halign: "center" },
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 84, halign: "left" },
+        2: { cellWidth: 58, halign: "center" },
+        3: { cellWidth: 30, halign: "center" },
       },
       margin: { left: 14, right: 14, bottom: 25 },
     });
@@ -525,17 +541,25 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
 
       let observations = "";
       if (absAuth) {
+        const remark = absAuth.remark?.trim();
         if (absAuth.type === "LEAVE") {
           nbConge++;
-          observations = "Congé autorisé";
+          observations = remark ? `Congé (${remark})` : "Congé autorisé";
         } else if (absAuth.type === "MISSION") {
           nbConge++;
-          observations = "En mission";
+          observations = remark ? `En mission (${remark})` : "En mission";
         } else {
           nbPermission++;
-          observations = absAuth.from && absAuth.to
-            ? `Permission (${absAuth.from} - ${absAuth.to})`
-            : "Permission autorisée";
+          const timeStr = absAuth.from && absAuth.to ? `${absAuth.from} - ${absAuth.to}` : "";
+          if (timeStr && remark) {
+            observations = `Permission ${timeStr} (${remark})`;
+          } else if (timeStr) {
+            observations = `Permission (${timeStr})`;
+          } else if (remark) {
+            observations = `Permission (${remark})`;
+          } else {
+            observations = "Permission autorisée";
+          }
         }
       } else if (record && ["PRESENT", "LATE"].includes(record.status)) {
         nbPresents++;
@@ -547,7 +571,8 @@ export async function exporterFicheConsolideePaysage(options: FichePresenceOptio
         }
       } else if (record && record.status === "JUSTIFIED") {
         nbPermission++;
-        observations = record.note ? `Absence justifiée (${record.note})` : "Absence justifiée";
+        const note = record.note?.trim();
+        observations = note ? `Absence justifiée (${note})` : "Absence justifiée";
       } else {
         nbAbsence++;
         if (record && record.status === "ABSENT") {

@@ -79,7 +79,7 @@ export default function DepartmentsPage() {
         d.name.toLowerCase().includes(search.toLowerCase()) ||
         (d.responsables &&
           d.responsables.some((r) =>
-            `${r.prenom} ${r.nom}`.toLowerCase().includes(search.toLowerCase()),
+            `${r.nom} ${r.prenom}`.toLowerCase().includes(search.toLowerCase()),
           ));
       const isActive = d.isActive !== false;
       const matchesStatus =
@@ -409,7 +409,7 @@ export default function DepartmentsPage() {
                                 }}
                               >
                                 <UserCheck size={12} />
-                                {r.prenom} {r.nom}
+                                {r.nom} {r.prenom}
                               </span>
                             ))}
                           </div>
@@ -575,7 +575,7 @@ export default function DepartmentsPage() {
                           />
                           <span>
                             <strong>
-                              {m.prenom} {m.nom}
+                              {m.nom} {m.prenom}
                             </strong>{" "}
                             {!m.actif && <small style={{ color: "#a4384c" }}>(inactif)</small>}
                           </span>
