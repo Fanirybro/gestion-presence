@@ -1,0 +1,69 @@
+services:
+  # 1. Base de données PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: presence_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gestion_presence}
+      POSTGRES_USER: ${POSTGRES_USER:-presence_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-presence_password_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-presence_user} -d ${POSTGRES_DB:-gestion_presence}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Microservice Python (Reconnaissance faciale & biométrie)
+  python-service:
+    build:
+      context: ./python-service
+      dockerfile: Dockerfile
+    container_name: presence_python
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  # 3. API Backend Express / Node.js
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: presence_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      python-service:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-presence_user}:${POSTGRES_PASSWORD:-presence_password_secret}@postgres:5432/${POSTGRES_DB:-gestion_presence}
+      SESSION_SECRET: ${SESSION_SECRET:-changer_ce_secret_session_minimum_32_caracteres_aleatoires}
+      BADGE_SECRET: ${BADGE_SECRET:-changer_ce_secret_badge_minimum_32_caracteres_aleatoires}
+      PYTHON_SERVICE_URL: http://python-service:8000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost,http://127.0.0.1}
+      TRUST_PROXY_HOPS: 1
+    ports:
+      - "3000:3000"
+
+  # 4. Frontend React servi par Nginx (Point d'accès utilisateur principal)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: presence_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  postgres_data:
