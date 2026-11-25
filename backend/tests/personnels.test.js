@@ -14,11 +14,11 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
   process.env.BADGE_SECRET = "personnel-test-secret-with-at-least-32-characters";
   t.after(() => { if (previousSecret === undefined) delete process.env.BADGE_SECRET; else process.env.BADGE_SECRET = previousSecret; });
   const originals = { connect: pool.connect, query: pool.query };
-  let badges, badgeFailure, calls, people, departments, snapshot, role, writeRole, auditFailure, releases;
+  let badges, badgeFailure, calls, people, departments, snapshot, role, writeRole, releases;
   function reset() {
     badges = []; badgeFailure = false; calls = []; people = [{ ...input, id: "2", organisation_id: "7" }];
     departments = [{ id: "4", organisation_id: "7", nom: "Administration", actif: true }];
-    snapshot = null; role = "COORDINATOR"; writeRole = "COORDINATOR"; auditFailure = false; releases = 0;
+    snapshot = null; role = "COORDINATOR"; writeRole = "COORDINATOR"; releases = 0;
   }
   reset();
   t.beforeEach(reset);
@@ -59,11 +59,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
         Object.assign(person, Object.fromEntries(fields.map((key, i) => [key, values[i + 2]])));
         return { rows: [] };
       }
-      if (sql.startsWith("INSERT INTO journal_audit")) {
-        assert.deepEqual(values.slice(0, 2), ["7", "1"]);
-        if (auditFailure) throw new Error("audit unavailable");
-        return { rows: [] };
-      }
+
       if (sql.startsWith("INSERT INTO badges")) {
         if (badgeFailure) throw new Error("badge unavailable");
         const badge = { id: "10", organisation_id: values[0], personnel_id: values[1], token_hash: values[2], created_by: values[3] };
@@ -121,7 +117,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
       assert.equal((await request(path, method, body)).status, 403);
     }
   });
-  await t.test("création, normalisation et audit dans la même transaction", async () => {
+  await t.test("création, normalisation et badge dans la même transaction", async () => {
     const res = await request("/personnels", "POST", { ...input, nom: " Rakoto " });
     assert.equal(res.status, 201); const result = await res.json(); const saved = result.personnel;
     assert.equal(badges.length, 1);
@@ -129,7 +125,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
     assert.equal(badges[0].token_hash, hashBadgeToken(result.badge.token));
     assert.equal(badges[0].created_by, "1");
     assert.equal(saved.nom, "Rakoto"); assert.equal(saved.organisation_id, "7");
-    assert.ok(calls.some(c => c.sql.startsWith("INSERT INTO journal_audit")));
+
     assert.equal(calls.at(-1).sql, "COMMIT"); assert.equal(releases, 1);
   });
   await t.test("échec du badge : annulation du personnel", async () => {
@@ -188,11 +184,7 @@ test("personnel et départements : HTTP, droits, validation et transactions", as
     people[0].actif = false; departments[0].actif = false;
     assert.equal((await request("/personnels/2", "PATCH", { actif: true })).status, 400);
   });
-  await t.test("échec de l'audit annule la modification", async () => {
-    auditFailure = true;
-    assert.equal((await request("/personnels/2", "PATCH", { nom: "Modifié" })).status, 500);
-    assert.equal(people[0].nom, input.nom); assert.equal(calls.at(-1).sql, "ROLLBACK");
-  });
+
   await t.test("rôle révoqué pendant la requête : aucune écriture", async () => {
     writeRole = "SECRETARY";
     assert.equal((await request("/personnels/2", "PATCH", { actif: false })).status, 403);

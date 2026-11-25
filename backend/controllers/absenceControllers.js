@@ -1,4 +1,4 @@
-import { presenceController, fail, inputBody, validId, validDate, validTime, auditPresence } from "../utils/presence.js";
+import { presenceController, fail, inputBody, validId, validDate, validTime } from "../utils/presence.js";
 const select = `SELECT a.id, a.personnel_id AS "agentId", a.type, to_char(a.date_debut,'YYYY-MM-DD') AS start, to_char(a.date_fin,'YYYY-MM-DD') AS end,
   to_char(a.heure_debut,'HH24:MI') AS "from", to_char(a.heure_fin,'HH24:MI') AS "to", a.remarque AS remark, a.annule_at IS NOT NULL AS cancelled,
   a.updated_at::text AS version FROM absences_autorisees a`;
@@ -63,7 +63,6 @@ export const saveAbsence = presenceController(async (req, client) => {
   else id = (await client.query(`INSERT INTO absences_autorisees (organisation_id,personnel_id,type,date_debut,date_fin,heure_debut,heure_fin,remarque,created_by,updated_by)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) RETURNING id`, values)).rows[0].id;
   const after = await find(client, org, id);
-  await auditPresence(client, req, 'absences_autorisees', id, before ? 'UPDATE' : 'CREATE', before, after, b.remark.trim());
   const accessibleDivisions = isSuperAdminRole(req.actor?.role) ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
   return { absences: await list(client, org, accessibleDivisions) };
 });
@@ -81,7 +80,6 @@ export const cancelAbsence = presenceController(async (req, client) => {
   }
   if (!before.cancelled) {
     await client.query("UPDATE absences_autorisees SET annule_at=now(),annule_par=$3,updated_by=$3,updated_at=clock_timestamp() WHERE organisation_id=$1 AND id=$2", [org, before.id, req.session.userId]);
-    await auditPresence(client, req, 'absences_autorisees', before.id, 'CANCEL', before, await find(client, org, before.id), 'Annulation');
   }
   const accessibleDivisions = isSuperAdminRole(req.actor?.role) ? null : (Array.isArray(req.actor?.managed_division_ids) ? req.actor.managed_division_ids.map(String) : []);
   return { absences: await list(client, org, accessibleDivisions) };

@@ -129,8 +129,6 @@ export async function updateParametres(req, res, next) {
       [organisationId, row.jour_semaine, row.jour_travaille, row.heure_debut, row.heure_fin, row.heure_limite_absence, row.tolerance_retard_minutes, row.periode, row.fin_jour_suivant]);
     }
     const result = await read(client, organisationId);
-    await client.query(`INSERT INTO journal_audit (organisation_id, acteur_id, entite, entite_id, action, avant, apres)
-      VALUES ($1, $2, 'parametres', $1, 'UPDATE', $3::jsonb, $4::jsonb)`, [organisationId, req.session.userId, JSON.stringify(before), JSON.stringify(result)]);
     await client.query("COMMIT"); transaction = false;
     res.json(result);
   } catch (error) {

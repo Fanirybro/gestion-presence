@@ -207,22 +207,6 @@ CREATE TABLE presences_journalieres (
 CREATE INDEX presences_date_statut_idx ON presences_journalieres (organisation_id, date_presence, statut);
 COMMENT ON TABLE presences_journalieres IS 'Synthese alimentee par le futur service de presence. Ce script ne cree aucun calcul automatique ni lien automatique avec les conges.';
 
-CREATE TABLE journal_audit (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    organisation_id bigint NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
-    acteur_id bigint,
-    entite text NOT NULL CHECK (btrim(entite) <> ''),
-    entite_id bigint NOT NULL,
-    action text NOT NULL CHECK (btrim(action) <> ''),
-    motif text,
-    avant jsonb,
-    apres jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (organisation_id, acteur_id) REFERENCES organisation_members(organisation_id, user_id) ON DELETE RESTRICT
-);
-CREATE INDEX audit_entite_idx ON journal_audit (organisation_id, entite, entite_id, created_at DESC);
-COMMENT ON COLUMN journal_audit.entite_id IS 'Reference polymorphe : verifiee par le service appelant, pas par une FK SQL.';
-
 CREATE TABLE archives_rapports (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     organisation_id bigint NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,

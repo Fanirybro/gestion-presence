@@ -56,10 +56,10 @@ test("validation des sept jours, types et bornes horaires", () => {
 });
 test("paramètres : droits HTTP, persistance atomique et isolation", async t => {
   const originalQuery = pool.query, originalConnect = pool.connect;
-  let state, calls, role, currentRole, failAudit, failDay, snapshot;
+  let state, calls, role, currentRole, failDay, snapshot;
   function reset() {
     state = { organisation: { id: "7", nom: "Avant", adresse: "Ancienne adresse", fuseau_horaire: "Indian/Antananarivo" }, horaires: [] };
-    calls = []; role = "COORDINATOR"; currentRole = "COORDINATOR"; failAudit = false; failDay = false;
+    calls = []; role = "COORDINATOR"; currentRole = "COORDINATOR"; failDay = false;
   }
   reset(); t.beforeEach(reset);
   pool.query = async () => ({ rows: [{ id: "1", organisation_id: "7", actif: true, role }] });
@@ -82,7 +82,7 @@ test("paramètres : droits HTTP, persistance atomique et isolation", async t => 
       state.horaires.push(Object.fromEntries(keys.map((key, i) => [key, values[i + 1]])));
       return { rows: [] };
     }
-    if (sql.startsWith("INSERT INTO journal_audit")) { if (failAudit) throw new Error("audit failed"); return { rows: [] }; }
+
     throw new Error(sql);
   } });
   const app = express(); app.use(express.json());
@@ -104,14 +104,11 @@ test("paramètres : droits HTTP, persistance atomique et isolation", async t => 
     const response = await (await request()).json();
     assert.equal(response.organisation.nom, "Après"); assert.equal(response.organisation.adresse, null);
     assert.equal(response.horaires.length, 21); assert.equal(response.horaires[0].heure_debut, null);
-    assert.ok(calls.some(c => c.sql.startsWith("INSERT INTO journal_audit")));
+
   });
   await t.test("échec en milieu de semaine : organisation et horaires annulés", async () => {
     failDay = true; assert.equal((await request("PATCH", body())).status, 500);
     assert.equal(state.organisation.nom, "Avant"); assert.equal(state.horaires.length, 0); assert.equal(calls.at(-1).sql, "ROLLBACK");
-  });
-  await t.test("échec de l'audit : toutes les modifications annulées", async () => {
-    failAudit = true; assert.equal((await request("PATCH", body())).status, 500); assert.equal(state.organisation.nom, "Avant"); assert.equal(state.horaires.length, 0);
   });
   await t.test("permission révoquée : modification refusée", async () => {
     currentRole = "SECRETARY"; assert.equal((await request("PATCH", body())).status, 403); assert.equal(state.organisation.nom, "Avant");

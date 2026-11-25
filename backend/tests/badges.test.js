@@ -9,10 +9,10 @@ import { badgeToken, hashBadgeToken } from "../utils/badgeToken.js";
 test("badges : génération, réimpression, révocation et pointage HTTP", async t => {
   const originals = { query: pool.query, connect: pool.connect, secret: process.env.BADGE_SECRET };
   process.env.BADGE_SECRET = "test-badge-secret-with-more-than-32-characters";
-  let state, snapshot, role, currentRole, org, failAudit, calls, now, scheduleRows, failEvent;
+  let state, snapshot, role, currentRole, org, calls, now, scheduleRows, failEvent;
   function reset() {
     state = { badges: [], events: [], summary: null, personActive: true };
-    role = currentRole = "COORDINATOR"; org = "7"; failAudit = false; calls = [];
+    role = currentRole = "COORDINATOR"; org = "7"; calls = [];
     now = { now: "2026-10-08T05:30:00Z", date: "2026-10-08", day: 4, time: "08:30", pointage_qr: true };
     scheduleRows = [{ jour_semaine: 4, fin_jour_suivant: false, start: "08:00", end: "12:00", tolerance: 15 }];
     failEvent = false;
@@ -37,7 +37,6 @@ test("badges : génération, réimpression, révocation et pointage HTTP", async
     }
     if (sql.startsWith("UPDATE badges SET token_hash")) { state.badges.find(b => b.id === values[1]).token_hash = values[2]; return { rows: [] }; }
     if (sql.startsWith("UPDATE badges SET revoked_at")) { state.badges.find(b => b.id === values[1]).revoked = true; return { rows: [] }; }
-    if (sql.startsWith("INSERT INTO journal_audit")) { if (failAudit) throw new Error("audit failure"); return { rows: [] }; }
     if (sql.startsWith("SELECT b.id, b.personnel_id")) {
       assert.match(sql, /b.revoked_at IS NULL AND p.actif = true/);
       const row = state.badges.find(b => b.organisation_id === org && b.token_hash === values[1] && !b.revoked && state.personActive);
@@ -97,13 +96,6 @@ test("badges : génération, réimpression, révocation et pointage HTTP", async
     state.personActive = true; org = "8"; assert.equal((await scan(badge.token)).status, 404); assert.equal((await request("/personnel/2")).status, 404);
     org = "7"; assert.equal((await request("/personnel/2/revoke", "POST", {})).status, 200); assert.equal((await scan(badge.token)).status, 404);
   });
-  await t.test("retour arrière si l'audit échoue", async () => {
-    const badge = await issue(); failAudit = true;
-    assert.equal((await request("/personnel/2", "POST", { regenerate: true })).status, 500);
-    assert.equal(state.badges.length, 1); assert.equal(state.badges[0].revoked, undefined);
-    assert.equal(publicToken(), badge.token);
-  });
-  function publicToken() { return badgeToken(state.badges[0]); }
   await t.test("scan secrétaire : arrivée persistée, retard et idempotence", async () => {
     const badge = await issue(); role = currentRole = "SECRETARY";
     const key = randomUUID(); assert.equal((await scan(badge.token, key)).status, 200);

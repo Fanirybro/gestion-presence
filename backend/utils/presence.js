@@ -36,10 +36,6 @@ export function presenceController(action, { coordinator = false } = {}) {
     } finally { client?.release(); }
   };
 }
-export async function auditPresence(client, req, entity, id, action, before, after, motif) {
-  await client.query(`INSERT INTO journal_audit (organisation_id, acteur_id, entite, entite_id, action, motif, avant, apres)
-    VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)`, [req.user.organisation_id, req.session.userId, entity, id, action, motif, JSON.stringify(before), JSON.stringify(after)]);
-}
 export const attendanceSelect = `SELECT p.id, p.personnel_id AS "agentId", to_char(p.date_presence, 'YYYY-MM-DD') AS date,
   p.periode,
   coalesce(to_char(p.arrivee_at AT TIME ZONE o.fuseau_horaire, 'HH24:MI'), '') AS "arrivalAt",

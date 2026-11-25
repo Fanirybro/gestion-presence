@@ -1,4 +1,4 @@
-import { presenceController, inputBody, fail, validDate, validTime, reason, attendanceSelect, attendanceById, auditPresence, reconcileAbsences, lateForArrival } from "../utils/presence.js";
+import { presenceController, inputBody, fail, validDate, validTime, reason, attendanceSelect, attendanceById, reconcileAbsences, lateForArrival } from "../utils/presence.js";
 
 const isSuperAdminRole = (role) => role === "SUPERADMIN" || role === "COORDINATOR";
 
@@ -29,10 +29,7 @@ export const getPresence = presenceController(async (req, client) => {
       fail(403, "Accès refusé : ce pointage concerne un agent d'une autre division.");
     }
   }
-  const audit = await client.query(`SELECT j.id, j.entite_id AS "entityId", j.created_at AS at, j.action, coalesce(j.motif,'') AS reason,
-    concat_ws(' ', u.prenom, u.nom) AS actor FROM journal_audit j LEFT JOIN users u ON u.id = j.acteur_id
-    WHERE j.organisation_id = $1 AND j.entite = 'presences_journalieres' AND j.entite_id = $2 ORDER BY j.created_at DESC, j.id DESC`, [org, req.params.id]);
-  return { attendance, audit: audit.rows };
+  return { attendance };
 });
 
 export const correctPresence = presenceController(async (req, client) => {
@@ -70,7 +67,6 @@ export const correctPresence = presenceController(async (req, client) => {
     FROM organisations o WHERE p.organisation_id=$1 AND p.id=$2 AND o.id=p.organisation_id`,
     [org, before.id, arrival ? arrivalDate + ' ' + arrival : null, departure ? departureDate + ' ' + departure : null, arrival ? (late ? 'LATE' : 'PRESENT') : 'ABSENT', late, motif]);
   const attendance = await attendanceById(client, org, before.id);
-  await auditPresence(client, req, 'presences_journalieres', before.id, 'CORRECT', before, attendance, motif);
   return { attendance };
 });
 
@@ -90,6 +86,5 @@ export const justifyAbsence = presenceController(async (req, client) => {
 
   await client.query("UPDATE presences_journalieres SET statut='JUSTIFIED', source='MANUAL', remarque=$3, updated_at=clock_timestamp() WHERE organisation_id=$1 AND id=$2", [org, before.id, motif]);
   const attendance = await attendanceById(client, org, before.id);
-  await auditPresence(client, req, 'presences_journalieres', before.id, 'JUSTIFY', before, attendance, motif);
   return { attendance };
 });

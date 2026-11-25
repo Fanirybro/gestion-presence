@@ -85,10 +85,10 @@ multi-instance doit partager ce compteur. `requireAuth` recharge le compte,
 
 ## Personnel et départements
 
-Les tables `personnel`, `departements`, `organisation_members`, `badges` et
-`journal_audit` du schéma fourni sont utilisées sans migration supplémentaire.
+Les tables `personnel`, `departements`, `organisation_members` et `badges`
+du schéma fourni sont utilisées sans migration supplémentaire.
 Toutes les lectures sont limitées à l'organisation de la session. Les mutations
-sont réservées au coordinateur actif et exécutées dans une transaction avec audit.
+sont réservées au coordinateur actif et exécutées dans une transaction.
 
 | Route | Comportement |
 | --- | --- |

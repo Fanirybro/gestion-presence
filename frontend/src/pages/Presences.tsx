@@ -442,7 +442,7 @@ export function Presences({
                 ariaLabel={`Actions pour ${fullName(a)}`}
                 items={[
                   {
-                    label: "Détails & historique",
+                    label: "Détails",
                     icon: <Eye size={14} />,
                     onClick: () => {
                       navigate(`/presences/${p.id}`);
@@ -658,26 +658,7 @@ export function PresenceDetails() {
           <p>{p.note}</p>
         </div>
       )}
-      <section className="data-section">
-        <div className="section-heading">
-          <h2>Journal des modifications</h2>
-        </div>
-        <Table
-          loading={detail.isPending}
-          headers={["DATE", "AUTEUR", "ACTION", "MOTIF"]}
-          rows={
-            detail.data?.audit?.map((log) => [
-              new Date(log.at).toLocaleString("fr-FR", {
-                timeZone: "Indian/Antananarivo",
-              }),
-              log.actor,
-              log.action,
-              log.reason,
-            ]) || []
-          }
-          empty="Aucune modification enregistrée"
-        />
-      </section>
+
       <AnimatePresence>
         {modal && (
           <Modal

@@ -44,9 +44,6 @@ function publicBadge(row) {
   const token = badgeToken(row);
   return { id: String(row.id), personnel_id: String(row.personnel_id), token: hashBadgeToken(token) === row.token_hash ? token : null };
 }
-async function audit(client, req, badgeId, action) {
-  await client.query("INSERT INTO journal_audit (organisation_id, acteur_id, entite, entite_id, action) VALUES ($1, $2, 'badges', $3, $4)", [req.user.organisation_id, req.session.userId, badgeId, action]);
-}
 async function issue(client, req, id, regenerate = false) {
   const org = req.user.organisation_id;
   const person = await personnel(client, org, id);
@@ -59,7 +56,6 @@ async function issue(client, req, id, regenerate = false) {
   }
   if (existing) {
     await client.query("UPDATE badges SET revoked_at = now(), revoked_by = $3 WHERE organisation_id = $1 AND id = $2", [org, existing.id, req.session.userId]);
-    await audit(client, req, existing.id, "REVOKE");
   }
   return insertBadge(client, org, id, req.session.userId);
 }
@@ -78,7 +74,6 @@ export const revokeBadge = controller(async (req, client) => {
   const existing = await activeBadge(client, req.user.organisation_id, req.params.id);
   if (existing) {
     await client.query("UPDATE badges SET revoked_at = now(), revoked_by = $3 WHERE organisation_id = $1 AND id = $2", [req.user.organisation_id, existing.id, req.session.userId]);
-    await audit(client, req, existing.id, "REVOKE");
   }
   return { badge: null };
 }, { write: true });

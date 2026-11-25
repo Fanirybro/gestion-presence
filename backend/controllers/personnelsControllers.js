@@ -76,11 +76,6 @@ async function find(client, organisationId, personnelId) {
   if (!rows[0]) fail(404, "Agent introuvable.");
   return rows[0];
 }
-async function audit(client, req, entity, entityId, action, before, after) {
-  await client.query(`INSERT INTO journal_audit (organisation_id, acteur_id, entite, entite_id, action, avant, apres)
-    VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
-  [req.user.organisation_id, req.session.userId, entity, entityId, action, JSON.stringify(before), JSON.stringify(after)]);
-}
 async function validatePersonnel(client, req, input, previous = {}) {
   const data = { ...previous, ...input };
   for (const key of ["nom", "prenom"]) data[key] = name(data[key], key);
@@ -151,7 +146,6 @@ export const createPersonnel = controller(async (req, client) => {
     [req.user.organisation_id, ...fields.map(key => key === "metadata" ? JSON.stringify(data[key]) : data[key])]
   );
   const saved = await find(client, req.user.organisation_id, rows[0].id);
-  await audit(client, req, "personnel", saved.id, "CREATE", null, saved);
   const badge = saved.actif ? await insertBadge(client, req.user.organisation_id, saved.id, req.session.userId) : null;
   return { status: 201, body: { personnel: saved, badge } };
 }, { write: true });
@@ -171,7 +165,6 @@ export const updatePersonnel = controller(async (req, client) => {
     await client.query("UPDATE badges SET revoked_at = now(), revoked_by = $3 WHERE organisation_id = $1 AND personnel_id = $2 AND revoked_at IS NULL", [req.user.organisation_id, req.params.id, req.session.userId]);
   }
   const saved = await find(client, req.user.organisation_id, req.params.id);
-  await audit(client, req, "personnel", saved.id, "UPDATE", previous, saved);
   return { body: { personnel: saved } };
 }, { write: true, byId: true });
 
@@ -191,7 +184,6 @@ export const deletePersonnel = controller(async (req, client) => {
   await client.query("DELETE FROM face_profiles WHERE personnel_id = $1", [id]);
   await client.query("DELETE FROM personnel WHERE organisation_id = $1 AND id = $2", [org, id]);
 
-  await audit(client, req, "personnel", id, "DELETE", previous, null);
   return { status: 200, body: { success: true, message: "Agent supprimé avec succès." } };
 }, { write: true, byId: true });
 
@@ -235,7 +227,6 @@ export const createDivision = controller(async (req, client) => {
       }
     }
   }
-  await audit(client, req, "divisions", divId, "CREATE", null, rows[0]);
   return { status: 201, body: { division: rows[0], departement: rows[0] } };
 }, { write: true });
 
@@ -267,7 +258,6 @@ export const updateDivision = controller(async (req, client) => {
       }
     }
   }
-  await audit(client, req, "divisions", data.id, "UPDATE", rows[0], data);
   return { body: { division: data, departement: data } };
 }, { write: true, byId: true });
 
@@ -298,13 +288,6 @@ export const assignPersonnelsToDivision = controller(async (req, client) => {
      RETURNING id, nom, prenom`,
     [divisionId, req.user.organisation_id, personnel_ids]
   );
-
-  for (const agent of updated) {
-    await audit(client, req, "personnel", agent.id, "UPDATE_DIVISION", null, {
-      division_id: divisionId,
-      division_nom: divRows[0].nom,
-    });
-  }
 
   return { body: { success: true, count: updated.length, division: divRows[0] } };
 }, { write: true, byId: true });
