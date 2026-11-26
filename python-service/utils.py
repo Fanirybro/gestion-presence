@@ -8,13 +8,6 @@ import numpy as np
 import shutil
 import tempfile
 
-# Try importing face_recognition if available in the environment
-try:
-    import face_recognition  # type: ignore
-    HAS_FACE_RECOGNITION = True
-except Exception:
-    HAS_FACE_RECOGNITION = False
-
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 YUNET_PATH = os.path.join(MODELS_DIR, "face_detection_yunet.onnx")
 SFACE_PATH = os.path.join(MODELS_DIR, "face_recognition_sface.onnx")
@@ -105,23 +98,9 @@ def decode_base64_image(image_data: str) -> np.ndarray:
 
 def extract_face_embedding(img: np.ndarray) -> List[float]:
     """
-    Détecte le visage et extrait un vecteur biométrique (embedding) de 128 dimensions.
-    Priorise face_recognition si disponible, sinon utilise OpenCV YuNet + SFace ONNX.
+    Détecte le visage et extrait un vecteur biométrique (embedding) de 128 dimensions
+    via les modèles de Deep Learning OpenCV YuNet + SFace ONNX.
     """
-    # 1. Option face_recognition (si installé)
-    if HAS_FACE_RECOGNITION:
-        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        locations = face_recognition.face_locations(rgb_img, model="hog")
-        if not locations:
-            raise ValueError("Aucun visage détecté sur l'image.")
-        encodings = face_recognition.face_encodings(rgb_img, locations)
-        if not encodings:
-            raise ValueError("Impossible d'extraire les caractéristiques faciales.")
-        # Return first face embedding normalized
-        vec = encodings[0].tolist()
-        return vec
-
-    # 2. Option OpenCV YuNet + SFace (Deep Learning natif)
     detector, recognizer = get_opencv_models()
     h, w = img.shape[:2]
     detector.setInputSize((w, h))

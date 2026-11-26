@@ -9,7 +9,6 @@ from utils import (
     decode_base64_image,
     extract_face_embedding,
     verify_face_match,
-    HAS_FACE_RECOGNITION,
 )
 
 app = FastAPI(
@@ -51,7 +50,7 @@ def health_check():
     return {
         "status": "online",
         "service": "face-recognition-ai",
-        "engine": "face_recognition" if HAS_FACE_RECOGNITION else "opencv_yunet_sface",
+        "engine": "opencv_yunet_sface",
     }
 
 
